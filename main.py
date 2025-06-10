@@ -1,8 +1,12 @@
 import sys, os
 
 dirname = os.path.dirname(sys.argv[0]) or '.'
+sys.path.append(f"{dirname}/modules")
 
 import discord, asyncio, time, json
+
+# modules
+import test
 
 client = discord.Bot(chunk_guilds_at_startup=False)
 owners = []
