@@ -5,10 +5,10 @@ class testing(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
     
-#    testG = discord.SlashCommandGroup('test','Just testing stuff')
+    testG = discord.SlashCommandGroup('test','Just testing stuff')
 
-#    @testG.command(name="test",Description="Fellow Bar")
-    @discord.slash_command(name="test2",Description="Fellow Bar")
+    @testG.command(name="test",Description="Fellow Bar")
+#    @discord.slash_command(name="test2",Description="Fellow Bar")
     async def test2(self, ctx):
         await ctx.respond("This works maybe?")
 

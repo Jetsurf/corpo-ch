@@ -10,18 +10,14 @@ import discord, asyncio, time, json
 client = discord.Bot(chunk_guilds_at_startup=False)
 
 # cogs
-'''
 cogList = [
-	'testing'
+	'testing',
+	'fun'
 ]
 
 for cog in cogList:
 	client.load_extension(f'cogs.{cog}')
 	print(f'Cog loaded: {cog}')
-'''
-@client.slash_command(name="flop",Description="Fellow Bar")
-async def flop(ctx):
-	await ctx.respond("This works maybe?")
 
 owners = []
 doneStartup = False
