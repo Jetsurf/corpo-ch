@@ -1,13 +1,14 @@
-import discord, requests, os, sys, json
+import discord, requests, os, sys, json, platform, time
 from discord.ext import commands
+#from sng_parser import decode_sng
+import sng_parser
 
 class ch(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
         # CHOpt path
-        dirname = os.path.dirname(sys.argv[0]) or '.'
-        self.CHOptPath = f'{dirname}/../CHOpt'
+        self.CHOptPath = f'CHOpt/CHOpt' + ('.exe','')[platform.system() == 'Windows']
 
         # enchor.us API urls
         self.enchor={}
@@ -40,7 +41,11 @@ class ch(commands.Cog):
         return s
     
     def enchorDownload(self, url: str):
-        return
+        resp=requests.get(url)
+        filePath=f'dl/chart_{time.process_time_ns()}.sng'
+        with open(filePath,'wb') as file:
+            file.write(resp.content)
+        return filePath
     
     ch = discord.SlashCommandGroup('ch','CloneHero tools')
     @ch.command(name='path',description='Generate a path for a given chart on Chorus')
@@ -56,14 +61,24 @@ class ch(commands.Cog):
 
         # form download url
         url=self.enchor['dl'] + s['md5'] + ('_novideo','')[not s['hasVideoBackground']] + '.sng'
-        enchorDownload(url)
-#https://www.enchor.us/download?md5=ce60a1df07f48526d68568fa73a4fc56&isSng=false&downloadNovideoVersion=false&filename=Cordova%2520-%2520Alive%2520%28QwertyBurger%29
-#https://www.enchor.us/download?md5=d92a3e7e40e733831ebc9f9606dc5a14&isSng=false&downloadNovideoVersion=false&filename=Insomnium%2520-%2520Heart%2520Like%2520a%2520Grave%2520%28K4JK0%29
-#https://files.enchor.us/${md5 + (downloadNovideoVersion ? '_novideo' : '')}.sng
+        filePath=self.enchorDownload(url)
 
+        # decode sng
+#        sng_parser.decode_sng(filePath,sng_dir=f'{filePath}_outDir')
+
+        # generate path
+#        self.CHOpt()
+
+        # clean up
+#        os.remove(filePath)
+#        shutil.rmtree(f'{filePath}_outDir')
+
+        # return path image
         print(url)
         await ctx.respond(url)
 
+#https://www.enchor.us/download?md5=d92a3e7e40e733831ebc9f9606dc5a14&isSng=false&downloadNovideoVersion=false&filename=Insomnium%2520-%2520Heart%2520Like%2520a%2520Grave%2520%28K4JK0%29
+#https://files.enchor.us/${md5 + (downloadNovideoVersion ? '_novideo' : '')}.sng
 
 def setup(bot):
     bot.add_cog(ch(bot))
