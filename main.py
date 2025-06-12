@@ -11,8 +11,8 @@ client = discord.Bot(chunk_guilds_at_startup=False)
 
 # cogs
 cogList = [
-	'testing',
-	'fun'
+	'fun',
+	'ch'
 ]
 
 for cog in cogList:

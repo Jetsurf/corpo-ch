@@ -18,7 +18,7 @@ class fun(commands.Cog):
 
     @fun.command(name='joke',description='Need a joke? Have a joke!')
     async def joke(self, ctx):
-        resp = requests.get(self.joke.url)
+        resp = requests.get(self.joke.url,headers={"Accept":"application/json"})
         await ctx.respond(resp.json()['joke'])
 
 def setup(bot):
