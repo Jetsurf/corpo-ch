@@ -68,20 +68,20 @@ class EncoreModal(Modal):
 		self.stop()
 
 class SubmitModal(Modal):
-		def __init__(self, path, numCharts, *args, **kwargs):
-			super().__init__(*args, **kwargs)
-			self.path = path
-			self.selection = -1
-			self.numCharts = numCharts
-			self.add_item(InputText(label="Chart #", style=discord.InputTextStyle.short, required=True, placeholder=f"1-{self.path.numCharts}"))
+	def __init__(self, path, numCharts, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		self.path = path
+		self.selection = -1
+		self.numCharts = numCharts
+		self.add_item(InputText(label="Chart #", style=discord.InputTextStyle.short, required=True, placeholder=f"1-{self.path.numCharts}"))
 
-		async def callback(self, interaction: discord.Interaction):
-			if not self.children[0].value.isdigit() and (int(self.children[0].value) < 1 or int(self.children[0].value) > self.path.numCharts):
-				await interaction.response.send_message(f"Invalid chart number, ", ephemeral=True, delete_after=5)
-			else:
-				self.selection = int(self.children[0].value)
-				await interaction.response.send_message(f"Selected chart {self.selection}, hit submit again to generate the path!", ephemeral=True, delete_after=5)
-				self.stop()
+	async def callback(self, interaction: discord.Interaction):
+		if not self.children[0].value.isdigit() and (int(self.children[0].value) < 1 or int(self.children[0].value) > self.path.numCharts):
+			await interaction.response.send_message(f"Invalid chart number, ", ephemeral=True, delete_after=5)
+		else:
+			self.selection = int(self.children[0].value)
+			await interaction.response.send_message(f"Selected chart {self.selection}, hit submit again to generate the path!", ephemeral=True, delete_after=5)
+			self.stop()
 
 class Path():
 	def __init__(self, ctx):
@@ -167,44 +167,44 @@ class Path():
 		os.remove(outPng)
 
 class PathView(discord.ui.View):
-		def __init__(self, path, doneSearch):
-			super().__init__()
-			self.path = path
+	def __init__(self, path, doneSearch):
+		super().__init__()
+		self.path = path
 
-			if not doneSearch or self.path.numCharts < 1:
-				self.get_item('submit').disabled = True
-				self.get_item('chopts').disabled = True
+		if not doneSearch or self.path.numCharts < 1:
+			self.get_item('submit').disabled = True
+			self.get_item('chopts').disabled = True
 
-		@discord.ui.button(label="Cancel", style=discord.ButtonStyle.red)
-		async def cancelBtn(self, button, interaction: discord.Interaction):
-			await interaction.response.edit_message(content="Closing", embed=None, view=None, delete_after=1)
-			self.stop()
+	@discord.ui.button(label="Cancel", style=discord.ButtonStyle.red)
+	async def cancelBtn(self, button, interaction: discord.Interaction):
+		await interaction.response.edit_message(content="Closing", embed=None, view=None, delete_after=1)
+		self.stop()
 
-		@discord.ui.button(label='Search', style=discord.ButtonStyle.secondary)
-		async def searchBtn(self, button, interaction: discord.Interaction):
-			await interaction.response.send_modal(EncoreModal(self.path, title="Encore search for chart"))
+	@discord.ui.button(label='Search', style=discord.ButtonStyle.secondary)
+	async def searchBtn(self, button, interaction: discord.Interaction):
+		await interaction.response.send_modal(EncoreModal(self.path, title="Encore search for chart"))
 
-		@discord.ui.button(label='CHOpt Options', style=discord.ButtonStyle.secondary, custom_id="chopts")
-		async def choptsBtn(self, button, interaction: discord.Interaction):
-			choptsModal = CHOptModal(self.path, title="CHOpt options to use for path")
-			await interaction.response.send_modal(choptsModal)
-			await choptsModal.wait()
+	@discord.ui.button(label='CHOpt Options', style=discord.ButtonStyle.secondary, custom_id="chopts")
+	async def choptsBtn(self, button, interaction: discord.Interaction):
+		choptsModal = CHOptModal(self.path, title="CHOpt options to use for path")
+		await interaction.response.send_modal(choptsModal)
+		await choptsModal.wait()
 
-			self.path.choptOpts = choptsModal.choptOpts
-			await self.path.show()
+		self.path.choptOpts = choptsModal.choptOpts
+		await self.path.show()
 
-		@discord.ui.button(label="Submit", style=discord.ButtonStyle.green, custom_id="submit")
-		async def submitBtn(self, button, interaction: discord.Interaction):
-			if self.path.numCharts > 1 and self.path.selection == -1:
-				submitModal = SubmitModal(self.path, self.path.numCharts, title="Chart Number to use for CHOpt Path")
-				await interaction.response.send_modal(submitModal)
-				await submitModal.wait()
-				self.path.selection = submitModal.selection
-				return
-			else:
-				self.path.selection = 1
+	@discord.ui.button(label="Submit", style=discord.ButtonStyle.green, custom_id="submit")
+	async def submitBtn(self, button, interaction: discord.Interaction):
+		if self.path.numCharts > 1 and self.path.selection == -1:
+			submitModal = SubmitModal(self.path, self.path.numCharts, title="Chart Number to use for CHOpt Path")
+			await interaction.response.send_modal(submitModal)
+			await submitModal.wait()
+			self.path.selection = submitModal.selection
+			return
+		else:
+			self.path.selection = 1
 
-			await self.path.showResult(interaction)
+		await self.path.showResult(interaction)
 
 class CHCmds(commands.Cog):
 	def __init__(self, bot):
