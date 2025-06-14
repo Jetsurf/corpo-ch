@@ -37,7 +37,7 @@ class CHOptModal(Modal):
 			retData['speed'] = int(self.children[2].value)
 
 		self.choptOpts = retData
-		await interaction.response.send_message("CHOpt options set!", ephemeral=True)
+		await interaction.response.send_message("CHOpt options set!", ephemeral=True, delete_after=5)
 		self.stop()
 
 class EncoreModal(Modal):
@@ -145,9 +145,11 @@ class Path():
 				chartListing += f"{i+1}: {chart["name"]} - {chart["artist"]} - {chart["album"]} - {chart["charter"]}\n"
 		else:
 			chartListing = "No results found for search"
-			
+
 		embed.add_field(name="Search Results", value=chartListing, inline=False)
-		embed.add_field(name="Current CHOpt Options", value=f"Early Whammy: {self.choptOpts['whammy']}%\nSqueeze: {self.choptOpts['squeeze']}%\nSong Speed: {self.choptOpts['speed']}%")
+		if self.numCharts > 0:
+			embed.add_field(name="Current CHOpt Options", value=f"Early Whammy: {self.choptOpts['whammy']}%\nSqueeze: {self.choptOpts['squeeze']}%\nSong Speed: {self.choptOpts['speed']}%")
+
 		return embed
 
 	def genResultEmbed(self, outPng) -> discord.Embed:
