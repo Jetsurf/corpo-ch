@@ -1,4 +1,4 @@
-import subprocess, requests, sys, platform, uuid, json, os
+import subprocess, requests, sys, platform, uuid, json, os, operator
 
 class CHUtils():
 	def __init__(self):
@@ -43,14 +43,22 @@ class CHUtils():
 			d[i] = { 'value' : query[i], 'exact' : True, 'exclude' : False }
 
 		resp = requests.post(self.encore['adv'], data = json.dumps(d), headers = {"Content-Type":"application/json"})
+
+		#remove dupelicate chart entries from search
+		theJson = resp.json()['data']
+		for i, chart1 in enumerate(theJson):
+			for j, chart2 in enumerate(theJson):
+				if chart1['ordering'] == chart2['ordering'] and i != j:
+					del theJson[j]
+
 		retData = []
 		atts = ['name','artist','md5','charter','album','hasVideoBackground']
-		for i, v in enumerate(resp.json()['data']):
+		for i, v in enumerate(theJson):
 			if i > 10:
 				break
 
 			s = {}
-			d = resp.json()['data'][i]
+			d = theJson[i]
 			for j in atts:
 				s[j] = d[j]
 
@@ -68,7 +76,7 @@ class CHUtils():
 		with open(filePath,'wb') as file:
 			file.write(resp.content)
 
-		return sngUuid
+		return sngUuid, url
 
 	def sngDecode(self, sngUuid) -> bool:
 		os.makedirs(f'{self.sngCliOutput}/{sngUuid}')
