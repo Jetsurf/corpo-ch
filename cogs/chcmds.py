@@ -37,7 +37,7 @@ class CHOptModal(Modal):
 			retData['speed'] = int(self.children[2].value)
 
 		self.choptOpts = retData
-		await interaction.response.send_message("CHOpt Options")
+		await interaction.response.send_message("CHOpt options set!", ephemeral=True)
 		self.stop()
 
 class EncoreModal(Modal):
