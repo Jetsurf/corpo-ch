@@ -76,8 +76,8 @@ class SubmitModal(Modal):
 		self.add_item(InputText(label="Chart #", style=discord.InputTextStyle.short, required=True, placeholder=f"1-{self.path.numCharts}"))
 
 	async def callback(self, interaction: discord.Interaction):
-		if not self.children[0].value.isdigit() and (int(self.children[0].value) < 1 or int(self.children[0].value) > self.path.numCharts):
-			await interaction.response.send_message(f"Invalid chart number, ", ephemeral=True, delete_after=5)
+		if not self.children[0].value.isdigit() or int(self.children[0].value) < 1 or int(self.children[0].value) > self.path.numCharts:
+			await interaction.response.send_message(f"Invalid chart number, needs to be 1-{self.path.numCharts}", ephemeral=True, delete_after=5)
 		else:
 			self.selection = int(self.children[0].value)
 			await interaction.response.send_message(f"Selected chart {self.selection}, hit submit again to generate the path!", ephemeral=True, delete_after=5)
@@ -126,6 +126,7 @@ class Path():
 	async def doSearch(self, inQuery):
 		self.searchData = self.chUtils.encoreSearch(inQuery)
 		self.numCharts = len(self.searchData)
+		self.selection = -1
 		await self.show()
 
 	def genInstructionEmbed(self) -> discord.Embed:
@@ -202,7 +203,10 @@ class PathView(discord.ui.View):
 			submitModal = SubmitModal(self.path, self.path.numCharts, title="Chart Number to use for CHOpt Path")
 			await interaction.response.send_modal(submitModal)
 			await submitModal.wait()
-			self.path.selection = submitModal.selection
+
+			if submitModal.selection > 0:
+				self.path.selection = submitModal.selection
+
 			return
 		else:
 			self.path.selection = 1
