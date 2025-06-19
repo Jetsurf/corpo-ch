@@ -31,8 +31,11 @@ def loadConfig():
 
 		print('Config Loaded')
 	except Exception as e:
-		print(f"Failed to load config: {str(e)}")
-		quit(1)
+		print(f"Failed to load config: {str(e)} - attempting env variables")
+		configData['token'] = os.environ.get('DBOT_TOKEN', None)
+		if not configData['token']:
+			print("No DBOT_TOKEN env var found. Quitting.")
+			quit(1)
 
 async def retrieveOwners():
 	global client, owners

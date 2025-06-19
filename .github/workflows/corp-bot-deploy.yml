@@ -11,13 +11,16 @@ jobs:
     if: endswith(github.ref, 'main')
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v5
         with:
-          python-version: 3.11
+          python-version: 3.13
       - name: Install
         run: |
           python3 -m venv env
           pip install --upgrade pip
           source env/bin/activate
-          pip3 install py-cord
-          #pip3 install -r requirements.txt
+          pip3 install -r requirements.txt
+      - name: Run
+        run: |
+          pip3 install -U -r requirements.txt
+          python3 main.py
