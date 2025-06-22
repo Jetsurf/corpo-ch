@@ -7,12 +7,15 @@ sys.path.append(f"{dirname}/modules")
 
 import discord, asyncio, time, json
 
-client = discord.Bot(chunk_guilds_at_startup=False)
+intents = discord.Intents.default()
+intents.members = True
+client = discord.Bot(intents=intents, chunk_guilds_at_startup=False)
 
 # cogs
 cogList = [
 	'fun',
-	'chcmds'
+	'chcmds',
+	'tourneycmds'
 ]
 
 for cog in cogList:

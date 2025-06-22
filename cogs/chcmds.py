@@ -108,19 +108,20 @@ class Path():
 		sngUuid = self.chUtils.encoreDownload(self.searchData[self.selection - 1])
 
 		if not self.chUtils.sngDecode(sngUuid):
-			await interaction.response.send_message('Path generation died on sng file decode. SNG UUID: {sngUuid}', ephemeral=True)
+			await interaction.followup.send('Path generation died on sng file decode. SNG UUID: {sngUuid}', ephemeral=True)
 			await self.hide()
 			return
 
 		outPng = self.chUtils.CHOpt(sngUuid, self.choptOpts)
 		if not outPng:
-			await interaction.response.send_message("Path generation died on CHOpt call.", ephemeral=True)
+			await interaction.followup.send("Path generation died on CHOpt call.", ephemeral=True)
 			await self.hide()
 			return
 
 		embed = self.genResultEmbed(sngUuid)
-		await interaction.response.send_message(embed=embed, view=None, ephemeral=False)
+		await interaction.followup.send(embed=embed, view=None, ephemeral=False)
 		await self.hide()
+		#await self.hide()
 		self.cleanup(sngUuid, outPng)
 
 	async def doSearch(self, inQuery):
@@ -218,6 +219,8 @@ class PathView(discord.ui.View):
 		elif self.path.numCharts == 1:
 			self.path.selection = 1
 
+		await interaction.response.defer(invisible=True)
+		self.stop()
 		await self.path.showResult(interaction)
 
 class CHCmds(commands.Cog):
