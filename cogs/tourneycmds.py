@@ -53,8 +53,11 @@ class BanSelect(discord.ui.Select):
 
 		songOpts = []
 		for song in self.match.setlist:
-			theSong = discord.SelectOption(label=song['name'], description=f"{song['artist']} - {song['charter']}")
-			songOpts.append(theSong)
+			if (self.match.ban1 and song['name'] in self.match.ban1) or (self.match.ban2 and song['name'] in self.match.ban2):
+				continue
+			else:
+				theSong = discord.SelectOption(label=song['name'], description=f"{song['artist']} - {song['charter']}")
+				songOpts.append(theSong)
 
 		super().__init__(placeholder=placeholder, max_values=1,	options=songOpts, custom_id=custom_id)
 
@@ -82,9 +85,13 @@ class SongRoundSelect(discord.ui.Select):
 		else:
 			placeholder = "Song Played"
 
+		playedSongs = []
+		for rnd in self.match.rounds:
+			playedSongs.append(rnd['song'])
+
 		songOpts = []
 		for song in self.match.setlist:
-			if song['name'] in self.match.ban1 or song['name'] in self.match.ban2:
+			if song['name'] in self.match.ban1 or song['name'] in self.match.ban2 or song['name'] in playedSongs:
 				continue
 			else:
 				theSong = discord.SelectOption(label=song['name'], description=f"{song['artist']} - {song['charter']}")
@@ -99,10 +106,10 @@ class SongRoundSelect(discord.ui.Select):
 class PlayerRoundSelect(discord.ui.Select):
 	def __init__(self, match):
 		self.match = match
-		if self.match.roundSngPlchldr:
-			placeholder = f"Song Played: {self.match.roundSngPlchldr}"
+		if self.match.roundWinPlchldr:
+			placeholder = f"Round Winner: {self.match.roundWinPlchldr.display_name}"
 		else:
-			placeholder = "Song Played"
+			placeholder = "Round Winner"
 
 		player1 = discord.SelectOption(label=self.match.player1.display_name)
 		player2 = discord.SelectOption(label=self.match.player2.display_name)
@@ -111,15 +118,11 @@ class PlayerRoundSelect(discord.ui.Select):
 	async def callback(self, interaction: discord.Integration):
 		if self.values[0] == self.match.player1.display_name:
 			winner = self.match.player1
-			placeholder = f"Winner: {self.match.player1.display_name}"
 		elif self.values[0] == self.match.player2.display_name:
 			winner = self.match.player2
-			placeholder = f"Winner: {self.match.player2.display_name}"
-		else:
-			placeholder = "Song Winner"
 
 		self.match.roundWinPlchldr = winner
-		await interaction.respond(f"Player {winner.display_name}", ephemeral=True, delete_after=5)
+		await interaction.respond(f"Player {winner.display_name} select for win", ephemeral=True, delete_after=5)
 		await self.match.showTool()
 
 ##Need modal for groups/player selection
@@ -163,6 +166,9 @@ class DiscordMatch():
 		#TODO - figure out handling on groups stage vs playoffs
 		#TODO - figure out how to allow exhibition matches(?)
 
+		#NOTES - Persistent reload - remove dependency on ctx object. Depend on guildid channelid + messageid - save to DB
+		#      - Save all objects in this class to DB (plus ID's) - then on restart, reload the 
+
 	async def init(self):
 		pass
 
@@ -172,7 +178,7 @@ class DiscordMatch():
 		if self.shown:
 			await self.ctx.interaction.edit_original_response(embeds=[embed], view=DiscordMatchView(self))
 		else:
-			await self.ctx.respond(embeds=[embed], view=DiscordMatchView(self), ephemeral=True)
+			await self.ctx.respond(embeds=[embed], view=DiscordMatchView(self))
 			self.shown = True
 
 	async def previewMatchResult(self):
@@ -182,7 +188,7 @@ class DiscordMatch():
 	async def genMatchEmbed(self):
 		embed = discord.Embed(colour=0x3FFF33)
 		embed.title = "Current Match Results"
-
+		embed.set_author(name=f"Ref: {self.ctx.user.display_name}", icon_url=self.ctx.user.avatar.url)
 		if self.playersPicked:
 			embed.add_field(name="Players", value=f"{self.player1.display_name} vs {self.player2.display_name}", inline=False)
 		else:
@@ -213,9 +219,8 @@ class DiscordMatch():
 
 class DiscordMatchView(discord.ui.View):
 	def __init__(self, match):
-		super().__init__()
+		super().__init__(timeout = None) #Timeout of 0 makes view persistent - ALL discord objects need a custom_id defined as well
 		self.match = match
-		self.timeout = None #Timeout of 0 makes view persistent - ALL discord objects need a custom_id defined as well
 
 		#not using decorators as buttons will be placed dynamically
 		cancel = discord.ui.Button(label="Cancel", style=discord.ButtonStyle.red, custom_id="cancelBtn")
@@ -269,10 +274,17 @@ class DiscordMatchView(discord.ui.View):
 			self.add_item(SongRoundSelect(self.match))
 			self.add_item(PlayerRoundSelect(self.match))
 
+	async def interaction_check(self, interaction: discord.Interaction):
+		if interaction.user.id == self.match.ctx.author.id:
+			return True
+		else:
+			await interaction.response.send_message("You are not the ref for this match", ephemeral=True, delete_after=5)
+			return False
+
 	async def cancelBtn(self, interaction: discord.Interaction):
 		if self.match.confirmCancel:
 			await interaction.response.edit_message(content="Closing", embed=None, view=None, delete_after=1)
-			await self.cancelMatch()
+			await self.match.cancelMatch()
 			self.stop()
 		else:
 			self.match.confirmCancel = True
