@@ -29,12 +29,10 @@ class PlayerSelect(discord.ui.Select):
 	async def callback(self, interaction: discord.Interaction):
 		if "player1" in self.custom_id:
 			self.match.player1 = self.values[0]
-			await interaction.respond(f"Player 1 is {self.values[0].display_name}", ephemeral=True, delete_after=5)
 		elif "player2" in self.custom_id:
 			self.match.player2 = self.values[0]
-			await interaction.respond(f"Player 2 is {self.values[0].display_name}", ephemeral=True, delete_after=5)
 
-		await self.match.showTool()
+		await self.match.showTool(interaction)
 
 class BanSelect(discord.ui.Select):
 	def __init__(self, match, custom_id):
@@ -70,12 +68,10 @@ class BanSelect(discord.ui.Select):
 
 		if "player1" in self.custom_id:
 			self.match.ban1 = theSong
-			await interaction.respond(f"{self.match.player1.display_name}\'s ban selection is {self.values[0]}", ephemeral=True, delete_after=5)
 		elif "player2" in self.custom_id:
 			self.match.ban2 = theSong
-			await interaction.respond(f"{self.match.player2.display_name}\'s ban selection is  {self.values[0]}", ephemeral=True, delete_after=5)
 
-		await self.match.showTool()
+		await self.match.showTool(interaction)
 
 class SongRoundSelect(discord.ui.Select):
 	def __init__(self, match):
@@ -100,8 +96,7 @@ class SongRoundSelect(discord.ui.Select):
 
 	async def callback(self, interaction: discord.Integration):
 		self.match.roundSngPlchldr = self.values[0]
-		await interaction.respond(f"Selected song that was played: {self.values[0]}", ephemeral=True, delete_after=5)
-		await self.match.showTool()
+		await self.match.showTool(interaction)
 
 class PlayerRoundSelect(discord.ui.Select):
 	def __init__(self, match):
@@ -122,8 +117,7 @@ class PlayerRoundSelect(discord.ui.Select):
 			winner = self.match.player2
 
 		self.match.roundWinPlchldr = winner
-		await interaction.respond(f"Player {winner.display_name} select for win", ephemeral=True, delete_after=5)
-		await self.match.showTool()
+		await self.match.showTool(interaction)
 
 ##Need modal for groups/player selection
 
@@ -134,8 +128,8 @@ class DiscordMatchDB():
 		pass
 
 class DiscordMatch():
-	def __init__(self, ctx):
-		self.ctx = ctx
+	def __init__(self, message):
+		self.msg = message
 		self.rounds = [] #list to append a dict of a match result
 		self.numRounds = 7 #Need to get the number of rounds from the tournament settings
 		self.setlist = [ #Test Data
@@ -162,7 +156,6 @@ class DiscordMatch():
 		self.confirmCancel = False
 		self.playersPicked = False
 		self.bansPicked = False
-		self.shown = False
 		#TODO - figure out handling on groups stage vs playoffs
 		#TODO - figure out how to allow exhibition matches(?)
 
@@ -172,23 +165,14 @@ class DiscordMatch():
 	async def init(self):
 		pass
 
-	async def showTool(self):
-		pass #not ready to let this execute
+	async def showTool(self, interaction):
 		embed = await self.genMatchEmbed()
-		if self.shown:
-			await self.ctx.interaction.edit_original_response(embeds=[embed], view=DiscordMatchView(self))
-		else:
-			await self.ctx.respond(embeds=[embed], view=DiscordMatchView(self))
-			self.shown = True
-
-	async def previewMatchResult(self):
-		#On Submit, show preview of embed with ephemeral=True to confirm all data?
-		pass
+		await interaction.edit(embeds=[embed], content=None, view=DiscordMatchView(self))
 
 	async def genMatchEmbed(self):
 		embed = discord.Embed(colour=0x3FFF33)
 		embed.title = "Current Match Results"
-		embed.set_author(name=f"Ref: {self.ctx.user.display_name}", icon_url=self.ctx.user.avatar.url)
+		embed.set_author(name=f"Ref: {self.msg.user.display_name}", icon_url=self.msg.user.avatar.url)
 		if self.playersPicked:
 			embed.add_field(name="Players", value=f"{self.player1.display_name} vs {self.player2.display_name}", inline=False)
 		else:
@@ -210,19 +194,11 @@ class DiscordMatch():
 
 		return embed
 
-	async def genResultEmbed(self):
-		embed = discord.Embed(colour=0x3FFF33)
-		embed.title = f"BRACKET/SETLISTNAME Match Results"
-		embed.set_author(name=f"Ref: {self.ctx.user.display_name}", icon_url=self.ctx.user.avatar.url)
-
-		return embed
-
 class DiscordMatchView(discord.ui.View):
 	def __init__(self, match):
-		super().__init__(timeout = None) #Timeout of 0 makes view persistent - ALL discord objects need a custom_id defined as well
+		super().__init__(timeout = None)
 		self.match = match
 
-		#not using decorators as buttons will be placed dynamically
 		cancel = discord.ui.Button(label="Cancel", style=discord.ButtonStyle.red, custom_id="cancelBtn")
 		cancel.callback = self.cancelBtn
 		self.add_item(cancel)
@@ -275,7 +251,7 @@ class DiscordMatchView(discord.ui.View):
 			self.add_item(PlayerRoundSelect(self.match))
 
 	async def interaction_check(self, interaction: discord.Interaction):
-		if interaction.user.id == self.match.ctx.author.id:
+		if interaction.user.id == self.match.msg.user.id:
 			return True
 		else:
 			await interaction.response.send_message("You are not the ref for this match", ephemeral=True, delete_after=5)
@@ -284,7 +260,6 @@ class DiscordMatchView(discord.ui.View):
 	async def cancelBtn(self, interaction: discord.Interaction):
 		if self.match.confirmCancel:
 			await interaction.response.edit_message(content="Closing", embed=None, view=None, delete_after=1)
-			await self.match.cancelMatch()
 			self.stop()
 		else:
 			self.match.confirmCancel = True
@@ -292,21 +267,19 @@ class DiscordMatchView(discord.ui.View):
 
 	async def playersBtn(self, interaction: discord.Interaction):
 		self.match.playersPicked = True
-		await interaction.response.send_message(f"Selected players {self.match.player1.display_name} and {self.match.player2.display_name} for match", ephemeral=True, delete_after=5)
 		self.stop()
-		await self.match.showTool()
+		await self.match.showTool(interaction)
 
 	async def bansBtn(self, interaction: discord.Interaction):
 		self.match.bansPicked = True
-		await interaction.response.send_message("Bans selected!", ephemeral=True, delete_after=5)
-		await self.match.showTool()
+		await self.match.showTool(interaction)
 
 	async def roundBtn(self, interaction: discord.Interaction):
 		await interaction.response.defer(invisible=True)
 		self.match.rounds.append({ 'song' : self.match.roundSngPlchldr, 'winner' : self.match.roundWinPlchldr })
 		self.match.roundWinPlchldr = None
 		self.match.roundSngPlchldr = ""
-		await self.match.showTool()
+		await self.match.showTool(interaction)
 
 	async def submitBtn(self, interaction: discord.Interaction):
 		await interaction.response.send_message("Not implemented yet")
@@ -322,9 +295,10 @@ class TourneyCmds(commands.Cog):
 	async def discordMatchCmd(self, ctx):
 		#TODO - Self Ref Match Check setup (DM user that didn't run the command to confirm?)
 		#     - Can bypass above with having a "Ref" role assigned
-		path = DiscordMatch(ctx)
+		message = await ctx.respond("Setting up")
+		path = DiscordMatch(message)
 		await path.init()
-		await path.showTool()
+		await path.showTool(message)
 
 	@match.command(name='reftool', description='Match report done with the ref tool', integration_types={discord.IntegrationType.guild_install})
 	async def refToolCmd(self, ctx):
