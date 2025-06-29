@@ -1,0 +1,5 @@
+py-cord
+audioop-lts
+requests
+pymysql
+aiomysql

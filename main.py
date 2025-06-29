@@ -6,13 +6,18 @@ dirname = os.path.dirname(sys.argv[0]) or '.'
 sys.path.append(f"{dirname}/modules")
 
 import discord, asyncio, time, json
+import tourneysql
+import mysqlhandler
 
-client = discord.Bot(chunk_guilds_at_startup=False)
+intents = discord.Intents.default()
+intents.members = True
+client = discord.Bot(intents=intents, chunk_guilds_at_startup=False)
 
 # cogs
 cogList = [
 	'fun',
-	'chcmds'
+	'chcmds',
+	'tourneycmds'
 ]
 
 for cog in cogList:
@@ -22,6 +27,7 @@ for cog in cogList:
 owners = []
 doneStartup = False
 configData = None
+mysqlHandler = None
 
 def loadConfig():
 	global configData
@@ -36,6 +42,27 @@ def loadConfig():
 		if not configData['token']:
 			print("No DBOT_TOKEN env var found. Quitting.")
 			quit(1)
+
+def startUpDB():
+	global configData, mysqlHandler, client
+
+	mysqlHandler = mysqlhandler.mysqlHandler(configData['mysql_host'], configData['mysql_user'], configData['mysql_pw'], configData['mysql_db'])
+
+	# Get the secrets the F out!
+	configData['mysql_host'] = None
+	configData['mysql_user'] = None
+	configData['mysql_pw'] = None
+	configData['mysql_db'] = None
+
+	client.loop.create_task(startUpDBAsync())
+
+async def startUpDBAsync():
+	global mysqlHandler
+
+	await mysqlHandler.startUp()
+
+	#mysqlSchema = mysqlschema.MysqlSchema(mysqlHandler)
+	#await mysqlSchema.update()
 
 async def retrieveOwners():
 	global client, owners
@@ -61,7 +88,7 @@ async def retrieveOwners():
 
 @client.event
 async def on_ready():
-	global client, doneStartup
+	global client, doneStartup, mysqlHandler
 
 	if not doneStartup:
 		print(f"Logged in as {client.user.name}#{client.user.discriminator} id {client.user.id}")
@@ -69,10 +96,15 @@ async def on_ready():
 	else:
 		print("RECONNECT TO DISCORD")
 
+	client.tourneyDB = tourneysql.TourneyDB(client, mysqlHandler)
+	await mysqlHandler.wait_for_startup()
+	await client.tourneyDB.loadMatches()
+
 	print('------Done with Startup------')
 	doneStartup = True
 
 loadConfig()
+startUpDB()
 print(f"--- Starting up at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} ---")
 print('Logging into discord')
 
