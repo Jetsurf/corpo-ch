@@ -119,17 +119,13 @@ class PlayerRoundSelect(discord.ui.Select):
 		self.match.roundWinPlchldr = winner
 		await self.match.showTool(interaction)
 
-##Need modal for groups/player selection
-
-class DiscordMatchDB():
-	def __init__(self):
-		#will require storing the current match data generated in DiscordMatch() into the DB until submitted
-		#need DB schema in place to reload a persistent view properly
-		pass
-
 class DiscordMatch():
-	def __init__(self, message):
+	def __init__(self, message, matchDB):
+		self.matchDB = matchDB
 		self.msg = message
+		self.creator = message.user if hasattr(message, 'user') else None
+		self.channel = message.channel if hasattr(message, 'channel') else None
+		self.id = -1
 		self.rounds = [] #list to append a dict of a match result
 		self.numRounds = 7 #Need to get the number of rounds from the tournament settings
 		self.setlist = [ #Test Data
@@ -165,14 +161,21 @@ class DiscordMatch():
 	async def init(self):
 		pass
 
-	async def showTool(self, interaction):
-		embed = await self.genMatchEmbed()
-		await interaction.edit(embeds=[embed], content=None, view=DiscordMatchView(self))
+	async def finishMatch(self, interaction):
+		#Save match results to DB
+		await self.matchDB.finishMatch(self)
+		await interaction.edit(embeds=[self.genMatchEmbed()], content=None, view=None)
 
-	async def genMatchEmbed(self):
+	async def showTool(self, interaction):
+		await self.matchDB.saveMatch(self)
+		self.msg = await interaction.edit(embeds=[self.genMatchEmbed()], content=None, view=DiscordMatchView(self))
+		#print(f"What? {self.msg.id} {self.msg.channel.id}")
+
+	def genMatchEmbed(self):
 		embed = discord.Embed(colour=0x3FFF33)
 		embed.title = "Current Match Results"
-		embed.set_author(name=f"Ref: {self.msg.user.display_name}", icon_url=self.msg.user.avatar.url)
+		embed.set_author(name=f"Ref: {self.creator.display_name}", icon_url=self.creator.avatar.url)
+
 		if self.playersPicked:
 			embed.add_field(name="Players", value=f"{self.player1.display_name} vs {self.player2.display_name}", inline=False)
 		else:
@@ -245,13 +248,13 @@ class DiscordMatchView(discord.ui.View):
 
 			if ply1Wins < 4 and ply2Wins < 4:
 				submit.disabled = True
-
+				self.add_item(SongRoundSelect(self.match))
+				self.add_item(PlayerRoundSelect(self.match))
+			
 			self.add_item(submit)
-			self.add_item(SongRoundSelect(self.match))
-			self.add_item(PlayerRoundSelect(self.match))
 
 	async def interaction_check(self, interaction: discord.Interaction):
-		if interaction.user.id == self.match.msg.user.id:
+		if interaction.user.id == self.match.creator.id:
 			return True
 		else:
 			await interaction.response.send_message("You are not the ref for this match", ephemeral=True, delete_after=5)
@@ -282,7 +285,8 @@ class DiscordMatchView(discord.ui.View):
 		await self.match.showTool(interaction)
 
 	async def submitBtn(self, interaction: discord.Interaction):
-		await interaction.response.send_message("Not implemented yet")
+		await interaction.response.defer(invisible=True)
+		await self.match.finishMatch(interaction)
 
 class TourneyCmds(commands.Cog):
 	def __init__(self, bot):
@@ -296,7 +300,7 @@ class TourneyCmds(commands.Cog):
 		#TODO - Self Ref Match Check setup (DM user that didn't run the command to confirm?)
 		#     - Can bypass above with having a "Ref" role assigned
 		message = await ctx.respond("Setting up")
-		path = DiscordMatch(message)
+		path = DiscordMatch(message, self.bot.tourneyDB)
 		await path.init()
 		await path.showTool(message)
 

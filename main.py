@@ -6,7 +6,7 @@ dirname = os.path.dirname(sys.argv[0]) or '.'
 sys.path.append(f"{dirname}/modules")
 
 import discord, asyncio, time, json
-
+import tourneysql
 import mysqlhandler
 
 intents = discord.Intents.default()
@@ -85,13 +85,17 @@ async def retrieveOwners():
 
 @client.event
 async def on_ready():
-	global client, doneStartup
+	global client, doneStartup, mysqlHandler
 
 	if not doneStartup:
 		print(f"Logged in as {client.user.name}#{client.user.discriminator} id {client.user.id}")
 		await retrieveOwners()
 	else:
 		print("RECONNECT TO DISCORD")
+
+	client.tourneyDB = tourneysql.TourneyDB(client, mysqlHandler)
+	await mysqlHandler.wait_for_startup()
+	await client.tourneyDB.loadMatches()
 
 	print('------Done with Startup------')
 	doneStartup = True
