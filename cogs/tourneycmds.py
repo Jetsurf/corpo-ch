@@ -38,28 +38,32 @@ class PlayerSelect(discord.ui.Select):
 class BanSelect(discord.ui.Select):
 	def __init__(self, match, custom_id):
 		self.match = match
+		self.usedSave = False
 
 		if 'player1' in custom_id:
 			if self.match.ban1:
-				placeholder = f"{self.match.player1.display_name} bans {self.match.ban1}"
+				if self.match.savesEnabled and self.match.ban1['save']:
+					placeholder = f"{self.match.player1.display_name} saves {self.match.ban1['name']}"
+				else:
+					placeholder = f"{self.match.player1.display_name} bans {self.match.ban1['name']}"
 			else:
 				placeholder = f"Select {self.match.player1.display_name}\'s Ban"
 		elif 'player2' in custom_id:
 			if self.match.ban2:
-				placeholder = f"{self.match.player2.display_name} bans {self.match.ban2}"
+				placeholder = f"{self.match.player2.display_name} bans {self.match.ban2['name']}"
 			else:
 				placeholder = f"Select {self.match.player2.display_name}\'s Ban"
 
 		songOpts = []
-		#Jank "save" option - could make it have an option for 2 selections, but only accept 1 if this option is selected(?)
-		if self.match.savesEnabled:
+		#Only allow saves for player1 for now, needs to move to "higher seed"
+		if self.match.savesEnabled and 'player1' in custom_id:
 			songOpts.append(discord.SelectOption(label="Song Save", description="No ban used"))
 			maxVals = 2
 		else:
 			maxVals = 1
 
 		for song in self.match.setlist:
-			if (self.match.ban1 and song['name'] in self.match.ban1) or (self.match.ban2 and song['name'] in self.match.ban2):
+			if (self.match.ban1 and song['name'] in self.match.ban1['name']) or (self.match.ban2 and song['name'] in self.match.ban2['name']):
 				continue
 			else:
 				theSong = discord.SelectOption(label=song['name'], description=f"{song['artist']} - {song['charter']}")
@@ -68,10 +72,24 @@ class BanSelect(discord.ui.Select):
 		super().__init__(placeholder=placeholder, max_values=maxVals,	options=songOpts, custom_id=custom_id)
 
 	async def callback(self, interaction: discord.Interaction):
+		index = 0
 		theSong = {}
+
+		if len(self.values) == 1 and "Song Save" in self.values[0]:
+			await interaction.respond("When selecting a save, please also select a song", ephemeral=True, delete_after=5)
+			return
+		elif self.match.savesEnabled and "Song Save" in self.values[0]:
+			self.usedSave = True
+			index = 1
+		elif self.match.savesEnabled and len(self.values) > 1 and  not "Song Save" in self.values[0]:
+			await interaction.respond("When using song saves, only select Song Save alongside another song", ephemeral=True, delete_after=5)
+			return
+
 		for song in self.match.setlist:
-			if self.values[0] in song['name']:
-				theSong = song['name']
+			if self.values[index] in song['name']:
+				theSong = song
+				#Might be better to place this elsewhere? This seems to be best for now
+				theSong['save'] = True if self.usedSave else False
 				break
 
 		if "player1" in self.custom_id:
@@ -157,7 +175,7 @@ class DiscordMatch():
 		self.roundSngPlchldr = ""
 		self.roundWinPlchldr = None
 		#Corp tourney saves framework
-		self.savesEnabled = False
+		self.savesEnabled = True
 		#self.tourney = None #ID for tourney in MySQL - based on discord server id obtained from ctx.guild.id
 		self.confirmCancel = False
 		self.playersPicked = False
@@ -188,7 +206,10 @@ class DiscordMatch():
 			embed.add_field(name="Players", value=f"Select players then hit submit to start", inline=False)
 
 		if self.bansPicked:
-			embed.add_field(name="Bans", value=f"{self.player1.mention} bans {self.ban1}\n{self.player2.mention} bans {self.ban2}", inline=False)
+			if self.savesEnabled and self.ban1['save']:
+				embed.add_field(name="Bans", value=f"{self.player1.mention} saves {self.ban1['name']}\n{self.player2.mention} bans {self.ban2['name']}", inline=False)
+			else:
+				embed.add_field(name="Bans", value=f"{self.player1.mention} bans {self.ban1['name']}\n{self.player2.mention} bans {self.ban2['name']}", inline=False)
 		elif self.playersPicked and not self.bansPicked:
 			embed.add_field(name="Bans", value="Select bans then hit submit to continue", inline=False)
 
