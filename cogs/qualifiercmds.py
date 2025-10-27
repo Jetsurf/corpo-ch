@@ -31,15 +31,15 @@ class DiscordQualifierView(discord.ui.View):
 		await ctx.defer(ephemeral=True)
 		self.tourney = await self.sql.getActiveTournies(ctx.guild.id)
 		qualifiers = await self.sql.getActiveQualifiers(ctx.guild.id)
-		self.qualifier = qualifiers[0]
 		self.stegData = await self.chUtils.getStegInfo(self.submission)
 		if len(qualifiers) > 1:
 			await self.ctx.respond("I'm not configured to support multiple qualifiers in a tournament - Notifiy my devs for help", ephemeral=True)
 			return
 		elif len(qualifiers) == 0:
-			await self.ctx.respond("There are no active tournaments running in this server at this time.", ephemeral=True)
+			await self.ctx.respond("There are no active qualifiers running in this server at this time.", ephemeral=True)
 			return
 
+		self.qualifier = qualifiers[0]
 		if self.stegData == None:
 			await self.ctx.respond("Submitted screenshot is not a valid in-game Clone Hero screenshot", ephemeral=True)
 			return
@@ -76,12 +76,13 @@ class DiscordQualifierView(discord.ui.View):
 		await interaction.response.edit_message(content="Closing", embed=None, view=None, delete_after=1)
 		self.stop()
 
+	#def buildQualifierInfoEmbed(self):
+
 	def buildRulesEmbed(self) -> discord.Embed:
 		embed = discord.Embed(colour=0x3FFF33)
 		embed.title = "Qualifier Submission Rules"
 		embed.add_field(name=f"{self.tourney['config']['name']} Tourney Rules", value=self.tourney['config']['rules'], inline=False)
 		embed.add_field(name=f"Qualifier rules", value=self.qualifier['rules'], inline=False)
-		embed.add_field(name="Qualifier Download Link", value=f"[Download Chart Here]({self.qualifier['chart_link']})")
 		embed.add_field(name=f"Directions", value="If you agree to these rules, please hit submit to review your submitted qualifier", inline=False)
 
 		return embed
