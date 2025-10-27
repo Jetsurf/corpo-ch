@@ -8,6 +8,7 @@ sys.path.append(f"{dirname}/modules")
 import discord, asyncio, time, json
 import tourneysql
 import mysqlhandler
+import sqlschema
 
 intents = discord.Intents.default()
 intents.members = True
@@ -17,7 +18,8 @@ client = discord.Bot(intents=intents, chunk_guilds_at_startup=False)
 cogList = [
 	'fun',
 	'chcmds',
-	'tourneycmds'
+	#'tourneycmds',
+	'qualifiercmds'
 ]
 
 for cog in cogList:
@@ -61,9 +63,6 @@ async def startUpDBAsync():
 
 	await mysqlHandler.startUp()
 
-	#mysqlSchema = mysqlschema.MysqlSchema(mysqlHandler)
-	#await mysqlSchema.update()
-
 async def retrieveOwners():
 	global client, owners
 
@@ -98,7 +97,10 @@ async def on_ready():
 
 	client.tourneyDB = tourneysql.TourneyDB(client, mysqlHandler)
 	await mysqlHandler.wait_for_startup()
+	sqlSchema = sqlschema.MysqlSchema(mysqlHandler)
+	await sqlSchema.update()
 	await client.tourneyDB.loadMatches()
+
 
 	print('------Done with Startup------')
 	doneStartup = True

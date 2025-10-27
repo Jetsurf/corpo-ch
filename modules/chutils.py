@@ -1,14 +1,21 @@
-import subprocess, requests, sys, platform, uuid, json, os, operator
+import subprocess, requests, sys, platform, uuid, json, os, operator, re
+
+from PIL import Image
+from discord import File
+import pytesseract
 
 class CHUtils():
 	def __init__(self):
 		# CHOpt path
-		self.CHOptPath = f'./CHOpt/CHOpt.exe' if platform.system() == 'Windows' else f'CHOpt/CHOpt'
+		self.CHOptPath = 'CHOpt/CHOpt.exe' if platform.system() == 'Windows' else 'CHOpt/CHOpt'
 
 		# SngCli Converter
-		self.sngCliPath = f'./SngCli/SngCli.exe' if platform.system() == 'Windows' else f'SngCli/SngCli'
-		self.sngCliInput = './SngCli/input'
-		self.sngCliOutput = './SngCli/output'
+		self.sngCliPath = 'SngCli/SngCli.exe' if platform.system() == 'Windows' else 'SngCli/SngCli'
+		self.sngCliInput = 'SngCli/input'
+		self.sngCliOutput = 'SngCli/output'
+
+		self.stegCliPath = 'steg/ch_steg_reader.exe' if platform.system() == 'Windows' else 'steg/ch_steg_reader'
+		self.stegCliInput = 'steg/input'
 
 		# encore.us API urls
 		self.encore={}
@@ -79,7 +86,7 @@ class CHUtils():
 
 		return sngUuid
 
-	def sngDecode(self, sngUuid) -> bool:
+	def sngDecode(self, sngUuid: str) -> bool:
 		os.makedirs(f'{self.sngCliOutput}/{sngUuid}')
 		inputSng = f'{self.sngCliInput}/{sngUuid}'
 		outputSng = f'{self.sngCliOutput}'
@@ -90,3 +97,40 @@ class CHUtils():
 			return False
 
 		return True
+
+	def getOverStrums(self, imageName: str, roundData: dict) -> dict:
+		outStr = pytesseract.image_to_string(Image.open(imageName))
+
+		osCnt = re.findall("(?<=Overstrums )([0-9]+)", outStr)
+		print(f"OS Counts: {osCnt}")
+		#Sanity check OS's before adding
+		for i, player in enumerate(roundData['players']):
+			player['overstrums'] = osCnt[i]
+
+	async def getStegInfo(self, image: File) -> dict:
+		imageName = f"{self.stegCliInput}/{image.filename}"
+		print(f"Steg Input PNG: {imageName}")
+		await image.save(imageName, seek_begin=True)
+		stegCall = f"{self.stegCliPath} --json {imageName}"
+
+		try:
+			proc = subprocess.run(stegCall.split(), stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+			if proc.returncode != 0 or proc.returncode != '0':
+				output = json.loads(proc.stdout.decode("utf-8"))
+				self.getOverStrums(imageName, output)
+			else:
+				print(f"Error returned from steg tool, usually invalid chart: [ {" ".join(proc.args)} ] - {proc.stderr.decode("utf-8")}")
+				os.remove(imageName)
+				return None
+		except Exception as e:
+			print(f"Steg Cli Failed: {e}")
+			os.remove(imageName)
+			return None
+
+		os.remove(imageName)
+		return output
+
+
+
+
+

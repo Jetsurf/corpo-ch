@@ -1,13 +1,69 @@
 import mysqlhandler, json, aiomysql, discord
+import discord
 from cogs.tourneycmds import DiscordMatch, DiscordMatchView
 
-#CREATE TABLE match_views ( matchid INT AUTO_INCREMENT NOT NULL, channelid BIGINT UNSIGNED NOT NULL, messageid BIGINT UNSIGNED NOT NULL, matchjson TEXT NULL, PRIMARY KEY (matchid) ) ENGINE=INNODB;
+from datetime import datetime
+import pytz
+import uuid
 
 class TourneyDB():
 	def __init__(self, client, sqlBroker):
 		self.client = client
 		self.sqlBroker = sqlBroker
 
+	##Generic Info Grabbers
+	async def getServerConfig(self, serverid: int) -> dict:
+
+		async with self.sqlBroker.context() as sql:
+			row = await sql.query_first("SELECT config FROM servers WHERE (serverid = %s)", (serverid,))
+			retData = json.loads(row['config'])
+
+		return retData
+
+	async def getActiveTournies(self, serverid: int) -> dict:
+		ct = datetime.now(pytz.timezone('UTC'))
+
+		#Is assuming only one active tourney for now
+		async with self.sqlBroker.context() as sql:
+			row = await sql.query_first("SELECT id, config, qualifier_config, brackets FROM tournies WHERE (serverid = %s) AND (active = TRUE)", (serverid,))
+
+		return { 'id' : row['id'], 'config' : json.loads(row['config']), 'qualifier_config' : json.loads(row['qualifier_config']), 'brackets' : None }
+
+	async def getActiveQualifiers(self, serverid: int) -> dict:
+		ct = datetime.now(pytz.timezone('UTC'))
+		tourney = await self.getActiveTournies(serverid)
+		qualifiers = tourney['qualifier_config']
+		retData = []
+		for i in qualifiers['qualifiers']:
+			i['end'] = datetime.strptime(i['end'], '%Y-%m-%d %H:%M:%S.%f%z')
+			if ct < i['end']:
+				retData.append(i)
+
+		return retData
+
+	async def getPlayerQualifier(self, plyId: int, tourneyId: int) -> dict:
+		#Assuming that there can only be ONE qualifier for a tourney for now
+		async with self.sqlBroker.context() as sql:
+			row = await sql.query_first("SELECT * FROM qualifiers WHERE (discordid = %s) AND (tourneyid = %s)", (plyId, tourneyId))
+
+		row['stegjson'] = json.loads(row['stegjson'])
+		return row
+
+	async def saveQualifier(self, plyId: int, tourneyId: int, stegDict: dict) -> bool:
+		quuid = uuid.uuid1()
+		storeJson = json.dumps(stegDict)
+
+		try:
+			async with self.sqlBroker.context() as sql:
+				await sql.query('INSERT INTO qualifiers (qualiuuid, discordid, tourneyid, stegjson) VALUES (%s, %s, %s, %s)', (quuid, plyId, tourneyId, storeJson, ))
+				await sql.query('INSERT INTO players (discordid, chname, tourneyid, qualifierid ) VALUES (%s, %s, %s, %s)', (plyId, stegDict['players'][0]['profile_name'], tourneyId, quuid, ))
+
+			return True
+		except Exception as e:
+			print(f"Error saving player data: {e}")
+			return False
+		
+	## Discord Match Ref Tool Helpers
 	async def saveMatch(self, match):
 		saveRnds = []
 		for rnd in match.rounds:
