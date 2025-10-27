@@ -27,7 +27,9 @@ class TourneyDB():
 		async with self.sqlBroker.context() as sql:
 			row = await sql.query_first("SELECT id, config, qualifier_config, brackets FROM tournies WHERE (serverid = %s) AND (active = TRUE)", (serverid,))
 
-		return { 'id' : row['id'], 'config' : json.loads(row['config']), 'qualifier_config' : json.loads(row['qualifier_config']), 'brackets' : None }
+		qualiConf = json.loads(row['qualifier_config'])
+		qualiConf['qualifiers'][0]['rules'] = qualiConf['qualifiers'][0]['rules'].replace("$", "\n")
+		return { 'id' : row['id'], 'config' : json.loads(row['config']), 'qualifier_config' : qualiConf, 'brackets' : None }
 
 	async def getActiveQualifiers(self, serverid: int) -> dict:
 		ct = datetime.now(pytz.timezone('UTC'))
@@ -48,7 +50,7 @@ class TourneyDB():
 
 		if row is not None:
 			row['stegjson'] = json.loads(row['stegjson'])
-			
+
 		return row
 
 	async def saveQualifier(self, plyId: int, tourneyId: int, stegDict: dict) -> bool:
@@ -64,7 +66,7 @@ class TourneyDB():
 		except Exception as e:
 			print(f"Error saving player data: {e}")
 			return False
-		
+
 	## Discord Match Ref Tool Helpers
 	async def saveMatch(self, match):
 		saveRnds = []
@@ -113,7 +115,7 @@ class TourneyDB():
 				print(f"Match {row['messageid']} not found, deleting")
 				await cur.execute("DELETE FROM match_views WHERE (matchid = %s)", (row['matchid'],))
 				continue
-			
+
 			theMatch = DiscordMatch(msg, self)
 			theData = json.loads(row['matchjson'])
 			await self.client.get_guild(channel.guild.id).chunk()
@@ -146,7 +148,7 @@ class TourneyDB():
 			await theMatch.showTool(msg)
 
 		await self.sqlBroker.commit(cur)
-		
+
 	async def cancelMatch(self, match):
 		async with self.sqlBroker.context() as sql:
 			await sql.query("DELETE FROM match_views WHERE (matchid = %s)", (match.id,))
