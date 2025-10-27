@@ -133,12 +133,12 @@ class QualifierCmds(commands.Cog):
 		# format data
 		csv = "Player,Score,Notes Missed,Overstrums,Ghosts\n"
 		for i in submissions:
-			csv += f"{i.profile_name},{i.score},{i.notes_hit},{i.total_notes - i.notes_hit},{i.overstrums},{i.frets_ghosted}\n"
+			csv += f"{i["profile_name"]},{i["score"]},{i["notes_hit"]},{i["total_notes"] - i["notes_hit"]},{i["overstrums"]},{i["frets_ghosted"]}\n"
 
 		# post data
 		csvF = io.StringIO()
 		csvF.write(csv)
-		await ctx.respond(file=csvF,ephemeral=True)
+		await ctx.respond(file=discord.File(csvF,filename="qualifier_submissions.csv"),ephemeral=True)
 		csvF.close()
 
 def setup(bot):
