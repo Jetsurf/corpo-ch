@@ -46,7 +46,9 @@ class TourneyDB():
 		async with self.sqlBroker.context() as sql:
 			row = await sql.query_first("SELECT * FROM qualifiers WHERE (discordid = %s) AND (tourneyid = %s)", (plyId, tourneyId))
 
-		row['stegjson'] = json.loads(row['stegjson'])
+		if row is not None:
+			row['stegjson'] = json.loads(row['stegjson'])
+			
 		return row
 
 	async def saveQualifier(self, plyId: int, tourneyId: int, stegDict: dict) -> bool:

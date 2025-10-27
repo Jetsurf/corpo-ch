@@ -28,9 +28,11 @@ class DiscordQualifierView(discord.ui.View):
 		self.add_item(submit)
 
 	async def init(self, ctx):
+		await ctx.defer(ephemeral=True)
 		self.tourney = await self.sql.getActiveTournies(ctx.guild.id)
 		qualifiers = await self.sql.getActiveQualifiers(ctx.guild.id)
-		
+		self.qualifier = qualifiers[0]
+		self.stegData = await self.chUtils.getStegInfo(self.submission)
 		if len(qualifiers) > 1:
 			await self.ctx.respond("I'm not configured to support multiple qualifiers in a tournament - Notifiy my devs for help", ephemeral=True)
 			return
@@ -38,34 +40,37 @@ class DiscordQualifierView(discord.ui.View):
 			await self.ctx.respond("There are no active tournaments running in this server at this time.", ephemeral=True)
 			return
 
+		if self.stegData == None:
+			await self.ctx.respond("Submitted screenshot is not a valid in-game Clone Hero screenshot", ephemeral=True)
+			return
+		elif self.stegData['checksum'] != self.qualifier['checksum']:
+			await self.ctx.respond("Submitted screenshot is not for this qualifier", ephemeral=True)
+			return
+
 		prevRun = await self.sql.getPlayerQualifier(ctx.user.id, self.tourney['id'])
 		if prevRun is None:
-			self.qualifier = qualifiers[0]
 			await self.ctx.respond(embed=self.buildRulesEmbed(), view=self, ephemeral=True)
 		else:
 			self.stegData = prevRun['stegjson']
-			await self.ctx.respond(f"You already submitted a qualifier for {self.tourney['config']['name']}!", embed=self.buildQualifierStatsEmbed(), view=None, ephemeral=True)
+			await self.ctx.respond(f"You already submitted a qualifier for {self.tourney['config']['name']}!", embed=self.buildQualifierStatsEmbed(), ephemeral=True)
 
 	async def submitBtn(self, interaction: discord.Interaction):
+		await interaction.response.defer()
 		if not self.acknowledged:
-			self.stegData = await self.chUtils.getStegInfo(self.submission)
-			if self.stegData['checksum'] == self.qualifier['checksum']:
-				await interaction.response.edit_message(embed=self.buildQualifierStatsEmbed())
+				await self.ctx.edit(embed=self.buildQualifierStatsEmbed(), view=self)
 				self.acknowledged = True
-			else:
-				await interaction.response.edit_message(content="Submitted screenshot is not for the correct qualifier chart.", embed=None, view=None)
-				self.stop()
 		else:
 			#Needs to be tweaked to support multiplayer qualifier runs
-			await self.ctx.interaction.delete_original_response()
-			print(f"Submitting qualifier submission for {self.ctx.user.display_name} - {self.stegData["players"][0]["profile_name"]} - {self.stegData['score_timestamp']}")
+			print(f"Submitting qualifier submission for {self.ctx.user.global_name} - {self.stegData["players"][0]["profile_name"]} - {self.stegData['score_timestamp']}")
 			#sanityCheck() $to verify once DB is populated to ensure chart name/checksum(?) matches
 			self.stegData['imagename'] = self.submission.filename
 			print
 			if await self.sql.saveQualifier(self.ctx.user.id, self.tourney['id'], self.stegData):
-				await interaction.response.send_message("Submitted!", view=None, ephemeral=True)
+				await self.ctx.interaction.delete_original_response()
+				await interaction.followup.send("Submitted!", ephemeral=True)
 			else:
-				await interaction.response.send_message("Error in submission, please try to run this command again or report this to my devs", view=None, ephemeral=True)
+				await self.ctx.interaction.delete_original_response()
+				await interaction.followup.send("Error in submission, please try to run this command again or report this to my devs", ephemeral=True)
 
 	async def cancelBtn(self, interaction: discord.Interaction):
 		await interaction.response.edit_message(content="Closing", embed=None, view=None, delete_after=1)
