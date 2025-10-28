@@ -2,6 +2,7 @@ import gspread
 import tourneysql
 import asyncio
 import discord
+from datetime import datetime
 
 class GSheets():
 	def __init__(self, bot: discord.Bot, sql: tourneysql.TourneyDB, tid: int):
@@ -20,11 +21,11 @@ class GSheets():
 				return False
 
 			print(f"Setting up quali sheet for {self.tourneyConf['name']} : {self.qualiSheet.url}")
-			self.ws = self.qualiSheet.add_worksheet(title="Raw Qualifier Submissions", rows=2, cols=9)
+			self.ws = self.qualiSheet.add_worksheet(title="Raw Qualifier Submissions", rows=2, cols=12)
 			self.ws.update_acell("A1", "DO NOT EDIT THIS WORKSHEET UNLESS TOLD TO OTHERWISE")
 			self.ws.format("A1", {'textFormat': {'bold': True }})
-			self.ws.update([["Discord Name", "Clone Hero Name", "Score", "Notes Missed", "Notes Hit", "Overstrums", "Ghosts", "Phrases Earned", "Image Name" ]], "A2:I2")
-			self.ws.format("A2:I2", {'textFormat': {'bold': True}, 'borders': { 'bottom': { 'style' : 'SOLID' }}}) #'rgbColor': {"red": 0.0, "green": 0.0, "blue": 0.0}, 
+			self.ws.update([["Discord Name", "Clone Hero Name", "Score", "Notes Missed", "Notes Hit", "Overstrums", "Ghosts", "Phrases Earned", "Submission Timestamp", "Screenshot Timestamp", "Image URL", "Game Version" ]], "A2:L2")
+			self.ws.format("A2:L2", {'textFormat': {'bold': True}, 'borders': { 'bottom': { 'style' : 'SOLID' }, 'left': { 'style' : 'SOLID' }, 'right': { 'style' : 'SOLID' }}})
 			self.tourneyConf['qualifier_sheet'] = self.qualiSheet.url
 			await self.sql.setTourneyConfig(self.tid, self.tourneyConf)
 		else:
@@ -41,10 +42,15 @@ class GSheets():
 		os = qualifierData['players'][0]['overstrums']
 		ghosts = qualifierData['players'][0]['frets_ghosted']
 		phrases = qualifierData['players'][0]['sp_phrases_earned']
-		imgName = qualifierData['image_name']
+		submissionTimestamp = f"{datetime.strptime(qualifierData['submission_timestamp'], '%Y-%m-%dT%H:%M:%S.%fZ').strftime("%Y-%m-%d %H:%M:%S")}-UTC"
+		screenshotTimestamp = f"{datetime.strptime(qualifierData['score_timestamp'], '%Y-%m-%dT%H:%M:%S.%fZ').strftime("%Y-%m-%d %H:%M:%S")}-UTC"
+		imgUrl = qualifierData['image_url']
+		gameVer = qualifierData['game_version']
 
 		try:
-			self.ws.append_row([user.global_name, chName, score, missed, hit, os, ghosts, phrases, imgName])
+			self.ws.append_row([user.global_name, chName, score, missed, hit, os, ghosts, phrases, submissionTimestamp, screenshotTimestamp, imgUrl, gameVer])
+			numRows = len(self.ws.get_all_values())
+			self.ws.format(f"A{numRows}:L{numRows}", {'textFormat': {'bold': False}, 'borders': {'right': {'style' : 'SOLID'}, 'left': {'style' : 'SOLID' }}})
 		except Exception as e:
 			print(f"Exception in gspread: {e}")
 			return False

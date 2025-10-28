@@ -16,7 +16,7 @@ client = discord.Bot(intents=intents, chunk_guilds_at_startup=False)
 
 # cogs
 cogList = [
-	'fun',
+	#'fun',
 	'chcmds',
 	#'tourneycmds',
 	'qualifiercmds'
