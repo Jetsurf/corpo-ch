@@ -87,7 +87,7 @@ class DiscordQualifierView(discord.ui.View):
 			await self.submission.save(f"{outDir}/{self.submission.filename}", seek_begin=True)
 			
 			#Set image URL - THIS NEEDS CLEANUP TO AVOID HARD CODED LINK - also make safe url encoding
-			self.stegData['image_url'] = f"https://qualifiers.crmea.de/{self.tourney['config']['name'].replace(" ", "")}/{self.stegData['image_name']}"
+			self.stegData['image_url'] = f"https://qualifiers.corpo-ch.org/{self.tourney['config']['name'].replace(" ", "")}/{self.stegData['image_name']}"
 
 			if await self.sql.saveQualifier(self.ctx.user.id, self.tourney['id'], self.stegData):
 				#Submit to Sheet
@@ -119,7 +119,7 @@ class DiscordQualifierView(discord.ui.View):
 
 			embed.add_field(name=f"Qualifier Chart Link", value=f"[Download Link Here]({self.qualifier["chart_link"]})", inline=False)
 		else:
-			embed.add_field(name=f"Directions", value="If you agree to these rules, please hit submit to review your submitted qualifier before submission.\nIf you do not get a follow up message from me confirming, please notify Jetsurf or Masonjar", inline=False)
+			embed.add_field(name=f"Directions", value="If you agree to these rules, please hit submit to review your submitted qualifier before submission.\n\nIf you do not get a follow up message from me confirming, please notify Jetsurf or Masonjar", inline=False)
 
 		return embed
 
