@@ -121,7 +121,13 @@ class CHUtils():
 			proc = subprocess.run(stegCall.split(), stdout = subprocess.PIPE, stderr = subprocess.PIPE)
 			if proc.returncode != 0 or proc.returncode != '0':
 				output = json.loads(proc.stdout.decode("utf-8"))
+
+				#populate data not present in steg
 				self.getOverStrums(imageName, output)
+				output['image_name'] = image.filename
+				#Notes missed isn't explicitly in steg :shrug:
+				for i, player in enumerate(output['players']):
+					player["notes_missed"] = player["total_notes"] - player['notes_hit']
 			else:
 				print(f"Error returned from steg tool, usually invalid chart: [ {" ".join(proc.args)} ] - {proc.stderr.decode("utf-8")}")
 				os.remove(imageName)

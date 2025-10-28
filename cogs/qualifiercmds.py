@@ -1,4 +1,4 @@
-import platform, json, base64, io
+import platform, json, base64, io, os
 from datetime import datetime
 
 import discord
@@ -7,6 +7,7 @@ from discord.ui import *
 from discord.enums import ComponentType, InputTextStyle
 
 import chutils
+import gsheets
 
 class DiscordQualifierView(discord.ui.View):
 	def __init__(self, ctx, sql, chUtils, submission):
@@ -27,10 +28,10 @@ class DiscordQualifierView(discord.ui.View):
 		submit.callback = self.submitBtn
 		self.add_item(submit)
 
-	async def init(self, ctx):
-		await ctx.defer(ephemeral=True)
-		self.tourney = await self.sql.getActiveTournies(ctx.guild.id)
-		qualifiers = await self.sql.getActiveQualifiers(ctx.guild.id)
+	async def init(self):
+		await self.ctx.defer(ephemeral=True)
+		self.tourney = await self.sql.getActiveTournies(self.ctx.guild.id)
+		qualifiers = await self.sql.getActiveQualifiers(self.ctx.guild.id)
 		self.stegData = await self.chUtils.getStegInfo(self.submission)
 		if len(qualifiers) > 1:
 			await self.ctx.respond("I'm not configured to support multiple qualifiers in a tournament - Notifiy my devs for help", ephemeral=True)
@@ -47,7 +48,7 @@ class DiscordQualifierView(discord.ui.View):
 			await self.ctx.respond("Submitted screenshot is not for this qualifier", ephemeral=True)
 			return
 
-		prevRun = await self.sql.getPlayerQualifier(ctx.user.id, self.tourney['id'])
+		prevRun = await self.sql.getPlayerQualifier(self.ctx.user.id, self.tourney['id'])
 		if prevRun is None:
 			await self.ctx.respond(embed=self.buildRulesEmbed(), view=self, ephemeral=True)
 		else:
@@ -62,10 +63,20 @@ class DiscordQualifierView(discord.ui.View):
 		else:
 			#Needs to be tweaked to support multiplayer qualifier runs
 			print(f"Submitting qualifier submission for {self.ctx.user.global_name} - {self.stegData["players"][0]["profile_name"]} - {self.stegData['score_timestamp']}")
-			#sanityCheck() $to verify once DB is populated to ensure chart name/checksum(?) matches
-			self.stegData['imagename'] = self.submission.filename
-			print
+			#Submit to Sheet
+			gs = gsheets.GSheets(self.ctx.bot, self.sql, self.tourney['id'])
+			await gs.init()
+			if not await gs.submitQualifier(self.ctx.user, self.stegData):
+				await interaction.followup.send("Something went wrong in the gsheets setup/submission", ephemeral=True)
+				return 
+
 			if await self.sql.saveQualifier(self.ctx.user.id, self.tourney['id'], self.stegData):
+				#Save Screenshot
+				outDir = f"steg/tournies/{self.tourney['config']['name']}"
+				if not os.path.isdir(outDir):
+					os.makedirs(outDir)
+				await self.submission.save(f"{outDir}/{self.submission.filename}", seek_begin=True)
+
 				await self.ctx.interaction.delete_original_response()
 				await interaction.followup.send("Submitted!", ephemeral=True)
 			else:
@@ -116,7 +127,7 @@ class QualifierCmds(commands.Cog):
 	@discord.option("submission", discord.Attachment, description="Attach in-game screenshot of qualifer run", required=True)
 	async def qualifierSubmitCmd(self, ctx, submission: discord.Attachment):
 		view = DiscordQualifierView(ctx, self.bot.tourneyDB, self.chUtils, submission)
-		ret = await view.init(ctx)	
+		await view.init()	
 		await view.wait()
 		view.stop()
 	

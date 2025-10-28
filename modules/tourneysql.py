@@ -29,7 +29,34 @@ class TourneyDB():
 
 		qualiConf = json.loads(row['qualifier_config'])
 		qualiConf['qualifiers'][0]['rules'] = qualiConf['qualifiers'][0]['rules'].replace("$", "\n")
-		return { 'id' : row['id'], 'config' : json.loads(row['config']), 'qualifier_config' : qualiConf, 'brackets' : None }
+		conf = json.loads(row['config'])
+		conf['rules'] = conf['rules'].replace("$", '\n')
+		return { 'id' : row['id'], 'config' : conf, 'qualifier_config' : qualiConf, 'brackets' : None }
+
+	async def getTourneyConfig(self, tid: int) -> dict:
+		async with self.sqlBroker.context() as sql:
+			row = await sql.query_first("SELECT config FROM tournies WHERE (id = %s)", (tid, ))
+
+		return json.loads(row['config'])
+
+	async def getTourney(self, tid: int):
+		async with self.sqlBroker.context() as sql:
+			row = await sql.query_first("SELECT * from tournies WHERE (id = %s)", (tid, ))
+
+		qualiConf = json.loads(row['qualifier_config'])
+		qualiConf['qualifiers'][0]['rules'] = qualiConf['qualifiers'][0]['rules'].replace("\n", "$")
+		conf = json.loads(row['config'])
+		conf['rules'] = conf['rules'].replace("\n", '$')
+		return { 'id' : row['id'], 'serverid' : row['serverid'], 'config' : conf, 'active' : bool(row['active']), 'qualifier_config' : qualiConf, 'brackets' : None }
+
+	async def setTourneyConfig(self, tid: int, data: dict):
+		tourney = await self.getTourney(tid)
+		data['rules'] = data['rules'].replace("\n", "$")
+		configJson = json.dumps(data)
+		print(f"RULES: {data}")
+		print(f"configJson: {configJson}")
+		async with self.sqlBroker.context() as sql:
+			await sql.query("REPLACE INTO tournies (id, serverid, active, config, qualifier_config) VALUES (%s, %s, %s, %s, %s)", (tid, tourney['serverid'], tourney['active'], configJson, json.dumps(tourney['qualifier_config']), ))
 
 	async def getActiveQualifiers(self, serverid: int) -> dict:
 		ct = datetime.now(pytz.timezone('UTC'))
@@ -55,7 +82,7 @@ class TourneyDB():
 	
 	async def getTourneyQualifierSubmissions(self, tourneyId: int) -> list:
 		async with self.sqlBroker.context() as sql:
-			submissions = await sql.query(f"SELECT * FROM qualifiers WHERE (tourneyid = {tourneyId})")
+			submissions = await sql.query("SELECT * FROM qualifiers WHERE (tourneyid = {%s})", (tourneyId, ))
 		
 		for i, row in submissions:
 			if row is not None:
