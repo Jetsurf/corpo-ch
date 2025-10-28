@@ -25,7 +25,7 @@ class GSheets():
 			self.ws.update_acell("A1", "DO NOT EDIT THIS WORKSHEET UNLESS TOLD TO OTHERWISE")
 			self.ws.format("A1", {'textFormat': {'bold': True }})
 			self.ws.update([["Discord Name", "Clone Hero Name", "Score", "Notes Missed", "Notes Hit", "Overstrums", "Ghosts", "Phrases Earned", "Submission Timestamp", "Screenshot Timestamp", "Image URL", "Game Version" ]], "A2:L2")
-			self.ws.format("A2:L2", {'textFormat': {'bold': True}, 'borders': { 'bottom': { 'style' : 'SOLID' }, 'left': { 'style' : 'SOLID' }, 'right': { 'style' : 'SOLID' }}})
+			self.ws.format("A2:L2", {'textFormat': {'bold': True}, "horizontalAlignment": "CENTER", 'borders': { 'bottom': { 'style' : 'SOLID' }, 'left': { 'style' : 'SOLID' }, 'right': { 'style' : 'SOLID' }}})
 			self.tourneyConf['qualifier_sheet'] = self.qualiSheet.url
 			await self.sql.setTourneyConfig(self.tid, self.tourneyConf)
 		else:
@@ -50,7 +50,7 @@ class GSheets():
 		try:
 			self.ws.append_row([user.global_name, chName, score, missed, hit, os, ghosts, phrases, submissionTimestamp, screenshotTimestamp, imgUrl, gameVer])
 			numRows = len(self.ws.get_all_values())
-			self.ws.format(f"A{numRows}:L{numRows}", {'textFormat': {'bold': False}, 'borders': {'right': {'style' : 'SOLID'}, 'left': {'style' : 'SOLID' }}})
+			self.ws.format(f"A{numRows}:L{numRows}", {'textFormat': {'bold': False}, "horizontalAlignment": "CENTER", 'borders': {'right': {'style' : 'SOLID'}, 'left': {'style' : 'SOLID' }}})
 		except Exception as e:
 			print(f"Exception in gspread: {e}")
 			return False
