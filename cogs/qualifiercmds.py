@@ -73,7 +73,7 @@ class DiscordQualifierView(discord.ui.View):
 	async def submitBtn(self, interaction: discord.Interaction):
 		await interaction.response.defer()
 		if not self.acknowledged:
-				self.stegData['submission_timestamp'] = datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+				self.stegData['submission_timestamp'] = datetime.now(pytz.timezone('UTC')).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
 				await self.ctx.edit(embed=self.buildQualifierStatsEmbed(), view=self)
 				self.acknowledged = True
 		else:

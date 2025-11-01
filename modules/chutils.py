@@ -104,11 +104,15 @@ class CHUtils():
 
 	def getOverStrums(self, imageName: str, roundData: dict) -> dict:
 		outStr = pytesseract.image_to_string(Image.open(imageName))
-		osCnt = re.findall("(?<=Overstrums )([0-9]+)", outStr)
+		osCnt = re.findall("(?<=Overstrums )([O0-9]+)", outStr)
 		print(f"OS Counts: {osCnt}")
 		#Sanity check OS's before adding
 		for i, player in enumerate(roundData['players']):
-			player['overstrums'] = osCnt[i]
+			## TODO: THIS NEEDS TO BE FIXED FOR ACTUAL ROUND DATA INFO
+			if len(osCnt) > 0:
+				player['overstrums'] = osCnt[i]
+			else:
+				player['overstrums'] = '-'
 
 	async def getStegInfo(self, image: File) -> dict:
 		imageName = f"{self.stegCliInput}/{image.filename}"

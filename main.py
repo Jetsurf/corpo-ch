@@ -51,8 +51,8 @@ def startUpLogging():
 
 		sys.stdout = open(f"{dirname}/logs/discordbot.log", 'a+')
 		sys.stdout.reconfigure(line_buffering = True)  # Flush stdout at every newline
-
 		sys.stderr = open(f"{dirname}/logs/discordbot.err", 'a+')
+		sys.stderr.reconfigure(line_buffering = True)
 
 def startUpDB():
 	global configData, mysqlHandler, client
