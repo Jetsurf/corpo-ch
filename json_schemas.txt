@@ -36,7 +36,6 @@
 	]
 }
 
-insert into tournies (serverid, active, config, qualifier_config) VALUES(1414088320501416099, TRUE, '{ "name" : "BWS 2025", "rules" : "Please read the rules here: https://discord.com/channels/1414088320501416099/1415107226695237633/1415107324074393642", "qualifier_sheet": "https://docs.google.com/spreadsheets/d/1arLyVO7I5EzltksPPP-8NT1m-XdZBict70cEHsL6rFY" }', '{ "qualifiers" : [ { "uuid" : "95de7d5a-b2af-11f0-b81c-0050569d2030", "rules" : "Please carefully read this Announcement regarding the Pre-Qualifier Form before proceeding: https://discord.com/channels/1414088320501416099/1429887779655122975/1431719824890920971$$By submitting this Qualifier, you are confirming the following:$ - The screenshot being submitted is from the official Brad\'s Weekend Skirmish Qualifier Chart.$ - The screenshot generation time will coincide with a time no later than 12 minutes 10 seconds past the 30 minute window of the date and time you specified you would run the Qualifier chart.$ - The date and time you specified is at least 48 hours after you submitted the Pre-Qualifier Form.", "checksum" : "5A01B0EA8F4BBAE7C14ED44857FEE44E", "chart_link" : "https://drive.google.com/file/d/1rlyVd0ICtfS1vSORjr5b-HnycKB3uHsz/view?usp=sharing", "end" : "2025-11-08 18:12:10.00000+00:00", "single_submission" : true, "form_link" : "https://docs.google.com/forms/d/e/1FAIpQLSerrnm1fRlelMfr9euUJlAA3w0lGFW0bwAHmI90Sg5PPYuMfg/viewform" } ] }');
 
 { "qualifiers" : [ { "uuid" : "95de7d5a-b2af-11f0-b81c-0050569d2030", "rules" : "This qualifier must be ran at the time specified in the Google Form submitted to run this qualifier. The form must have been submitted at LEAST 48 hours before submitting this qualifier.$$You have 30 minutes from the time specified in the form to finish the qualifier. The time that is contained in the screenshot will be used to verify the run was done in this window.", "checksum" : "5A01B0EA8F4BBAE7C14ED44857FEE44E", "chart_link" : "https://drive.google.com/file/d/1rlyVd0ICtfS1vSORjr5b-HnycKB3uHsz/view?usp=sharing", "end" : "2025-10-30 00:00:00.00000+00:00", "single_submission" : true, "form_link" : "https://docs.google.com/forms/d/e/1FAIpQLSerrnm1fRlelMfr9euUJlAA3w0lGFW0bwAHmI90Sg5PPYuMfg/viewform" } ] }
 
@@ -46,7 +45,7 @@ insert into tournies (serverid, active, config, qualifier_config) VALUES(1414088
 	"brackets" : [ 
 		{ 
 			"bracket_name" : "BWS 2025 Main Bracket",
-			"set_list" ; {
+			"set_list" ; [
 				{
 					"song_name" : "Song title",
 					"chart_checksum" : "DEADBEEF",
@@ -54,9 +53,130 @@ insert into tournies (serverid, active, config, qualifier_config) VALUES(1414088
 					"album" : "Your Album",
 					"artist" : "The Artist",
 				}
-			}
+			]
 		}
 	],
 	"tourney_name" : "BWS 2025"
 	"tourney_rules" : "Text or link"
+}
+
+
+{
+	"brackets" : [ 
+		{ 
+			"bracket_name" : "BWS 2025 Main Bracket",
+			"set_list" ; [
+				{
+					"song_name" : "Spurgatory - Game Over",
+					"chart_checksum" : "D47BF930569C7254728584708F04ED74",
+					"charter" : "Miscellany",
+					"modifiers" : [],
+					"speed" : 100,
+					"category" : "Hybrid"
+					"album" : "Terror Hungry",
+					"artist" : "Lost Society",
+				},
+				{
+					"song_name" : "Orb of the Moons",
+					"chart_checksum" : "36F8BE23DB5B2C4C020AFE9E97DF5AB7",
+					"charter" : "Jackie",
+					"modifiers" : [],
+					"speed" : 115,
+					"category" : "Hybrid"
+					"album" : "Far Beyond the Stars",
+					"artist" : "Ascension",
+				},
+				{
+					"song_name" : "SPIRALING",
+					"chart_checksum" : "6202724B6C98445F896E658BE7F08B46",
+					"charter" : "Pix_",
+					"modifiers" : [ "Double Notes", "Dropless Sustains" ],
+					"speed" : 200,
+					"category" : "Solo"
+					"album" : "CRUSHCORE",
+					"artist" : "OMNIPONY",
+				},
+				{
+					"song_name" : "Lizzards",
+					"chart_checksum" : "96340E0A469F88E881F8505EDC8D2731",
+					"charter" : "Chemfinal",
+					"modifiers" : [],
+					"speed" : 100,
+					"category" : "Solo"
+					"album" : "Lizzards",
+					"artist" : "Scott Mishoe",
+				},
+				{
+					"song_name" : "Silence Followed by a Deafening Roar",
+					"chart_checksum" : "B3DBE4A4F184368F09D955D6628BE156",
+					"charter" : "Peddy",
+					"modifiers" : [],
+					"speed" : 100,
+					"category" : "Solo"
+					"album" : "Silence Followed by a Deafening Roar",
+					"artist" : "Paul Gilbert",
+				},
+				{
+					"song_name" : "Interdisciplinary Sectarism",
+					"chart_checksum" : "40FAE5CB210E6F6B1781089134267CA9",
+					"charter" : "OHM",
+					"modifiers" : [],
+					"speed" : 100,
+					"category" : "Strum"
+					"album" : "Erstwhile Befell",
+					"artist" : "Shadow of Darkness",
+				},
+				{
+					"song_name" : "TWO-TORIAL",
+					"chart_checksum" : "7773C115AC7AD940AD268E1C2F2D7D51",
+					"charter" : "Stargazer",
+					"modifiers" : [ "All Strums" ],
+					"speed" : 100,
+					"category" : "Strum"
+					"album" : "Dimension Gates Ω -Phase.2-",
+					"artist" : "PHQUASE vs DJ TOTTO",
+				},
+				{
+					"song_name" : "Monsoon",
+					"chart_checksum" : "070C010F6C27BC72F409F108E7319AC6",
+					"charter" : "Neversoft",
+					"modifiers" : [ "Note Shuffle", "Double Notes" ],
+					"speed" : 110,
+					"category" : "Strum"
+					"album" : "Schrei",
+					"artist" : "Tokio Hotel",
+				},
+				{
+					"song_name" : "Impulse",
+					"chart_checksum" : "9F26C0599EB6EB1F49E8F7210D69B136",
+					"charter" : "EvaCH",
+					"modifiers" : [],
+					"speed" : 100,
+					"category" : "Pathing"
+					"album" : "Ameliorate",
+					"artist" : "An Endless Sporadic",
+				},
+				{
+					"song_name" : "Lights Camera Action",
+					"chart_checksum" : "2DA168ECA52C783E392BA7D439BA9F44",
+					"charter" : "Aren Eternal & Jackie",
+					"modifiers" : [ "Brutal Mode" ],
+					"speed" : 100,
+					"category" : "Gimmick"
+					"album" : "Sequence Break",
+					"artist" : "meganeko",
+				},
+				{
+					"song_name" : "Xroniàl Xéro",
+					"chart_checksum" : "E1760A880594C5C4AFBFF8F63894A5F7",
+					"charter" : "Rek3dge, oriOta, Ziometry",
+					"modifiers" : [],
+					"speed" : 100,
+					"category" : "Survival"
+					"album" : "Xroniàl Xéro",
+					"artist" : "Camellia",
+				},
+			]
+		}
+	],
 }
