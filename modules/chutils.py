@@ -2,7 +2,7 @@ import subprocess, requests, sys, platform, uuid, json, os, operator, re
 
 from PIL import Image, ImageEnhance
 from discord import File
-from datetime import datetime
+from datetime import datetime, timezone
 import pytesseract
 import discord
 import cv2
@@ -137,26 +137,26 @@ class CHUtils():
 		await image.save(imageName, seek_begin=True)
 		stegCall = f"{self.stegCliPath} --json {imageName}"
 
-#		try:
-		proc = subprocess.run(stegCall.split(), stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-		if proc.returncode != 0 or proc.returncode != '0':
-			output = json.loads(proc.stdout.decode("utf-8"))
+		try:
+			proc = subprocess.run(stegCall.split(), stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+			if proc.returncode != 0 or proc.returncode != '0':
+				output = json.loads(proc.stdout.decode("utf-8"))
+				print(f"STEGOUTPUT: {output}")
+				#populate data not present in steg
+				self.getOverStrums(imageName, output)
+				output['image_name'] = image.filename
+				#Notes missed isn't explicitly in steg :shrug:
+				for i, player in enumerate(output['players']):
+					player["notes_missed"] = player["total_notes"] - player['notes_hit']
 
-			#populate data not present in steg
-			self.getOverStrums(imageName, output)
-			output['image_name'] = image.filename
-			#Notes missed isn't explicitly in steg :shrug:
-			for i, player in enumerate(output['players']):
-				player["notes_missed"] = player["total_notes"] - player['notes_hit']
-
-		else:
-			print(f"Error returned from steg tool, usually invalid chart: [ {" ".join(proc.args)} ] - {proc.stderr.decode("utf-8")}")
+			else:
+				print(f"Error returned from steg tool, usually invalid chart: [ {" ".join(proc.args)} ] - {proc.stderr.decode("utf-8")}")
+				os.remove(imageName)
+				return None
+		except Exception as e:
+			print(f"Steg Cli Failed: {e}")
 			os.remove(imageName)
 			return None
-#		except Exception as e:
-#			print(f"Steg Cli Failed: {e}")
-#			os.remove(imageName)
-#			return None
 
 		os.remove(imageName)
 		return output
@@ -164,15 +164,15 @@ class CHUtils():
 	def buildStatsEmbed(self, title: str, stegData: dict, isQualifier=False) -> discord.Embed:
 		embed = discord.Embed(colour=0x3FFF33)
 		embed.title = title
-		print(f"Steg: {stegData}")
+
 		chartStr = ""
 		if isQualifier:
 			chartStr = chartStr + f"Chart Name: {stegData["song_name"]}\n"
-			chartStr = chartStr + f"Submission Time: <t:{int(round(datetime.strptime(stegData["submission_timestamp"], '%Y-%m-%dT%H:%M:%S.%fZ').timestamp()))}:f>\n"
+			chartStr = chartStr + f"Submission Time: <t:{int(round(datetime.strptime(stegData["submission_timestamp"], '%Y-%m-%dT%H:%M:%S.%fZ').replace(tzinfo=timezone.utc).timestamp()))}:f>\n"
 		else:
 			chartStr = chartStr + f"Chart Name: {stegData["song_name"]}\n"
 
-		chartStr = chartStr + f"Run Time: <t:{int(round(datetime.strptime(stegData["score_timestamp"], '%Y-%m-%dT%H:%M:%S.%fZ').timestamp()))}:f>\n"
+		chartStr = chartStr + f"Run Time: <t:{int(round(datetime.strptime(stegData["score_timestamp"], '%Y-%m-%dT%H:%M:%S.%fZ').replace(tzinfo=timezone.utc).timestamp()))}:f>\n"
 		chartStr = chartStr + f"Game Version: {stegData['game_version']}"
 		embed.add_field(name="Submission Stats", value=chartStr, inline=False)
 

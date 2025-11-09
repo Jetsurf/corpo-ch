@@ -34,6 +34,19 @@ class TourneyDB():
 		conf['rules'] = conf['rules'].replace("$", '\n')
 		return { 'id' : row['id'], 'config' : conf, 'qualifier_config' : qualiConf, 'brackets' : None }
 
+	async def getTourneyBrackets(self, tid: int) -> dict:
+		async with self.sqlBroker.context() as sql:
+			row = await sql.query_first("SELECT brackets FROM tournies WHERE (id = %s)", (tid, ))
+
+		return json.loads(row['brackets'])
+
+	async def setTourneyBrackets(self, tid: int, brackets: dict):
+		tourney = await self.getTourney(tid)
+		bracketJson = json.dumps(brackets)
+
+		async with self.sqlBroker.context() as sql:
+			await sql.query("REPLACE INTO tournies (id, serverid, active, config, qualifier_config, brackets) VALUES (%s, %s, %s, %s, %s, %s)", (tid, tourney['serverid'], tourney['active'], json.dumps(tourney['config']), json.dumps(tourney['qualifier_config']), bracketJson, ))
+
 	async def getTourneyConfig(self, tid: int) -> dict:
 		async with self.sqlBroker.context() as sql:
 			row = await sql.query_first("SELECT config FROM tournies WHERE (id = %s)", (tid, ))
@@ -48,7 +61,8 @@ class TourneyDB():
 		qualiConf['qualifiers'][0]['rules'] = qualiConf['qualifiers'][0]['rules'].replace("\n", "$")
 		conf = json.loads(row['config'])
 		conf['rules'] = conf['rules'].replace("\n", '$')
-		return { 'id' : row['id'], 'serverid' : row['serverid'], 'config' : conf, 'active' : bool(row['active']), 'qualifier_config' : qualiConf, 'brackets' : None }
+		bracketConf = json.loads(row['brackets']) if row['brackets'] != None else None
+		return { 'id' : row['id'], 'serverid' : row['serverid'], 'config' : conf, 'active' : bool(row['active']), 'qualifier_config' : qualiConf, 'brackets' : bracketConf }
 
 	async def setTourneyConfig(self, tid: int, data: dict):
 		tourney = await self.getTourney(tid)
@@ -56,7 +70,14 @@ class TourneyDB():
 		configJson = json.dumps(data)
 
 		async with self.sqlBroker.context() as sql:
-			await sql.query("REPLACE INTO tournies (id, serverid, active, config, qualifier_config) VALUES (%s, %s, %s, %s, %s)", (tid, tourney['serverid'], tourney['active'], configJson, json.dumps(tourney['qualifier_config']), ))
+			await sql.query("REPLACE INTO tournies (id, serverid, active, config, qualifier_config, brackets) VALUES (%s, %s, %s, %s, %s, %s)", (tid, tourney['serverid'], tourney['active'], configJson, json.dumps(tourney['qualifier_config']), json.dumps(tourney['brackets']), ))
+
+	async def setTourneyQualifiers(self, tid: int, qualifiers: dict):
+		tourney = await self.getTourney(tid)
+		qualifierJson = json.dumps(qualifiers)
+
+		async with self.sqlBroker.context() as sql:
+			await sql.query("REPLACE INTO tournies (id, serverid, active, config, qualifier_config, brackets) VALUES (%s, %s, %s, %s, %s, %s)", (tid, tourney['serverid'], tourney['active'], json.dumps(tourney['config']), qualifierJson, json.dumps(tourney['brackets']), ))
 
 	async def getActiveQualifiers(self, serverid: int) -> dict:
 		ct = datetime.now(pytz.timezone('UTC'))

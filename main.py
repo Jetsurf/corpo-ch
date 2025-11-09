@@ -19,7 +19,8 @@ cogList = [
 	#'fun',
 	'chcmds',
 	#'tourneycmds',
-	'qualifiercmds'
+	'qualifiercmds',
+	'ownercmds'
 ]
 
 for cog in cogList:
