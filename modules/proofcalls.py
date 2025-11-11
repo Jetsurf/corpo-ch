@@ -17,8 +17,9 @@ class ProofCallModal(discord.ui.DesignerModal):
 		await interaction.respond("Processing, wait for embed to update", ephemeral=True, delete_after=5)
 
 class ProofCallView(discord.ui.View):
-	def __init__(self, proofcall, msg, tourney, match, *args, **kwargs):
+	def __init__(self, proofcall, bot, msg, tourney, match, *args, **kwargs):
 		super().__init__(timeout=None)
+		self.bot = bot
 		self.msg = msg #if msg != None else self.message
 		self.proofcall = proofcall
 		self.tourney = tourney
@@ -40,7 +41,18 @@ class ProofCallView(discord.ui.View):
 		await interaction.response.send_modal(modal=modal)
 		await modal.wait()
 		await self.proofcall.addScreenshots(self.msg, self.tourney, self.match, modal.screens)
-		#await interaction.edit_original_response(embed=self.proofcall.makeProofEmbed(self.tourney, self.match), view=ProofCallView(self.proofcall, self.tourney, self.match, modal.screens))
+
+	async def interaction_check(self, interaction: discord.Interaction):
+		ply1 = await self.bot.tourneyDB.getPlayerByCHName(self.match['matchjson']['highSeed']['name'], self.tourney['id'])
+		ply2 = await self.bot.tourneyDB.getPlayerByCHName(self.match['matchjson']['lowSeed']['name'], self.tourney['id'])
+		ply1 = await self.bot.fetch_user(ply1['discordid'])
+		ply2 = await self.bot.fetch_user(ply2['discordid'])
+		refRole = interaction.guild.get_role(self.tourney['config']['ref_role'])
+		if ply1.id == interaction.user.id or ply2.id == interaction.user.id or refRole in interaction.user.roles:
+			return True
+		else:
+			await interaction.response.send_message("You are not a player or ref for this match", ephemeral=True, delete_after=5)
+			return False
 
 class ProofCalls():
 	def __init__(self, bot, *args, **kwargs):
@@ -65,7 +77,7 @@ class ProofCalls():
 				ply1 = await self.bot.fetch_user(ply1['discordid'])
 				ply2 = await self.bot.fetch_user(ply2['discordid'])
 				print(f"Restarting proof call {match['matchuuid']} with thread id {msg.id}")
-				await msg.edit(content=f"Paging {ply1.mention} and {ply2.mention} for screenshots!", embed=self.makeProofEmbed(tourney, match), view=ProofCallView(self, msg, tourney, match))
+				await msg.edit(content=f"Paging {ply1.mention} and {ply2.mention} for screenshots!", embed=self.makeProofEmbed(tourney, match), view=ProofCallView(self, self.bot, msg, tourney, match))
 
 	async def watchRefToolMatches(self):
 		proofs = await self.sql.getActiveProofCalls()
@@ -96,7 +108,7 @@ class ProofCalls():
 		#Sanely get the message to pass in, silly threads
 		thread = await channel.create_thread(name=f"Proof call: {ply1.name} vs {ply2.name}!", content=f"Setting up! - Paging {ply1.mention} and {ply2.mention} for screenshots!")
 		msg = await thread.fetch_message(thread.id)
-		await msg.edit(content=f"Paging {ply1.mention} and {ply2.mention} for screenshots!", embed=self.makeProofEmbed(tourney, match), view=ProofCallView(self, msg, tourney, match))
+		await msg.edit(content=f"Paging {ply1.mention} and {ply2.mention} for screenshots!", embed=self.makeProofEmbed(tourney, match), view=ProofCallView(self, self.bot, msg, tourney, match))
 
 		return thread
 
@@ -104,15 +116,20 @@ class ProofCalls():
 		matchJson = match['matchjson']
 		ply1Db = await self.sql.getPlayerByCHName(matchJson['highSeed']['name'], tourney['id'])
 		ply2Db = await self.sql.getPlayerByCHName(matchJson['lowSeed']['name'], tourney['id'])
+		channel = self.bot.get_channel(tourney['config']['proof_channel'])
+		thread = channel.get_thread(msg.id)
 
 		for screen in screens:
 			stegData = await self.chUtils.getStegInfo(screen)
 			if stegData == None:
-				print(f"Invalid steg data: {stegData['image_name']}")
+				print(f"Invalid steg data {screen.filename}")
 				continue
 
-			chartInfo = tourney['brackets'][matchJson['setlist']]['set_list'][stegData['song_name']]
-			if chartInfo['checksum'] == stegData['checksum']:
+			chartInfo = tourney['brackets'][matchJson['setlist']]['set_list'].get(stegData['song_name'])
+			if chartInfo == None:
+				print(f"Screenshot {screen.filename} not from setlist")
+				continue
+			elif chartInfo['checksum'] == stegData['checksum']:
 				plysMatched = 0
 				for ply in stegData['players']:
 					if ply1Db['chname'] == ply['profile_name']:
@@ -130,13 +147,14 @@ class ProofCalls():
 				print(f"Screenshot {stegData['image_name']} not using correct chart")
 				continue
 
-			if 'tb' in matchJson and matchJson['tb']['song'] == stegData['song_name']:
+			if 'tb' in matchJson and matchJson['tb']['song'] == stegData['song_name'] and 'steg_data' not in matchJson['tb']:
 				print(f"Adding TB {stegData['song_name']}")
 				matchJson['tb']['steg_data'] = stegData
 			else:
 				for song in matchJson['rounds']:
-					if song['song'] == stegData['song_name']:
+					if song['song'] == stegData['song_name'] and 'steg_data' not in song:
 						print(f"Adding {stegData['song_name']}")
+						await thread.send(embed=self.chUtils.buildStatsEmbed(f"Stats for {stegData['song_name']}", stegData))
 						song['steg_data'] = stegData
 						break
 
@@ -146,8 +164,6 @@ class ProofCalls():
 			print(f"Match {match['matchuuid']} complete!")
 			await self.sql.saveCompleteMatch(match['matchuuid'], match['tourneyid'], matchJson['highSeed']['name'], matchJson['lowSeed']['name'], matchJson)
 			await msg.edit(content=f"Match Complete!", embed=self.makeProofEmbed(tourney, match), view=None)
-			channel = self.bot.get_channel(tourney['config']['proof_channel'])
-			thread = channel.get_thread(msg.id)
 			await thread.archive(locked=True)
 		else:
 			await self.sql.replaceRefToolMatch(match['matchuuid'], match['tourneyid'], True, matchJson, msg.id)
