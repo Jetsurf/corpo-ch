@@ -1,12 +1,10 @@
-import sys, os
-#import logging
-#logging.basicConfig(level=logging.DEBUG)
+import sys, os, discord, asyncio, time, json
 
 dirname = os.path.dirname(sys.argv[0]) or '.'
 sys.path.append(f"{dirname}/modules")
 
-import discord, asyncio, time, json
 import tourneysql
+import proofcalls
 import mysqlhandler
 import sqlschema
 
@@ -19,7 +17,8 @@ cogList = [
 	#'fun',
 	'chcmds',
 	#'tourneycmds',
-	'qualifiercmds'
+	'qualifiercmds',
+	'ownercmds'
 ]
 
 for cog in cogList:
@@ -27,9 +26,9 @@ for cog in cogList:
 	print(f'Cog loaded: {cog}')
 
 owners = []
-doneStartup = False
 configData = None
 mysqlHandler = None
+proofCalls = None
 
 def loadConfig():
 	global configData
@@ -40,17 +39,13 @@ def loadConfig():
 		print('Config Loaded')
 	except Exception as e:
 		print(f"Failed to load config: {str(e)} - attempting env variables")
-		configData['token'] = os.environ.get('DBOT_TOKEN', None)
-		if not configData['token']:
-			print("No DBOT_TOKEN env var found. Quitting.")
-			quit(1)
+		sys.exit(1)
 
 def startUpLogging():
 	if configData.get('output_to_log'):
 		os.makedirs(f"{dirname}/logs", exist_ok=True)
-
 		sys.stdout = open(f"{dirname}/logs/discordbot.log", 'a+')
-		sys.stdout.reconfigure(line_buffering = True)  # Flush stdout at every newline
+		sys.stdout.reconfigure(line_buffering = True)
 		sys.stderr = open(f"{dirname}/logs/discordbot.err", 'a+')
 		sys.stderr.reconfigure(line_buffering = True)
 
@@ -65,20 +60,14 @@ def startUpDB():
 	configData['mysql_pw'] = None
 	configData['mysql_db'] = None
 
-	client.loop.create_task(startUpDBAsync())
-
-async def startUpDBAsync():
-	global mysqlHandler
-
-	await mysqlHandler.startUp()
+	client.loop.create_task(mysqlHandler.startUp())
 
 async def retrieveOwners():
 	global client, owners
 
 	owners = []
 	print("Retrieving bot owners...")
-
-	app = await client.application_info()  # Get owners from Discord team api
+	app = await client.application_info()
 	if app.team:
 		for mem in app.team.members:
 			owner = await client.fetch_user(mem.id)
@@ -86,33 +75,26 @@ async def retrieveOwners():
 				print(f"  Can't get user object for team member {str(mem.name)}#{str(mem.discriminator)} id {mem.id}")
 			else:
 				owners.append(owner)
+				print(f"  Loaded owner: {str(owner.name)} id {owner.id}")
 	else:
 		owners = [app.owner]
+		print(f"  Loaded owner: {str(app.owner.name)} id {app.owner.id}")
 
-	for owner in owners:
-		print(f"  Loaded owner: {str(owner.name)} id {owner.id}")
-
-	return
-
-@client.event
+@client.listen(once=True)
 async def on_ready():
-	global client, doneStartup, mysqlHandler
+	global client, mysqlHandler, proofCalls
 
-	if not doneStartup:
-		print(f"Logged in as {client.user.name}#{client.user.discriminator} id {client.user.id}")
-		await retrieveOwners()
-	else:
-		print("RECONNECT TO DISCORD")
+	print(f"Logged in as {client.user.name}#{client.user.discriminator} id {client.user.id}")
 
+	await retrieveOwners()
 	client.tourneyDB = tourneysql.TourneyDB(client, mysqlHandler)
 	await mysqlHandler.wait_for_startup()
-	sqlSchema = sqlschema.MysqlSchema(mysqlHandler)
-	await sqlSchema.update()
+	await sqlschema.MysqlSchema(mysqlHandler).update()
 	await client.tourneyDB.loadMatches()
-
+	proofCalls = proofcalls.ProofCalls(client)
+	await proofCalls.init()
 
 	print('------Done with Startup------')
-	doneStartup = True
 
 loadConfig()
 startUpLogging()

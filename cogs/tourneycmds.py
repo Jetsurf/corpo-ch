@@ -69,7 +69,7 @@ class BanSelect(discord.ui.Select):
 				theSong = discord.SelectOption(label=song['name'], description=f"{song['artist']} - {song['charter']}")
 				songOpts.append(theSong)
 
-		super().__init__(placeholder=placeholder, max_values=maxVals,	options=songOpts, custom_id=custom_id)
+		super().__init__(placeholder=placeholder, max_values=maxVals, options=songOpts, custom_id=custom_id)
 
 	async def callback(self, interaction: discord.Interaction):
 		index = 0

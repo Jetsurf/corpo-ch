@@ -2,6 +2,7 @@ import platform, json, base64, io, os
 from datetime import datetime
 
 import discord
+import pytz
 from discord.ext import commands
 from discord.ui import *
 from discord.enums import ComponentType, InputTextStyle
@@ -66,21 +67,21 @@ class DiscordQualifierView(discord.ui.View):
 		else:
 			self.stegData = prevRun['stegjson']
 			if viewInit:
-				await self.ctx.respond(f"You already submitted a qualifier for {self.tourney['config']['name']}!", embed=self.buildQualifierStatsEmbed(), ephemeral=True)
+				await self.ctx.respond(f"You already submitted a qualifier for {self.tourney['config']['name']}!", embed=self.chUtils.buildStatsEmbed("Qualifier Submission Results", self.stegData, True), ephemeral=True)
 			else:
-				await self.ctx.respond(f"Here's the qualifier info you submitted for {self.tourney['config']['name']}!", embed=self.buildQualifierStatsEmbed(), ephemeral=True)
+				await self.ctx.respond(f"Here's the qualifier info you submitted for {self.tourney['config']['name']}!", embed=self.chUtils.buildStatsEmbed("Qualifier Submission Results", self.stegData, True), ephemeral=True)
 
 	async def submitBtn(self, interaction: discord.Interaction):
 		await interaction.response.defer()
 		if not self.acknowledged:
 				self.stegData['submission_timestamp'] = datetime.now(pytz.timezone('UTC')).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-				await self.ctx.edit(embed=self.buildQualifierStatsEmbed(), view=self)
+				await self.ctx.edit(embed=self.chUtils.buildStatsEmbed("Qualifier Submission Results", self.stegData, True), view=self)
 				self.acknowledged = True
 		else:
 			#Needs to be tweaked to support multiplayer qualifier runs
 			print(f"Submitting qualifier submission for {self.ctx.user.global_name} - {self.stegData["players"][0]["profile_name"]} - {self.stegData['score_timestamp']}")
 			#Save Screenshot
-			outDir = f"steg/tournies/{self.tourney['config']['name']}".replace(" ", "")
+			outDir = f"steg/qualifiers/{self.tourney['config']['name']}".replace(" ", "")
 			if not os.path.isdir(outDir):
 				os.makedirs(outDir)
 
@@ -92,7 +93,7 @@ class DiscordQualifierView(discord.ui.View):
 			if await self.sql.saveQualifier(self.ctx.user.id, self.tourney['id'], self.stegData):
 				#Submit to Sheet
 				gs = gsheets.GSheets(self.ctx.bot, self.sql, self.tourney['id'])
-				await gs.init()
+				await gs.init("qualifier")
 				if not await gs.submitQualifier(self.ctx.user, self.stegData):
 					await interaction.followup.send("Something went wrong in the gsheets setup/submission", ephemeral=True)
 					return
@@ -123,26 +124,6 @@ class DiscordQualifierView(discord.ui.View):
 
 		return embed
 
-	def buildQualifierStatsEmbed(self) -> discord.Embed:
-		embed = discord.Embed(colour=0x3FFF33)
-		embed.title = "Qualifier Submission Results"
-
-		statsStr = ""
-		statsStr = statsStr + f"Qualifier Name: {self.stegData["song_name"]}\n"
-		player1 = self.stegData["players"][0]
-		statsStr = statsStr + f"Player Name: {player1["profile_name"]}\n"
-		statsStr = statsStr + f"Score: {player1["score"]}\n"
-		statsStr = statsStr + f"Notes Hit: {player1["notes_hit"]}/{player1["total_notes"]} - {(player1["notes_hit"]/player1["total_notes"]) * 100:.2f}%\n"
-		statsStr = statsStr + f"Overstrums: {player1["overstrums"]}\n" # Needs further sanity/error checking
-		statsStr = statsStr + f"Ghosts: {player1["frets_ghosted"]}\n"
-		statsStr = statsStr + f"SP Phrases: {player1["sp_phrases_earned"]}/{player1["sp_phrases_total"]}\n"
-		statsStr = statsStr + f"Submission Time: <t:{int(round(datetime.strptime(self.stegData["submission_timestamp"], '%Y-%m-%dT%H:%M:%S.%fZ').timestamp()))}:f>\n"
-		statsStr = statsStr + f"Run Time: <t:{int(round(datetime.strptime(self.stegData["score_timestamp"], '%Y-%m-%dT%H:%M:%S.%fZ').timestamp()))}:f>"
-
-		embed.add_field(name="Submission Stats", value=statsStr, inline=False)
-
-		return embed
-
 class QualifierCmds(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
@@ -169,26 +150,34 @@ class QualifierCmds(commands.Cog):
 		await view.init(viewInit=False, showRules=True)
 
 	#Keep as a fail-safe - if gsheets submissions breaks, this can be used for data pull - just doesn't have a restriction for staff-role only execution
-	#@qualifier.command(name='submissions', description='Retrieve a CSV of all submissions for the active tournament', integration_types={discord.IntegrationType.guild_install})
-	#async def qualifierCSVCmd(self, ctx):
+	@qualifier.command(name='submissions', description='Retrieve a CSV of all submissions for the active tournament', integration_types={discord.IntegrationType.guild_install})
+	@commands.is_owner()
+	async def qualifierCSVCmd(self, ctx):
 		# pull data
-		#tourney = self.bot.tourneyDB.getActiveTournies(ctx.guild.id)
-		#if type(tourney) != dict: # no active tourney found
-			#await ctx.respond("No active tournament was found.",ephemeral=True)
-			#return
+		tourney = self.bot.tourneyDB.getActiveTournies(ctx.guild.id)
+		if type(tourney) != dict: # no active tourney found
+			await ctx.respond("No active tournament was found.",ephemeral=True)
+			return
 		
-		#submissions = self.bot.tourneyDB.getTourneyQualifierSubmissions(tourney.id)
+		submissions = self.bot.tourneyDB.getTourneyQualifierSubmissions(tourney.id)
 
 		# format data
-		#csv = "Player,Score,Notes Missed,Overstrums,Ghosts\n"
-		#for i in submissions:
-			#csv += f"{i["profile_name"]},{i["score"]},{i["notes_hit"]},{i["total_notes"] - i["notes_hit"]},{i["overstrums"]},{i["frets_ghosted"]}\n"
+		csv = "Player,Score,Notes Missed,Overstrums,Ghosts\n"
+		for i in submissions:
+			csv += f"{i["profile_name"]},{i["score"]},{i["notes_hit"]},{i["total_notes"] - i["notes_hit"]},{i["overstrums"]},{i["frets_ghosted"]}\n"
 
 		# post data
-		#csvF = io.StringIO()
-		#csvF.write(csv)
-		#await ctx.respond(file=discord.File(csvF,filename="qualifier_submissions.csv"),ephemeral=True)
-		#csvF.close()
+		csvF = io.StringIO()
+		csvF.write(csv)
+		await ctx.respond(file=discord.File(csvF,filename="qualifier_submissions.csv"),ephemeral=True)
+		csvF.close()
+
+	@commands.Cog.listener()
+	async def on_application_command_error(self, ctx: discord.ApplicationContext, error: discord.DiscordException):
+		if isinstance(error, commands.NotOwner):
+			await ctx.respond("You don't own me! (You cannot run this command)", ephemeral=True)
+		else:
+			raise error
 
 def setup(bot):
 	bot.add_cog(QualifierCmds(bot))

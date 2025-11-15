@@ -1,8 +1,10 @@
-import subprocess, requests, sys, platform, uuid, json, os, operator, re
+import subprocess, requests, sys, platform, uuid, json, os, operator, re, cv2, pytesseract
 
-from PIL import Image
+from PIL import Image, ImageEnhance
 from discord import File
-import pytesseract
+from datetime import datetime, timezone
+
+import discord
 
 class CHUtils():
 	def __init__(self):
@@ -103,18 +105,34 @@ class CHUtils():
 		return True
 
 	def getOverStrums(self, imageName: str, roundData: dict) -> dict:
+		#OCR Tweaking - Keep until v6 is dead
+		#img = Image.open(imageName)
+		#image = cv2.imread(imageName)
+		#gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+		#blur = cv2.GaussianBlur(gray, (3,3), 0)
+		#thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
+				# Morph open to remove noise and invert image
+		#kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
+		#opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=1)
+		#invert = 255 - opening
 		outStr = pytesseract.image_to_string(Image.open(imageName))
 		osCnt = re.findall("(?<=Overstrums )([O0-9]+)", outStr)
 		print(f"OS Counts: {osCnt}")
+		img = Image.fromarray(thresh)
+		osImg = img.crop((0, 690, 1080, 727))
+		outStr = pytesseract.image_to_string(osImg)
+		osCnt = re.findall("(?<=Overstrums )([0-9]+)", outStr)
+
 		#Sanity check OS's before adding
 		for i, player in enumerate(roundData['players']):
 			## TODO: THIS NEEDS TO BE FIXED FOR ACTUAL ROUND DATA INFO
-			if len(osCnt) > 0:
+			if len(osCnt) == len(roundData['players']):
 				player['overstrums'] = osCnt[i]
 			else:
 				player['overstrums'] = '-'
 
 	async def getStegInfo(self, image: File) -> dict:
+		image.filename = re.sub(r'[^a-zA-Z0-9-_.]', '', image.filename)
 		imageName = f"{self.stegCliInput}/{image.filename}"
 		print(f"Steg Input PNG: {imageName}")
 		await image.save(imageName, seek_begin=True)
@@ -124,7 +142,7 @@ class CHUtils():
 			proc = subprocess.run(stegCall.split(), stdout = subprocess.PIPE, stderr = subprocess.PIPE)
 			if proc.returncode != 0 or proc.returncode != '0':
 				output = json.loads(proc.stdout.decode("utf-8"))
-
+				output['charter_name'] = re.sub(r"(?:<[^>]*>)", "", output['charter_name'])
 				#populate data not present in steg
 				self.getOverStrums(imageName, output)
 				output['image_name'] = image.filename
@@ -143,3 +161,33 @@ class CHUtils():
 
 		os.remove(imageName)
 		return output
+
+	def buildStatsEmbed(self, title: str, stegData: dict, isQualifier=False) -> discord.Embed:
+		embed = discord.Embed(colour=0x3FFF33)
+		embed.title = title
+
+		if 'image_url' in stegData:
+			embed.set_image(url=stegData['image_url'])
+
+		chartStr = ""
+		if isQualifier:
+			chartStr = chartStr + f"Chart Name: {stegData["song_name"]}\n"
+			chartStr = chartStr + f"Submission Time: <t:{int(round(datetime.strptime(stegData["submission_timestamp"], '%Y-%m-%dT%H:%M:%S.%fZ').replace(tzinfo=timezone.utc).timestamp()))}:f>\n"
+		else:
+			chartStr = chartStr + f"Chart Name: {stegData["song_name"]}\n"
+
+		chartStr = chartStr + f"Run Time: <t:{int(round(datetime.strptime(stegData["score_timestamp"], '%Y-%m-%dT%H:%M:%S.%fZ').replace(tzinfo=timezone.utc).timestamp()))}:f>\n"
+		chartStr = chartStr + f"Game Version: {stegData['game_version']}"
+		embed.add_field(name="Submission Stats", value=chartStr, inline=False)
+
+		for i, player in enumerate(stegData["players"]):
+			plyStr = ""
+			plyStr = plyStr + f"Player Name: {player["profile_name"]}\n"
+			plyStr = plyStr + f"Score: {player["score"]}\n"
+			plyStr = plyStr + f"Notes Hit: {player["notes_hit"]}/{player["total_notes"]} - {(player["notes_hit"]/player["total_notes"]) * 100:.2f}% {' - 👑' if player['is_fc'] else ''}\n"
+			plyStr = plyStr + f"Overstrums: {player["overstrums"]}\n"
+			plyStr = plyStr + f"Ghosts: {player["frets_ghosted"]}\n"
+			plyStr = plyStr + f"SP Phrases: {player["sp_phrases_earned"]}/{player["sp_phrases_total"]}\n"
+			embed.add_field(name=f"Player {i+1}", value=plyStr, inline=False)
+
+		return embed
