@@ -127,6 +127,7 @@ class MysqlSchema():
 			tourneyid INT NOT NULL,
 			finished BOOL NOT NULL DEFAULT FALSE,
 			postid BIGINT UNSIGNED,
+			sheetrow INT,
 			matchjson TEXT NULL,
 			PRIMARY KEY (matchuuid)
 			) ENGINE=INNODB;
@@ -141,8 +142,8 @@ class MysqlSchema():
 			CREATE TABLE completed_matches (
 			matchuuid VARCHAR(40) NOT NULL,
 			tourneyid INT NOT NULL,
-			ply1 VARCHAR(40) NOT NULL,
-			ply2 VARCHAR(40) NOT NULL,
+			ply1 BIGINT UNSIGNED NOT NULL,
+			ply2 BIGINT UNSIGNED NOT NULL,
 			matchjson TEXT NULL,
 			PRIMARY KEY (matchuuid)
 			) ENGINE=INNODB;

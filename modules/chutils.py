@@ -105,16 +105,19 @@ class CHUtils():
 		return True
 
 	def getOverStrums(self, imageName: str, roundData: dict) -> dict:
+		#OCR Tweaking - Keep until v6 is dead
 		#img = Image.open(imageName)
-		image = cv2.imread(imageName)
-		gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-		blur = cv2.GaussianBlur(gray, (3,3), 0)
-		thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
-
-		# Morph open to remove noise and invert image
+		#image = cv2.imread(imageName)
+		#gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+		#blur = cv2.GaussianBlur(gray, (3,3), 0)
+		#thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
+				# Morph open to remove noise and invert image
 		#kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
 		#opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=1)
 		#invert = 255 - opening
+		outStr = pytesseract.image_to_string(Image.open(imageName))
+		osCnt = re.findall("(?<=Overstrums )([O0-9]+)", outStr)
+		print(f"OS Counts: {osCnt}")
 		img = Image.fromarray(thresh)
 		osImg = img.crop((0, 690, 1080, 727))
 		outStr = pytesseract.image_to_string(osImg)
@@ -162,6 +165,9 @@ class CHUtils():
 	def buildStatsEmbed(self, title: str, stegData: dict, isQualifier=False) -> discord.Embed:
 		embed = discord.Embed(colour=0x3FFF33)
 		embed.title = title
+
+		if 'image_url' in stegData:
+			embed.set_image(url=stegData['image_url'])
 
 		chartStr = ""
 		if isQualifier:

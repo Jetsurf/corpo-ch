@@ -2,7 +2,7 @@ import mysqlhandler, json, aiomysql, discord
 import discord
 from cogs.tourneycmds import DiscordMatch, DiscordMatchView
 
-from datetime import datetime
+from datetime import datetime, timezone
 import pytz
 import uuid
 import re
@@ -12,15 +12,15 @@ class TourneyDB():
 		self.client = client
 		self.sqlBroker = sqlBroker
 
-	##Generic Info Grabbers
+	## Discord server table functions
 	async def getServerConfig(self, serverid: int) -> dict:
-
 		async with self.sqlBroker.context() as sql:
 			row = await sql.query_first("SELECT config FROM servers WHERE (serverid = %s)", (serverid,))
 			retData = json.loads(row['config'])
 
 		return retData
 
+	## Tourney table functions
 	async def getActiveTournies(self, serverid: int) -> dict:
 		ct = datetime.now(pytz.timezone('UTC'))
 
@@ -73,26 +73,48 @@ class TourneyDB():
 		async with self.sqlBroker.context() as sql:
 			await sql.query("REPLACE INTO tournies (id, serverid, active, config, qualifier_config, brackets) VALUES (%s, %s, %s, %s, %s, %s)", (tid, tourney['serverid'], tourney['active'], configJson, json.dumps(tourney['qualifier_config']), json.dumps(tourney['brackets']), ))
 
-	async def setTourneyQualifiers(self, tid: int, qualifiers: dict):
-		tourney = await self.getTourney(tid)
-		qualifierJson = json.dumps(qualifiers)
+	## Player table functions
+	async def getPlayerByCHName(self, chName: str, tourneyId: int) -> dict:
+		async with self.sqlBroker.context() as sql:
+			row = await sql.query_first("SELECT * FROM players WHERE (chname = %s) AND (tourneyid = %s)", (chName, tourneyId))
+
+		if row is not None:
+			row['config'] = json.loads(row['config']) if row['config'] != None else None
+
+		return row
+
+	async def getPlayerByID(self, playerId: int) -> dict:
+		async with self.sqlBroker.context() as sql:
+			row = await sql.query_first("SELECT * FROM players WHERE (id = %s)", (playerId, ))
+
+		if row is not None:
+			row['config'] = json.loads(row['config']) if row['config'] != None else None
+
+		return row
+
+	async def replacePlayer(self, playerId: int, discordId: str, isActive: bool, chName: str, tourneyId: int, config: dict, qualifierId: str):
+		prevPly = await self.getPlayerByID(playerId)
+
+		#This is set this way due to owner command player replace - this can probably be much more sane
+		if discordId == None:
+			discordId = prevPly['discordid']
+		if isActive == None:
+			isActive = prevPly['isactive']
+		if chName == None:
+			chName = prevPly['chname']
+		if tourneyId == None:
+			tourneyId = prevPly['tourneyid']
+		if qualifierId == None:
+			qualifierId = prevPly['qualifierid']
+		if config == None:
+			sconfig = json.dumps(prevPly['config'])
+		else:
+			sconfig = json.dumps(config)
 
 		async with self.sqlBroker.context() as sql:
-			await sql.query("REPLACE INTO tournies (id, serverid, active, config, qualifier_config, brackets) VALUES (%s, %s, %s, %s, %s, %s)", (tid, tourney['serverid'], tourney['active'], json.dumps(tourney['config']), qualifierJson, json.dumps(tourney['brackets']), ))
+			await sql.query("REPLACE INTO players (id, discordid, isactive, chname, tourneyid, config, qualifierid) VALUES (%s, %s, %s, %s, %s, %s, %s)",(playerId, discordId, isActive, chName, tourneyId, sconfig, qualifierId))
 
-	async def getActiveQualifiers(self, serverid: int) -> dict:
-		ct = datetime.now(pytz.timezone('UTC'))
-		tourney = await self.getActiveTournies(serverid)
-		qualifiers = tourney['qualifier_config']
-		retData = []
-
-		for i in qualifiers['qualifiers']:
-			i['end'] = datetime.strptime(i['end'], '%Y-%m-%d %H:%M:%S.%f%z')
-			if ct < i['end']:
-				retData.append(i)
-
-		return retData
-
+	## Qualifier table Functions
 	async def getPlayerQualifier(self, plyId: int, tourneyId: int) -> dict:
 		#Assuming that there can only be ONE qualifier for a tourney for now
 		async with self.sqlBroker.context() as sql:
@@ -100,15 +122,6 @@ class TourneyDB():
 
 		if row is not None:
 			row['stegjson'] = json.loads(row['stegjson'])
-
-		return row
-
-	async def getPlayerByCHName(self, chName: str, tourneyId: int) -> dict:
-		async with self.sqlBroker.context() as sql:
-			row = await sql.query_first("SELECT * FROM players WHERE (chname = %s) AND (tourneyid = %s)", (chName, tourneyId))
-
-		if row is not None:
-			row['config'] = json.loads(row['config']) if row['config'] != None else None
 
 		return row
 
@@ -136,28 +149,66 @@ class TourneyDB():
 			print(f"Error saving player data: {e}")
 			return False
 
+	async def setTourneyQualifiers(self, tid: int, qualifiers: dict):
+		tourney = await self.getTourney(tid)
+		qualifierJson = json.dumps(qualifiers)
+
+		async with self.sqlBroker.context() as sql:
+			await sql.query("REPLACE INTO tournies (id, serverid, active, config, qualifier_config, brackets) VALUES (%s, %s, %s, %s, %s, %s)", (tid, tourney['serverid'], tourney['active'], json.dumps(tourney['config']), qualifierJson, json.dumps(tourney['brackets']), ))
+
+	async def getActiveQualifiers(self, serverid: int) -> dict:
+		ct = datetime.now(pytz.timezone('UTC'))
+		tourney = await self.getActiveTournies(serverid)
+		qualifiers = tourney['qualifier_config']
+		retData = []
+
+		for i in qualifiers['qualifiers']:
+			i['end'] = datetime.strptime(i['end'], '%Y-%m-%d %H:%M:%S.%f%z')
+			if ct < i['end']:
+				retData.append(i)
+
+		return retData
+
+	## *Mason* Reftool and Completed match data functions
 	async def getRefToolMatch(self, matchuuid: str) -> dict:
 		async with self.sqlBroker.context() as sql:
 			row = await sql.query_first("SELECT * FROM reftool_matches WHERE (matchuuid = %s)", (matchuuid, ))
 
-		row['matchjson'] = json.loads(row['matchjson']) if row['matchjson'] != None else None
-		row['received_screens'] = json.loads(row['received_screens']) if row['received_screens'] != None else None
+		if row['matchjson'] != None: 
+			row['matchjson'] = json.loads(row['matchjson'])
+			if 'startTime' in row['matchjson']:
+				row['startTime'] = datetime.strptime(row['matchjson']['startTime'], '%Y%m%d%H%M%S').replace(tzinfo=timezone.utc)
+				if row['matchjson']['endTime'] != None:
+					row['endTime'] = datetime.strptime(row['matchjson']['endTime'], '%Y%m%d%H%M%S').replace(tzinfo=timezone.utc)
+		else:
+			row['matchjson'] = None
+
 		return row
 
-	async def saveCompleteMatch(self, matchuuid: str, tid: int, ply1: str, ply2: str, matchJson: dict):
+	async def saveCompleteMatch(self, matchuuid: str, tid: int, ply1: int, ply2: int, matchJson: dict):
 		storeJson = json.dumps(matchJson)
 
 		async with self.sqlBroker.context() as sql:
 			await sql.query("INSERT INTO completed_matches (matchuuid, tourneyid, ply1, ply2, matchjson) VALUES (%s, %s, %s, %s, %s)", (matchuuid, tid, ply1, ply2, storeJson, ))
 			await sql.query("DELETE FROM reftool_matches WHERE matchuuid = %s", (matchuuid, ))
 
-	async def replaceRefToolMatch(self, matchuuid: str, tid: int, finished: bool, refToolJson: dict, postid=None):
+	async def replaceRefToolMatch(self, matchuuid: str, tid: int, finished: bool, refToolJson: dict, sheetRow=None, postid=None):
+		if 'startTime' in refToolJson:
+			try:
+				start = datetime.strftime(datetime.strptime(refToolJson['startTime'], '%Y%m%d%H%M%S').replace(tzinfo=timezone.utc), "%Y%m%d%H%M%S")
+				refToolJson['startTime'] = str(start)
+				if refToolJson['endTime'] != None:
+					end = datetime.strftime(datetime.strptime(refToolJson['endTime'], '%Y%m%d%H%M%S').replace(tzinfo=timezone.utc), "%Y%m%d%H%M%S")
+					refToolJson['endTime'] = str(end)
+			except:
+				pass
+
 		match = json.dumps(refToolJson)
-
+		print(f"Sheet row is {sheetRow}")
 		async with self.sqlBroker.context() as sql:
-			await sql.query("REPLACE INTO reftool_matches (matchuuid, tourneyid, finished, postid, matchjson) VALUES (%s, %s, %s, %s, %s)", (matchuuid, tid, finished, postid, match, ))
+			await sql.query("REPLACE INTO reftool_matches (matchuuid, tourneyid, finished, postid, sheetrow, matchjson) VALUES (%s, %s, %s, %s, %s, %s)", (matchuuid, tid, finished, postid, sheetRow, match, ))
 
-	async def getActiveProofCalls(self) -> dict:
+	async def getActiveRefToolMatches(self) -> dict:
 		async with self.sqlBroker.context() as sql:
 			matches = await sql.query("SELECT * FROM reftool_matches")
 
@@ -183,7 +234,7 @@ class TourneyDB():
 		async with self.sqlBroker.context() as sql:
 			await sql.query_first("REPLACE INTO reftool_matches (matchuuid, tourneyid, finished, postid, matchjson, received_screens) VALUES (%s, %s, %s, %s, %s %s)", (matchuuid, tid, finished, msg.id, mjson, rscreens, ))
 
-	## Discord Match Ref Tool Helpers
+	## *Discord/Jetsurf* Reftool Match Ref Tool Helpers
 	async def saveMatch(self, match):
 		saveRnds = []
 		for rnd in match.rounds:

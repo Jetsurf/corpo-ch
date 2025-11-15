@@ -5,31 +5,6 @@ from discord.enums import ComponentType, InputTextStyle
 
 import chutils
 
-class TourneySelect(discord.ui.Select):
-	def __init__(self, match, custom_id):
-		self.match = match
-
-		if 'player1' in custom_id:
-			if self.match.ban1:
-				placeholder = f"{self.match.player1.display_name} bans {self.match.ban1}"
-			else:
-				placeholder = f"Select {self.match.player1.display_name}\'s Ban"
-		elif 'player2' in custom_id:
-			if self.match.ban2:
-				placeholder = f"{self.match.player2.display_name} bans {self.match.ban2}"
-			else:
-				placeholder = f"Select {self.match.player2.display_name}\'s Ban"
-
-		songOpts = []
-		for song in self.match.setlist:
-			if (self.match.ban1 and song['name'] in self.match.ban1) or (self.match.ban2 and song['name'] in self.match.ban2):
-				continue
-			else:
-				theSong = discord.SelectOption(label=song['name'], description=f"{song['artist']} - {song['charter']}")
-				songOpts.append(theSong)
-
-		super().__init__(placeholder=placeholder, max_values=1,	options=songOpts, custom_id=custom_id)
-
 class CHOptModal(Modal):
 	def __init__(self, path, *args, **kwargs):
 		super().__init__(*args, **kwargs)

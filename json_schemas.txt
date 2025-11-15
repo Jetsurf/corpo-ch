@@ -9,6 +9,14 @@
 	"proof_channel" : 1432466136938844221
 }
 
+{
+	"name" : "BWS 2025",
+	"rules" : "Please read the rules here: https://discord.com/channels/1414088320501416099/1415107226695237633/1415107324074393642",
+	"qualifier_sheet": "https://docs.google.com/spreadsheets/d/1arLyVO7I5EzltksPPP-8NT1m-XdZBict70cEHsL6rFY",
+	"ref_role" : 1437445176187420672,
+	"proof_channel" : 1432466136938844221
+}
+
 #tournies - qualifierconfig
 {
 	"qualifiers" : [
@@ -26,7 +34,7 @@
 
 #tournies - brackets config - leaving setlist dict as set_list -> dict for potential to add rules (IE Gamepad mode allowed/required k/v's)
 {
-	"BWS 2025 - Main Bracket": {
+	"BWS 2025": {
 		"set_list": {
 			"Spurgatory / Game Over": {
 				"checksum": "D47BF930569C7254728584708F04ED74",
@@ -42,7 +50,7 @@
 				"charter": "Jackie",
 				"modifiers": ["NoModifiers"],
 				"speed": 115,
-				"category": "True Hybrid",
+				"category": "Solo Patterns",
 				"album": "Far Beyond the Stars",
 				"artist": "Ascension"
 			},
@@ -198,7 +206,7 @@
 		"song": "Impulse",
 		"winner": "[CORP] Jetsurf"
 	},
-	"uuid": "3b0fc146-be43-11f0-9914-0050569d2030",
+	"uuid": "fe2c0746-bf44-11f0-8110-0050569d639d",
 	"winner": 1
 }
 

@@ -93,7 +93,7 @@ class DiscordQualifierView(discord.ui.View):
 			if await self.sql.saveQualifier(self.ctx.user.id, self.tourney['id'], self.stegData):
 				#Submit to Sheet
 				gs = gsheets.GSheets(self.ctx.bot, self.sql, self.tourney['id'])
-				await gs.init()
+				await gs.init("qualifier")
 				if not await gs.submitQualifier(self.ctx.user, self.stegData):
 					await interaction.followup.send("Something went wrong in the gsheets setup/submission", ephemeral=True)
 					return

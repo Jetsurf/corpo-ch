@@ -10,7 +10,6 @@ import sqlschema
 
 intents = discord.Intents.default()
 intents.members = True
-intents.message_content = True
 client = discord.Bot(intents=intents, chunk_guilds_at_startup=False)
 
 # cogs
@@ -96,24 +95,6 @@ async def on_ready():
 	await proofCalls.init()
 
 	print('------Done with Startup------')
-
-@client.event
-async def on_message(msg):
-	#Get rid of any potential bot messages
-	if msg.author.bot or msg.type != discord.MessageType.default:
-		return
-
-	proofCalls = await client.tourneyDB.getActiveProofCalls()
-	for call in proofCalls:
-		tourney = await client.tourneyDB.getTourney(call['tourneyid'])
-		ply1 = await client.tourneyDB.getPlayerByCHName(call['matchjson']['highSeed']['name'], tourney['id'])
-		ply2 = await client.tourneyDB.getPlayerByCHName(call['matchjson']['lowSeed']['name'], tourney['id'])
-		ply1 = await client.fetch_user(ply1['discordid'])
-		ply2 = await client.fetch_user(ply2['discordid'])
-		refRole = msg.guild.get_role(tourney['config']['ref_role'])
-		if msg.channel.id == call['postid'] and (ply1.id == msg.author.id or ply2.id == msg.author.id or refRole in msg.author.roles):
-			await msg.channel.send("You can repsond to this proof call!")
-			break
 
 loadConfig()
 startUpLogging()
