@@ -1,0 +1,288 @@
+import uuid
+import pytz
+import typing
+import json
+from multiselectfield import MultiSelectField
+from django.db import models
+from django.contrib import admin
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.utils import timezone
+
+CH_MODIFIERS = (
+	("NM", "NoModifiers"),
+	("DN", "Double Notes"),
+	("DS", "Dropless Sustains"),
+	("AS", "All Strums"),
+	("NS", "Note Shuffle"),
+	("BM", "Brutal Mode")
+)
+
+CH_VERSIONS = [
+	("v1.0.0.4080-final", "v1.0.0.4080-final")
+]
+
+class Chart(models.Model):
+	id = models.AutoField(primary_key=True)
+	name = models.CharField(verbose_name="Chart Name", max_length=256, blank=True)
+	md5 = models.CharField(verbose_name="MD5 Hash", max_length=32, blank=True)
+	blake3 = models.CharField(verbose_name="Blake3 Hash", max_length=32, blank=True)
+	charter = models.CharField(verbose_name="Charter", max_length=32, blank=True)
+	modifiers = MultiSelectField("Modifiers", choices=CH_MODIFIERS, default=['NM'])
+	speed = models.PositiveIntegerField(verbose_name="Speed", validators=[MinValueValidator(5), MaxValueValidator(1000)], default=100)
+	category = models.CharField(verbose_name="Chart Category", max_length=16, default="Hybrid")#This needs to be choices
+	album = models.CharField(verbose_name="Album", max_length=256, blank=True)
+	artist = models.CharField(verbose_name="Artist", max_length=256, blank=True)
+	url = models.URLField(verbose_name="Chart URL", blank=True)
+
+	class Meta:
+		app_label = "corpoch"
+		verbose_name = "Chart"
+		verbose_name_plural = "Charts"
+
+	@property
+	def long_name(self):
+		return f"{self.name} - {self.charter} - {self.artist} - {self.album}"
+
+	@property
+	def encore_search_query(self):
+		return { 'name' : self.name, 'charter' : self.charter, 'artist' : self.artist, 'album' : self.album }
+
+	@property
+	def encore_blake3_query(self):
+		return { 'chartHash' : self.blake3 }
+
+	def __str__(self):
+		return self.name
+
+class Tournament(models.Model):
+	id = models.AutoField(primary_key=True)
+	guild = models.BigIntegerField(verbose_name="Discord Server ID", db_index=True)
+	name = models.CharField(verbose_name="Name", max_length=128, default="New Tournament")
+	short_name = models.CharField(verbose_name="Short Name", max_length=16, default="NT1")
+	active = models.BooleanField(verbose_name="In-Progress", default=False)
+
+	class Meta:
+		app_label = "corpoch"
+		verbose_name = "Tournament"
+		verbose_name_plural = "Tournaments"
+
+	def __str__(self):
+		return self.name
+
+	def active_players(self):
+		return self.players.filter(active=True)
+
+	def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
+		is_new = self.pk is None
+		super().save(force_insert, force_update, using, update_fields)
+		TournamentConfig.objects.create(tournament=self) if is_new else None
+
+class TournamentConfig(models.Model):
+	tournament = models.OneToOneField(Tournament, related_name="config", verbose_name="Tournament Configuration", on_delete=models.CASCADE)
+	rules = models.CharField(verbose_name="Tournament Name", max_length=1024, default="Some rules go here")
+	enable_gsheets = models.BooleanField(verbose_name="Gsheets Integration", default=True)
+	ref_role = models.BigIntegerField(verbose_name="Discord Ref Role ID", blank=True)
+	proof_channel = models.BigIntegerField(verbose_name="Discord Proof Channel ID", blank=True)
+	version = models.CharField(verbose_name="Clone Hero Version", choices=CH_VERSIONS, max_length=32, default=['v1.0.0.4080-final'])
+
+	class Meta:
+		app_label = "corpoch"
+		verbose_name = "Tournament Config"
+		verbose_name_plural = "Tournament Configurations"
+
+	def __str__(self):
+		return f"{self.tournament.name} - Configuration"
+
+class TournamentBracket(models.Model):
+	id = models.AutoField(primary_key=True)
+	tournament = models.ForeignKey(Tournament, related_name="brackets", on_delete=models.CASCADE, verbose_name="Tournament bracket belongs to")
+	num_players = models.PositiveIntegerField(verbose_name="Players", validators=[MinValueValidator(2), MaxValueValidator(4)], default=2)
+	num_rounds = models.PositiveIntegerField(verbose_name="Best Of", validators=[MinValueValidator(3), MaxValueValidator(25)], default=7)
+	num_bans = models.IntegerField(verbose_name="Num Bans", default=1)
+	allow_defer = models.BooleanField(verbose_name="Allow Ban Deferral", default=True)
+	defer_swap = models.BooleanField(verbose_name="Using Defer Alters First Pick", default=False)
+	score_log = models.BigIntegerField(verbose_name="Score Log Channel Discord ID", default=-1)
+	name = models.CharField(verbose_name="Bracket Name", max_length=128, default=f"New Bracket")
+	setlist = models.ManyToManyField(Chart, verbose_name="Setlist")
+
+	class Meta:
+		app_label = "corpoch"
+		verbose_name = "Tournament Bracket"
+		verbose_name_plural = "Tournament Brackets"
+	
+	def __str__(self):
+		return self.name
+
+class TournamentPlayer(models.Model):
+	id = models.AutoField(primary_key=True)
+	user = models.BigIntegerField(verbose_name="Player Discord ID", db_index=True)
+	tournament = models.ForeignKey(Tournament, related_name="players", verbose_name="Tournament", on_delete=models.CASCADE)
+	is_active = models.BooleanField(verbose_name="Player Active", default=False)
+	ch_name = models.CharField(verbose_name="Clone Hero Name", max_length=128, default="New Player")
+	config = models.JSONField(verbose_name="Player Configuration", default=dict)
+
+	class Meta:
+		app_label = "corpoch"
+		verbose_name = "Tournament Player"
+		verbose_name_plural = "Tournament Players"
+
+	def __str__(self):
+		return self.ch_name
+
+	@property
+	def brackets(self):
+		return self.tournament.brackets.objects.filter(players__id=self.id)
+
+	def check_ch_name(self, testname):
+		return True if testname in self.ch_name else False ## do more checks for formatting, testing now
+
+class TournamentQualifier(models.Model):
+	id = models.AutoField(primary_key=True)
+	#This will need to be tweaked if going to allow multiple qualifiers for a tourney
+	tournament = models.ForeignKey(Tournament, related_name='qualifier', verbose_name="Bracket Qualifier", on_delete=models.CASCADE)
+	single_submission = models.BooleanField(verbose_name="Single Submission", default=False)
+	qualifier_chart = models.ForeignKey(Chart, verbose_name="Qualifier Chart", on_delete=models.CASCADE)
+	form_link = models.URLField(verbose_name="Qualifier Form Link", null=True)
+	end_time = models.DateTimeField(verbose_name="Qualifier End Time", auto_now_add=True)
+	rules = models.CharField(verbose_name="Qualifier Rules", max_length=1024, default="Placeholder rules")
+	gsheet = models.URLField(verbose_name="Submissions Google Sheet", null=True)
+
+	class Meta:
+		app_label = "corpoch"
+		verbose_name = "Qualifier"
+		verbose_name_plural = "Qualifiers"
+
+	def __str__(self):
+		return f"{self.tournament.short_name} - Qualifier"
+
+class BracketGroup(models.Model):
+	id = models.AutoField(primary_key=True, db_index=True)
+	bracket = models.ForeignKey(TournamentBracket, related_name="groups", verbose_name="Bracket Groups", on_delete=models.CASCADE)
+	name = models.CharField(verbose_name="Group Name", max_length=8, default="A")
+	players = models.ManyToManyField(TournamentPlayer, verbose_name="Players")
+	#Can we do https://github.com/jrief/django-admin-sortable2 for seeding?
+	#Field to auto-create roles?
+
+	class Meta:
+		app_label = "corpoch"
+		verbose_name = "Bracket Group"
+		verbose_name_plural = "Bracket Groups"
+
+	@property
+	def tournament(self) -> Tournament:
+		return self.bracket.tournament
+
+	@property
+	def active_players(self) -> list:
+		return self.players.objects.filter(is_active=True)
+
+	def active_players(self) -> list:
+		return self.players.objects.filter(is_active=True)
+
+	def __str__(self):
+		return f"{self.tournament.short_name} - {self.bracket.name} - {self.name}"
+
+class TournamentMatch(models.Model):#This class is assumed to be an "official" match - new class for exhibition/non-"tracked" matches
+	id = models.CharField(primary_key=True, verbose_name="Match ID", max_length=40, default=str(uuid.uuid1()))
+	processed = models.BooleanField(verbose_name="Match Processed", default=False)
+	group = models.ForeignKey(BracketGroup, related_name='%(class)s_matches', verbose_name="Group", on_delete=models.CASCADE, null=True)#limit_options_to groups in bracket somehow?
+	player1 = models.ForeignKey(TournamentPlayer, related_name="%(class)s_player1", verbose_name="High Seed/Player 1", on_delete=models.CASCADE, null=True) 
+	player1_ban = models.ForeignKey(Chart, related_name="%(class)s_player1_ban", verbose_name="Player 1 Ban", on_delete=models.CASCADE, null=True)
+	player2 = models.ForeignKey(TournamentPlayer, related_name="%(class)s_player2", verbose_name="Low Seed/Player 2", on_delete=models.CASCADE, null=True)
+	player2_ban = models.ForeignKey(Chart, related_name="%(class)s_player2_ban", verbose_name="Player 2 Ban", on_delete=models.CASCADE, null=True)
+	started_on = models.DateTimeField(verbose_name="Match Start Time", auto_now_add=True)
+
+	class Meta:
+		app_label = "corpoch"
+		ordering = ['started_on']
+		abstract = True
+
+	@property
+	def high_seed(self):
+		return self.player1
+
+	@property
+	def low_seed(self):
+		return self.player2
+
+	@property
+	def tournament(self):
+		return self.group.bracket.tournament
+
+	@property
+	def bracket(self):
+		return self.group.bracket
+
+	@property
+	def version(self):
+		self.group.bracket.tournament.config.version
+
+	def __str__(self):
+		return f"{self.tournament.short_name} - {self.bracket.name} - {self.player1.ch_name} vs {self.player2.ch_name}"
+
+class TournamentMatchCompleted(TournamentMatch):
+	ended_on = models.DateTimeField(verbose_name="Match end time", auto_now_add=True)
+	winner = models.ForeignKey(TournamentPlayer, related_name="matches_won", verbose_name="Winner", on_delete=models.CASCADE)
+	loser = models.ForeignKey(TournamentPlayer, related_name="matches_lost", verbose_name="Loser", on_delete=models.CASCADE)
+
+	class Meta:
+		app_label = "corpoch"
+		verbose_name = "Completed Tournament Match"
+		verbose_name_plural = "Tournament Matches Completed"
+
+	def __str__(self):
+		return f"{self.tournament.short_name} - {self.bracket.name} - {self.player1.ch_name} vs {self.player2.ch_name} - {self.match_results['highSeed']['points']}-{self.match_results['lowSeed']['points']}"
+
+class TournamentMatchOngoing(TournamentMatch): 
+	finished = models.BooleanField(verbose_name="Match in-progress", default=False) #Flag to match in-progress as complete, start triggers to move to completed
+	channel = models.BigIntegerField(verbose_name="Discord channel ID for ref-tool", null=True)
+	message = models.BigIntegerField(verbose_name="Discord message ID for ref-tool", null=True)	
+
+	class Meta:
+		app_label = "corpoch"
+		verbose_name = "Ongoing Tournament Match"
+		verbose_name_plural = "Ongoing Tournament Matches"
+
+	def completeMatch(self, winner: TournamentPlayer, loser: TournamentPlayer):
+		compMatch = TournamentMatchCompleted(id=self.id, winner=winner, loser=loser, bracket=self.bracket, player1=self.player1, player1_ban=self.player1_ban, player2=self.player2, player2_ban=self.player2_ban, match_data=self.match_data)
+
+class TournamentRound(models.Model):
+	id = models.AutoField(primary_key=True, db_index=True)
+	started_on = models.DateTimeField(verbose_name="Started", auto_now_add=True)
+	ended_on = models.DateTimeField(verbose_name="Ended", blank=True)
+	group = models.ForeignKey(BracketGroup, related_name="group_rounds", verbose_name="Group", on_delete=models.CASCADE)
+	picked = models.ForeignKey(TournamentPlayer, related_name="picks", verbose_name="Player That Picked", on_delete=models.CASCADE)
+	chart = models.ForeignKey(Chart, related_name="rounds_played", verbose_name="Chart Played", null=True, on_delete=models.CASCADE)
+	winner = models.ForeignKey(TournamentPlayer, related_name="rounds_won", verbose_name="Winner", null=True, on_delete=models.CASCADE)
+	completed_match = models.ForeignKey(TournamentMatchCompleted, related_name="completed_match_rounds", verbose_name="Completed Match", null=True, on_delete=models.CASCADE)
+	ongoing_match = models.ForeignKey(TournamentMatchOngoing, related_name="ongoing_match_rounds", verbose_name="Ongoing Match", null=True, on_delete=models.CASCADE)
+	steg_data = models.JSONField(verbose_name="Steg Data", blank=True)
+	screenshot = models.ImageField(upload_to="tournament_screens/", verbose_name="Screenshot")
+
+	class Meta:
+		app_label = "corpoch"
+		verbose_name = "Group Match Round"
+		verbose_name_plural = "Group Match Rounds"
+
+	def __str__(self):
+		if self.completed_match:
+			return f"{self.completed_match.player1.ch_name} vs {self.completed_match.player2.ch_name} - "
+		else:
+			return f"{self.ongoing_match.group.bracket.tournament.short_name} - {self.ongoing_match.group.bracket.name} - Group {self.ongoing_match.group.name} - {self.completed_match.player1.ch_name} vs {self.completed_match.player2.ch_name} - In-Progress"
+
+
+class QualifierSubmission(models.Model):
+	quali = models.CharField(primary_key=True, verbose_name="Qualifier ID", max_length=40, default=str(uuid.uuid1()))
+	#This will need to be tweaked if going to allow multiple qualifiers for a tourney
+	player = models.ForeignKey(TournamentPlayer, related_name="qualifiers", verbose_name="Submittor", on_delete=models.CASCADE)
+	submit_time = models.DateTimeField(verbose_name="Submission Time", auto_now_add=True)
+	qualifier = models.ForeignKey(TournamentQualifier, related_name='submissions', verbose_name="Tournament Qualifier", on_delete=models.CASCADE)
+	steg_json = models.JSONField(verbose_name="Steg Data", default=dict, blank=True)
+
+	class Meta:
+		app_label = "corpoch"
+		verbose_name = "Qualifier Submission"
+		verbose_name_plural = "Qualifier Submissions"
+
+	def __str__(self):
+		return f"{self.player.user.name} - {self.qualifier.tournament.name} Qualifier"

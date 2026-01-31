@@ -1,0 +1,9 @@
+py-cord
+audioop-lts
+requests
+pymysql
+aiomysql
+pillow
+pytesseract
+apscheduler
+flask[async]

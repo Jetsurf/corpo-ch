@@ -1,2 +1,6 @@
-# corp-bot
-CORP Gang tourney bot or something - placeholder
+# Corpo CH
+The Corpo CH Django App/Discord Bot
+
+Clone Hero Tournament organizer and tools.
+
+More to come!
