@@ -19,7 +19,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 ALLOWED_HOSTS = [ os.getenv("BASE_URL") ]
-
+CSRF_TRUSTED_ORIGINS=[f"https://{os.getenv("BASE_URL")}"]
 SECRET_KEY = os.getenv("SECRET_KEY")
 DEBUG = os.getenv("DEBUG")
 # Application definition
@@ -32,7 +32,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'corpoch',
-    "corpodbot"
+    'corpodbot',
+    'adminsortable2'
 ]
 
 MIDDLEWARE = [
@@ -92,7 +93,6 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Internationalization
 # https://docs.djangoproject.com/en/3.2/topics/i18n/
-
 LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = 'UTC'

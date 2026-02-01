@@ -1,5 +1,4 @@
 import uuid
-import pytz
 import typing
 import json
 from multiselectfield import MultiSelectField
@@ -7,6 +6,8 @@ from django.db import models
 from django.contrib import admin
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.utils import timezone
+
+DEFAULT_CH_VER = "v1.0.0.4080-final"
 
 CH_MODIFIERS = (
 	("NM", "NoModifiers"),
@@ -20,6 +21,26 @@ CH_MODIFIERS = (
 CH_VERSIONS = [
 	("v1.0.0.4080-final", "v1.0.0.4080-final")
 ]
+from cryptography.fernet import Fernet
+from django.db import models
+import base64
+import os
+
+# Generate a key for encryption (store securely)
+key = Fernet.generate_key()
+cipher = Fernet(key)
+
+#GSheet API Key
+class GSheetAPI(models.Model):
+	api_key = models.TextField()
+
+	def set_key(self, raw_data):
+		encrypted_data = cipher.encrypt(raw_data.encode())
+		self.encrypted_field = encrypted_data.decode()
+
+	def get_key(self):
+		decrypted_data = cipher.decrypt(self.encrypted_field.encode())
+		return decrypted_data.decode()
 
 class Chart(models.Model):
 	id = models.AutoField(primary_key=True)
@@ -32,6 +53,7 @@ class Chart(models.Model):
 	category = models.CharField(verbose_name="Chart Category", max_length=16, default="Hybrid")#This needs to be choices
 	album = models.CharField(verbose_name="Album", max_length=256, blank=True)
 	artist = models.CharField(verbose_name="Artist", max_length=256, blank=True)
+	brackets = models.ManyToManyField("TournamentBracket", related_name="setlist", verbose_name="Bracket Setlist", blank=True)
 	url = models.URLField(verbose_name="Chart URL", blank=True)
 
 	class Meta:
@@ -46,10 +68,6 @@ class Chart(models.Model):
 	@property
 	def encore_search_query(self):
 		return { 'name' : self.name, 'charter' : self.charter, 'artist' : self.artist, 'album' : self.album }
-
-	@property
-	def encore_blake3_query(self):
-		return { 'chartHash' : self.blake3 }
 
 	def __str__(self):
 		return self.name
@@ -74,15 +92,15 @@ class Tournament(models.Model):
 
 	def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
 		is_new = self.pk is None
-		super().save(force_insert, force_update, using, update_fields)
-		TournamentConfig.objects.create(tournament=self) if is_new else None
+		super().save()
+		TournamentConfig.objects.create(tournament=self, version=[CH_VERSION[0]]) if is_new else None
 
 class TournamentConfig(models.Model):
 	tournament = models.OneToOneField(Tournament, related_name="config", verbose_name="Tournament Configuration", on_delete=models.CASCADE)
-	rules = models.CharField(verbose_name="Tournament Name", max_length=1024, default="Some rules go here")
+	rules = models.CharField(verbose_name="Tournament Rules", max_length=1024, default="Some rules go here")
 	enable_gsheets = models.BooleanField(verbose_name="Gsheets Integration", default=True)
-	ref_role = models.BigIntegerField(verbose_name="Discord Ref Role ID", blank=True)
-	proof_channel = models.BigIntegerField(verbose_name="Discord Proof Channel ID", blank=True)
+	ref_role = models.BigIntegerField(verbose_name="Discord Ref Role ID", null=True, blank=True)
+	proof_channel = models.BigIntegerField(verbose_name="Discord Proof Channel ID", null=True, blank=True)
 	version = models.CharField(verbose_name="Clone Hero Version", choices=CH_VERSIONS, max_length=32, default=['v1.0.0.4080-final'])
 
 	class Meta:
@@ -95,7 +113,7 @@ class TournamentConfig(models.Model):
 
 class TournamentBracket(models.Model):
 	id = models.AutoField(primary_key=True)
-	tournament = models.ForeignKey(Tournament, related_name="brackets", on_delete=models.CASCADE, verbose_name="Tournament bracket belongs to")
+	tournament = models.ForeignKey(Tournament, related_name="brackets", on_delete=models.CASCADE, verbose_name="Tournament")
 	num_players = models.PositiveIntegerField(verbose_name="Players", validators=[MinValueValidator(2), MaxValueValidator(4)], default=2)
 	num_rounds = models.PositiveIntegerField(verbose_name="Best Of", validators=[MinValueValidator(3), MaxValueValidator(25)], default=7)
 	num_bans = models.IntegerField(verbose_name="Num Bans", default=1)
@@ -103,13 +121,16 @@ class TournamentBracket(models.Model):
 	defer_swap = models.BooleanField(verbose_name="Using Defer Alters First Pick", default=False)
 	score_log = models.BigIntegerField(verbose_name="Score Log Channel Discord ID", default=-1)
 	name = models.CharField(verbose_name="Bracket Name", max_length=128, default=f"New Bracket")
-	setlist = models.ManyToManyField(Chart, verbose_name="Setlist")
 
 	class Meta:
 		app_label = "corpoch"
 		verbose_name = "Tournament Bracket"
 		verbose_name_plural = "Tournament Brackets"
 	
+	@property
+	def full_name(self):
+		return f"{self.tournament.short_name} - {self.name}"
+
 	def __str__(self):
 		return self.name
 
@@ -182,8 +203,26 @@ class BracketGroup(models.Model):
 	def __str__(self):
 		return f"{self.tournament.short_name} - {self.bracket.name} - {self.name}"
 
+class GroupSeed(models.Model):
+	seed = models.PositiveIntegerField(default=0, blank=False, null=False)
+	group = models.ForeignKey(BracketGroup, related_name="seeding", verbose_name="Group Seeding", null=True, on_delete=models.CASCADE)
+	player = models.ForeignKey(TournamentPlayer, related_name="group_seed", verbose_name="Group Seed", null=True, on_delete=models.CASCADE)
+
+	class Meta:
+		app_label = "corpoch"
+		verbose_name = "Seed Placement"
+		verbose_name_plural = "Seed Placements"
+		ordering = ['seed']
+
+	def __str__(self):
+		return str(self.seed)
+
+	@property
+	def full_name(self):
+		return f"{self.group.tournament.short_name} - {self.group.bracket.name} - Group {self.group.name} - Seed {self.seed}"
+
 class TournamentMatch(models.Model):#This class is assumed to be an "official" match - new class for exhibition/non-"tracked" matches
-	id = models.CharField(primary_key=True, verbose_name="Match ID", max_length=40, default=str(uuid.uuid1()))
+	id = models.CharField(primary_key=True, verbose_name="Match ID", max_length=40, default=uuid.uuid1)
 	processed = models.BooleanField(verbose_name="Match Processed", default=False)
 	group = models.ForeignKey(BracketGroup, related_name='%(class)s_matches', verbose_name="Group", on_delete=models.CASCADE, null=True)#limit_options_to groups in bracket somehow?
 	player1 = models.ForeignKey(TournamentPlayer, related_name="%(class)s_player1", verbose_name="High Seed/Player 1", on_delete=models.CASCADE, null=True) 
@@ -272,7 +311,7 @@ class TournamentRound(models.Model):
 
 
 class QualifierSubmission(models.Model):
-	quali = models.CharField(primary_key=True, verbose_name="Qualifier ID", max_length=40, default=str(uuid.uuid1()))
+	quali = models.CharField(primary_key=True, verbose_name="Qualifier ID", max_length=40, default=uuid.uuid1)
 	#This will need to be tweaked if going to allow multiple qualifiers for a tourney
 	player = models.ForeignKey(TournamentPlayer, related_name="qualifiers", verbose_name="Submittor", on_delete=models.CASCADE)
 	submit_time = models.DateTimeField(verbose_name="Submission Time", auto_now_add=True)

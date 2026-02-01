@@ -1,15 +1,19 @@
 import json
 
-from django.contrib import admin
-from corpoch.models import Chart, Tournament, TournamentConfig, TournamentBracket, TournamentQualifier, TournamentPlayer
-from corpoch.models import TournamentMatchCompleted, TournamentMatchOngoing, BracketGroup, QualifierSubmission, CH_MODIFIERS
+from adminsortable2.admin import CustomInlineFormSet, SortableAdminBase, SortableTabularInline, SortableAdminMixin
 
+from django.contrib import admin
+from corpoch.models import Chart, Tournament, TournamentConfig, TournamentBracket, TournamentQualifier, TournamentPlayer, GroupSeed
+from corpoch.models import TournamentMatchCompleted, TournamentMatchOngoing, BracketGroup, QualifierSubmission, CH_MODIFIERS
 from corpoch.providers import EncoreClient
 
 @admin.register(Chart)
 class ChartAdmin(admin.ModelAdmin):
-	list_display = ('name',  'charter', 'artist', 'album', 'speed', '_modifiers')
+	list_display = ('name',  '_bracket', 'charter', 'artist', 'album', 'speed', '_modifiers')
 	actions = ['run_encore_import']
+
+	def _bracket(self,obj):
+		return obj.full_name
 
 	def _modifiers(self, obj):
 		return obj.modifiers
@@ -24,12 +28,7 @@ class ChartAdmin(admin.ModelAdmin):
 	def run_encore_import(modeladmin, request, queryset):
 		encore = EncoreClient()
 		for chart in queryset:
-			if chart.blake3:
-				print(f"Query = {chart.encore_blake3_query}")
-				search = encore.search(chart.encore_blake3_query)
-				print(f"search {search}")
-			else:
-				search = encore.search(chart.encore_search_query)
+			search = encore.search(chart.encore_search_query)
 
 			if len(search) == 0:
 				print(f"Chart {chart.name} encore lookup with query {chart.encore_search_query} failed with {search}")
@@ -51,7 +50,7 @@ class ChartAdmin(admin.ModelAdmin):
 
 @admin.register(Tournament)
 class TournamentAdmin(admin.ModelAdmin):
-	list_display = ('guild', 'active')
+	list_display = ('name', 'guild', 'active')
 
 @admin.register(TournamentConfig)
 class TournamentConfigAdmin(admin.ModelAdmin):
@@ -59,7 +58,10 @@ class TournamentConfigAdmin(admin.ModelAdmin):
 
 @admin.register(TournamentBracket)
 class TournamentBracketAdmin(admin.ModelAdmin):
-	list_display = ("name", 'tournament')
+	list_display = ("_name", 'tournament')
+
+	def _name(self, obj):
+		return f"{obj.full_name}"
 
 @admin.register(TournamentPlayer)
 class TournamentPlayerAdmin(admin.ModelAdmin):
@@ -69,9 +71,25 @@ class TournamentPlayerAdmin(admin.ModelAdmin):
 class TournamentQualifierAdmin(admin.ModelAdmin):
 	list_display = ('id', 'tournament')
 
+
+class SortableInlineFormSet(CustomInlineFormSet):
+    pass
+
+class SeedingInline(SortableTabularInline):
+	model = GroupSeed
+	formset = SortableInlineFormSet
+
+	@property
+	def template(self):
+		return "adminsortable2/stacked.html"
+
 @admin.register(BracketGroup)
-class BracketGroupAdmin(admin.ModelAdmin):
+class BracketGroupAdmin(SortableAdminMixin, admin.ModelAdmin):
 	list_display = ('tournament', 'bracket_name', 'name', 'group_players')
+	#list_display_links = ("_group_name", "_player_name",)
+	inlines = [SeedingInline]
+	ordering = ['seeding']
+	list_per_page = 32
 
 	def tournament(self, obj):
 		return obj.bracket.tournament.name
@@ -81,6 +99,19 @@ class BracketGroupAdmin(admin.ModelAdmin):
 
 	def bracket_name(self, obj):
 		return obj.bracket.name
+
+#class SortableSeedAdmin(, admin.ModelAdmin):
+	
+	#list_display = ("_group_name", "_player_name",)
+	
+	
+	#
+
+#	def _group_name(self, obj):
+#		return obj.group.full_name
+
+#	def _player_name(self, obj):
+#		return obj,player.ch_name
 
 @admin.register(QualifierSubmission)
 class QualifierSubmission(admin.ModelAdmin):
