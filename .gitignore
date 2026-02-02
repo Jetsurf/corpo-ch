@@ -8,7 +8,7 @@ gsheets-key.json
 __pycache__/
 *.py[cod]
 *$py.class
-
+./corpoch/migrations/*
 # C extensions
 *.so
 
