@@ -1,9 +1,10 @@
 import json
 
-from adminsortable2.admin import CustomInlineFormSet, SortableAdminBase, SortableTabularInline, SortableAdminMixin
+from adminsortable2.admin import CustomInlineFormSet, SortableAdminBase, SortableStackedInline, SortableAdminMixin
 
 from django.contrib import admin
-from corpoch.models import Chart, Tournament, TournamentConfig, TournamentBracket, TournamentQualifier, TournamentPlayer, GroupSeed
+from django.contrib.contenttypes.models import ContentType
+from corpoch.models import Chart, Tournament, TournamentConfig, TournamentBracket, TournamentQualifier, TournamentPlayer, GroupSeed, TournamentRound
 from corpoch.models import TournamentMatchCompleted, TournamentMatchOngoing, BracketGroup, QualifierSubmission, CH_MODIFIERS
 from corpoch.providers import EncoreClient
 
@@ -13,7 +14,7 @@ class ChartAdmin(admin.ModelAdmin):
 	actions = ['run_encore_import']
 
 	def _bracket(self,obj):
-		return obj.full_name
+		return obj
 
 	def _modifiers(self, obj):
 		return obj.modifiers
@@ -61,7 +62,7 @@ class TournamentBracketAdmin(admin.ModelAdmin):
 	list_display = ("_name", 'tournament')
 
 	def _name(self, obj):
-		return f"{obj.full_name}"
+		return f"{obj}"
 
 @admin.register(TournamentPlayer)
 class TournamentPlayerAdmin(admin.ModelAdmin):
@@ -71,47 +72,30 @@ class TournamentPlayerAdmin(admin.ModelAdmin):
 class TournamentQualifierAdmin(admin.ModelAdmin):
 	list_display = ('id', 'tournament')
 
-
-class SortableInlineFormSet(CustomInlineFormSet):
-    pass
-
-class SeedingInline(SortableTabularInline):
+class SeedingInline(SortableStackedInline):
 	model = GroupSeed
-	formset = SortableInlineFormSet
-
-	@property
-	def template(self):
-		return "adminsortable2/stacked.html"
 
 @admin.register(BracketGroup)
-class BracketGroupAdmin(SortableAdminMixin, admin.ModelAdmin):
-	list_display = ('tournament', 'bracket_name', 'name', 'group_players')
+class BracketGroupAdmin(SortableAdminBase, admin.ModelAdmin):
+	list_display = ('name', 'tournament', 'bracket_name', 'group_players')
 	#list_display_links = ("_group_name", "_player_name",)
 	inlines = [SeedingInline]
-	ordering = ['seeding']
+	#ordering = ['seed']
 	list_per_page = 32
 
 	def tournament(self, obj):
-		return obj.bracket.tournament.name
+		return obj.bracket.tournament.short_name
 
 	def group_players(self, obj):
-		return ", ".join([player.ch_name for player in obj.players.all()])
+		return ", ".join([seed.player.ch_name for seed in obj.seeding.all()])
 
 	def bracket_name(self, obj):
 		return obj.bracket.name
 
-#class SortableSeedAdmin(, admin.ModelAdmin):
-	
-	#list_display = ("_group_name", "_player_name",)
-	
-	
-	#
-
-#	def _group_name(self, obj):
-#		return obj.group.full_name
-
-#	def _player_name(self, obj):
-#		return obj,player.ch_name
+	def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
+		 if db_field.name == "group_players":
+				 kwargs["queryset"] = Tournament.players.objects.all()
+		 return super(BracketGroupAdmin, self).formfield_for_foreignkey(db_field, request, **kwargs)
 
 @admin.register(QualifierSubmission)
 class QualifierSubmission(admin.ModelAdmin):
@@ -120,31 +104,45 @@ class QualifierSubmission(admin.ModelAdmin):
 	def player_ch_name(self, obj):
 		return obj.player.ch_name
 
+class RoundsInline(SortableStackedInline):
+	model = TournamentRound
+
 @admin.register(TournamentMatchCompleted)
-class TournamentMatchCompletedAdmin(admin.ModelAdmin):
-	list_display = ('__str__', 'processed', 'bracket_name', 'group', 'player1_ch_name', 'player2_ch_name', 'started_on', 'version')
+class TournamentMatchCompletedAdmin(SortableAdminBase, admin.ModelAdmin):
+	list_display = ('__str__', 'processed', 'bracket_name', 'group', '_match_players', 'started_on', 'version')
+	inlines = [RoundsInline]
+	list_per_page = 16
 
 	def bracket_name(self, obj):
 		return obj.group.bracket.name
 
-	def player1_ch_name(self, obj):
-		return obj.player1.ch_name
-
-	def player2_ch_name(self, obj):
-		return obj.player2.ch_name
+	def _match_players(self, obj):
+		retList = []
+		for player in obj.match_players.iterator():
+			retList.append(player.ch_name)
+		return retList
 
 	def version(self, obj):
 		return obj.group.bracket.tournament.config.version
 
 @admin.register(TournamentMatchOngoing)
-class TournamentMatchOngoingAdmin(admin.ModelAdmin):
-	list_display = ('__str__', 'processed', 'bracket_name', 'group', 'player1_ch_name', 'player2_ch_name', 'started_on', 'version')
+class TournamentMatchOngoingAdmin(SortableAdminBase, admin.ModelAdmin):
+	list_display = ('__str__', 'processed', '_bracket_name', 'group', '_match_players', 'started_on', 'version')
+	inlines = [RoundsInline]
+	list_per_page = 16
 
-	def bracket_name(self, obj):
+	def _bracket_name(self, obj):
 		return obj.group.bracket.name
 
-	def player1_ch_name(self, obj):
-		return obj.player1.ch_name
+	def _match_players(self, obj):
+		retList = []
+		for player in obj.match_players.iterator():
+			retList.append(player.ch_name)
+		return retList
 
-	def player2_ch_name(self, obj):
-		return obj.player2.ch_name
+	def formfield_for_manytomany(self, db_field, request, **kwargs):#Limit options in admin to ONLY players/bans in a group?
+		#if db_field.name == "bans":
+		#	kwargs["queryset"] = TournamentBracket.setlist.objects.filter(brackets__in=request.group.bracket)
+		#if db_field.name == "match_players":
+		#	kwargs["queryset"] = self.group.seeding.objects.all()
+		return super().formfield_for_foreignkey(db_field, request, **kwargs)

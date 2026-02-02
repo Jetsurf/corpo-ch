@@ -32,7 +32,7 @@ class CorpoDbot(discord.Bot):
 			#'chcmds',
 			'tourneycmds',
 			#'qualifiercmds'
-			#'ownercmds'
+			'ownercmds'
 		]
 
 		for cog in cogList:
