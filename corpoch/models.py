@@ -217,7 +217,7 @@ class BracketGroup(models.Model):
 class GroupSeed(models.Model):
 	seed = models.PositiveIntegerField(blank=False, null=False)
 	group = models.ForeignKey(BracketGroup, related_name="seeding", verbose_name="Group Seeding", null=True, on_delete=models.CASCADE)
-	player = models.ForeignKey(TournamentPlayer, related_name="group_seeding", verbose_name="Group Seed", null=True, on_delete=models.CASCADE)
+	player = models.ForeignKey(TournamentPlayer, related_name="group_seeding", verbose_name="Group Seed", null=True, on_delete=models.SET_NULL)
 
 	class Meta:
 		verbose_name = "Seed Placement"
@@ -306,7 +306,8 @@ class TournamentMatchCompleted(TournamentMatch):
 class TournamentMatchOngoing(TournamentMatch): 
 	finished = models.BooleanField(verbose_name="Finished", default=False) #Flag to match in-progress as complete, start triggers to move to completed
 	channel = models.BigIntegerField(verbose_name="Ref-Tool Discord Channel ID", null=True, blank=True)
-	message = models.BigIntegerField(verbose_name="Ref-Tool Discord Message ID", null=True, blank=True)	
+	message = models.BigIntegerField(verbose_name="Ref-Tool Discord Message ID", null=True, blank=True)
+	ref = models.BigIntegerField(verbose_name="Discord Ref ID", null=True, blank=True)
 
 	class Meta:
 		verbose_name = "Ongoing Match"
@@ -319,13 +320,13 @@ class TournamentMatchOngoing(TournamentMatch):
 
 class TournamentRound(models.Model):
 	num = models.PositiveIntegerField(blank=False, null=False)
-	ongoing_match = models.ForeignKey(TournamentMatchOngoing, related_name="ongoing_rounds", verbose_name="Ongoing Match ID", on_delete=models.SET_NULL, null=True, blank=True)
+	ongoing_match = models.ForeignKey(TournamentMatchOngoing, related_name="ongoing_rounds", verbose_name="Ongoing Match ID", on_delete=models.CASCADE, null=True, blank=True)
 	completed_match = models.ForeignKey(TournamentMatchCompleted, related_name="completeds_rounds", verbose_name="Completed Match ID", on_delete=models.CASCADE, null=True, blank=True)
 	picked = models.ForeignKey(TournamentPlayer, related_name="picks", verbose_name="Picked", on_delete=models.CASCADE)
-	chart = models.ForeignKey(Chart, related_name="rounds_played", verbose_name="Chart Played", null=True, on_delete=models.CASCADE)
-	winner = models.ForeignKey(TournamentPlayer, related_name="rounds_won", verbose_name="Winner", null=True, on_delete=models.CASCADE)
-	loser = models.ForeignKey(TournamentPlayer, related_name="rounds_lost", verbose_name="Loser", null=True, on_delete=models.CASCADE)
-	steg_data = models.JSONField(verbose_name="Steg Data", blank=True)
+	chart = models.ForeignKey(Chart, related_name="rounds_played", verbose_name="Chart Played", null=True, blank=True, on_delete=models.SET_NULL)
+	winner = models.ForeignKey(TournamentPlayer, related_name="rounds_won", verbose_name="Winner", null=True, on_delete=models.SET_NULL)
+	loser = models.ForeignKey(TournamentPlayer, related_name="rounds_lost", verbose_name="Loser", null=True, on_delete=models.SET_NULL)
+	steg_data = models.JSONField(verbose_name="Steg Data", null=True, blank=True)
 	screenshot = models.ImageField(upload_to="tournament_screens/", verbose_name="Screenshot", null=True)
 
 	class Meta:
@@ -334,7 +335,14 @@ class TournamentRound(models.Model):
 		ordering=['num']
 
 	def __str__(self):
-		return f"{self.match.group.bracket.tournament.short_name} - {self.ongoing_match.group.bracket.name} - Group {self.ongoing_match.group.name} - {self.completed_match.player1.ch_name} vs {self.completed_match.player2.ch_name}"
+		outStr = ""
+		if self.picked:
+			outStr += f"{self.picked} picks"
+		if self.chart:
+			outStr += f" {self.chart.name}"
+		if self.winner:
+			outStr += f" - {self.winner.ch_name} wins"
+		return outStr
 
 #Potential class for a "Series" of tournaments - just needs to be a list of tournaments for ogranization
 #class TournamentSeries(models.Model):
@@ -342,9 +350,9 @@ class TournamentRound(models.Model):
 
 class MatchBan(models.Model):
 	num = models.PositiveIntegerField(blank=False, null=False)
-	chart = models.ForeignKey(Chart, related_name="bans", verbose_name="Chart Banned", blank=True, on_delete=models.CASCADE)
-	player = models.ForeignKey(GroupSeed, related_name="player_bans", verbose_name="Player", blank=True, on_delete=models.CASCADE)
-	ongoing_match = models.ForeignKey(TournamentMatchOngoing, related_name="%(class)s_bans", verbose_name="Ongoing Match ID", on_delete=models.SET_NULL, null=True, blank=True)
+	chart = models.ForeignKey(Chart, related_name="bans", verbose_name="Chart Banned", null=True, blank=True, on_delete=models.SET_NULL)
+	player = models.ForeignKey(GroupSeed, related_name="player_bans", verbose_name="Player", null=True, blank=True, on_delete=models.SET_NULL)
+	ongoing_match = models.ForeignKey(TournamentMatchOngoing, related_name="%(class)s_bans", verbose_name="Ongoing Match ID", on_delete=models.CASCADE, null=True, blank=True)
 	completed_match = models.ForeignKey(TournamentMatchCompleted, related_name="%(class)s_bans", verbose_name="Completed Match ID", on_delete=models.CASCADE, null=True, blank=True)
 
 	class Meta:

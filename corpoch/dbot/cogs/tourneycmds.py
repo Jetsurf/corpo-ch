@@ -6,19 +6,17 @@ from discord.ui import *
 from discord.enums import ComponentType, InputTextStyle
 from asgiref.sync import sync_to_async
 
-from corpoch.models import Chart, TournamentMatchOngoing, TournamentBracket, BracketGroup, TournamentPlayer, TournamentMatchCompleted, GroupSeed, TournamentRound, MatchBan
-
-#A lot of this sync-to-async interlinking isn't fully making sense yet. there's got to be a better way to async in django
+from corpoch.models import Tournament, Chart, TournamentMatchOngoing, TournamentBracket, BracketGroup, TournamentPlayer, TournamentMatchCompleted, GroupSeed, TournamentRound, MatchBan
 
 class BanSelect(discord.ui.Select):
 	def __init__(self, match):
 		self.match = match
 
 	async def init(self):
-		self.index = ((self.match.bracket.total_bans - len(self.match.bans)) % self.match.bracket.num_players)
+		self.index = (self.match.bracket.total_bans - len(self.match.bans) % self.match.bracket.num_players) - 1
 		opts = []
 		async for aChart in self.match.setlist.filter(tiebreaker=False).exclude(bans__in=self.match.bans):
-			chart = await sync_to_async(lambda: aChart)()
+			chart = await sync_to_async(lambda: aChart)()#Jank to get around async to sync
 			opts.append(discord.SelectOption(label=str(chart), description=f"{chart.artist} - {chart.charter}"))
 		super().__init__(placeholder=f"{await sync_to_async(lambda: self.match.seeding[self.index].player.ch_name)()} Ban", max_values=1, options=opts, custom_id="ban_sel")
 
@@ -49,17 +47,24 @@ class SongRoundSelect(discord.ui.Select):
 			picked = list(self.match.seeding).difference(self.match.rounds[-1].picked)[0]
 			selStr += f"{picked.ch_name} Picks"
 
+		if self.round.chart:
+			selStr += f" - {self.round.chart.name}"
+
 		songOptsDone = []
 		for rnd in self.match.rounds:
-			songOptsDone.append(rnd.chart)
-
+			if rnd.chart:
+				songOptsDone.append(rnd.chart.id)
+		bansDone = []
+		for ban in self.match.bans:
+			bansDone.append(ban.chart.id)
 		opts = []
-		async for chart in self.match.setlist.filter(tiebreaker=False).exclude(id__in=songOptsDone):
+		async for chart in self.match.setlist.filter(tiebreaker=False).exclude(id__in=songOptsDone).exclude(id__in=bansDone):
 			opts.append(discord.SelectOption(label=str(chart), description=f"{chart.artist} - {chart.charter}"))
 		super().__init__(placeholder=selStr, max_values=1, options=opts, custom_id="roundsong_sel", disabled=self.dis)
 
 	async def callback(self, interaction: discord.Integration):
 		self.round.chart = await self.match.setlist.aget(name=self.values[0])
+		await self.round.asave()
 		await self.match.showTool(interaction)
 
 class PlayerRoundSelect(discord.ui.Select):
@@ -78,8 +83,9 @@ class PlayerRoundSelect(discord.ui.Select):
 		super().__init__(placeholder="Round Winner", max_values=1, options=[player1, player2], custom_id="roundwin_sel", disabled=self.dis)
 
 	async def callback(self, interaction: discord.Integration):
-		winSeed = self.match.seeding.objects.get(player__ch_name=self.values[0])
-		loseSeed = self.match.seeding.difference(list(winSeed))[0]
+		winSeed = self.match.group.seeding.all().filter(player__ch_name=self.values[0])
+		winSeed = await sync_to_async(winSeed.objects)()
+		loseSeed = list(self.match.seeding - list(winSeed))[0]
 		#loseSeed = self.match.seeding.objects.get(player__ch_name=f"-{self.values[0]}")
 		self.round.winner = winSeed
 		self.round.loser = loseSeed
@@ -174,18 +180,20 @@ class PlayerSelect(discord.ui.Select):
 		ldSeed = None
 		async for seed in self.match.group.seeding.all().filter(group=self.match.group, player__ch_name=self.values[0]):
 			ldSeed = seed
+			ldPly = await sync_to_async(lambda: seed.player)()
 		#seed = await BracketGroup.seeding.objects.aget()
 		self.match.seeding.append(ldSeed)
 		self.match.seeding = sorted(self.match.seeding, key=lambda x: x.seed)
+		self.match.seeding_discord.append(await self.match.guild.fetch_member(ldPly.user))
 		await self.match.showTool(interaction)
 
 #This class is being written with the assumption of official tournament matches - exhibition can be made to extend this with custom logging/rules
 class DiscordMatch():
 	def __init__(self, bot, message=None, uuid=None):
-		#Make non-persistent until match has officiall started?
 		#Make it so if user is not a ref, self match where each player picks options is required
 		self.bot = bot
 		self.msg = message
+		self.msgId = -1
 		self.guild = message.guild if message else None
 		self.ref = message.user if hasattr(message, 'user') else None
 		self.channel = message.channel if hasattr(message, 'channel') else None
@@ -198,38 +206,56 @@ class DiscordMatch():
 		self.bans = []
 		self.rounds = []
 		self.matchDb = uuid
-		
 		self.confirmCancel = False
 		#TODO - figure out how to allow exhibition matches(?)
 
 	async def init(self):
 		if self.matchDb:
-			self.matchDb = await TournamentMatchOngoing.objects.aget(id=self.matchDb)
-			self.channel = self.bot.get_channel(self.matchDb.channel)
-			self.guild = self.channel.guild
-			self.msg = self.matchDb.message
-			self.group = await sync_to_async(lambda: self,matchDb.group)()
-			self.bracket = await sync_to_async(lambda: self.matchDb.group.bracket)()
-			self.seeding = list(await sync_to_async(self.matchDb.brackets.seeding.objects.all)())
-			self.seeding = [await sync_to_async(self.matchDb.group.seeding.filter)(id__in=self.matchDb.match_players)]
-			self.seeding_discord = [self.bot.fetch_member(await sync_to_async(lambda: seed.player.user)()) for seed in self.seeding]
-			self.bans = await sync_to_async(self.matchDb.matchbans)()
-			self.msg = await self.bot.fetch_message(self.msg)
+			await self.load_match()
+			#Finish loading async
+			self.msg = await self.channel.fetch_message(self.matchDb.message)
+			self.ref = await self.guild.fetch_member(self.matchDb.ref)
 
-		from corpoch.models import Tournament
 		self.tourney = await Tournament.objects.aget(guild=self.msg.guild.id, active=True)#Assuming single tourney for now
 		if not self.tourney:
 			await self.msg.respond("No active tourney - running exhibition mode not supported now", ephemeral=True)
 			return
-		if isinstance(self.msg, int):#We're loading from DB - fetch everything async
-			await self.showTool()
-		else:
+		if isinstance(self.msg, discord.ApplicationContext):#We're loading from DB - fetch everything async
 			await self.msg.respond("Setting up")
+		else:
+			await self.showTool(self.msg)
 
 	async def finishMatch(self, interaction):
 		#Save match results to DB
 		await interaction.edit(embeds=[self.genMatchEmbed()], content=None, view=None)		
 
+	@sync_to_async
+	def load_match(self):
+		self.matchDb = TournamentMatchOngoing.objects.get(id=self.matchDb)
+		self.channel = self.bot.get_channel(self.matchDb.channel)
+		self.guild = self.channel.guild
+		self.group = self.matchDb.group
+		self.bracket = self.matchDb.group.bracket
+		self.setlist = self.matchDb.bracket.setlist
+		self.match_players = self.matchDb.match_players
+		self.seeding = list(self.matchDb.group.seeding.all())
+		self.seeding = list(self.matchDb.group.seeding.filter(id__in=self.matchDb.match_players.all().only('id')))
+		self.seeding_discord = list(self.guild.fetch_member(seed.player.user) for seed in self.seeding)
+		self.bans = list(self.matchDb.matchban_bans.all())
+		self.rounds = self.matchDb.rounds
+
+		#load the objects
+		for ban in self.bans:
+			tmp = ban.chart
+		for seed in self.seeding:
+			tmp = seed.player
+		for chart in self.setlist.all():
+			tmp = chart
+		for rnd in self.rounds:
+			tmep = rnd
+
+		print(f"Reattached to on-going match {self.matchDb}")
+		
 	@sync_to_async
 	def save_match(self):
 		if self.group:
@@ -242,15 +268,21 @@ class DiscordMatch():
 			self.matchDb.rounds = self.rounds
 			self.matchDb.message = self.msg.id if self.msg else None
 			self.matchDb.channel = self.channel.id
+			self.matchDb.ref = self.ref.id
 			self.matchDb.bans = self.bans
 			self.matchDb.save()
 
 	async def showTool(self, interaction):
+		print(f"DEBUG: OBJ: {interaction}")
+		if isinstance(interaction, discord.Message):
+			self.msg = interaction
+		else:
+			self.msg = interaction.message
+
 		await self.save_match()
 		view = DiscordMatchView(self)
 		await view.init()
-		self.msg = await interaction.edit(embeds=[await self.genMatchEmbed()], content=None, view=view)
-		print(f"DEBUG: {self.msg}")
+		await interaction.edit(embeds=[await self.genMatchEmbed()], content=None, view=view)
 		
 	@sync_to_async
 	def add_round(self):
@@ -260,8 +292,8 @@ class DiscordMatch():
 			picked = self.rounds[-1].loser
 			print(f"Round pick: {picked.player.ch_name}")
 		else:
-			prevPicked = self.match.rounds[-1].loser
-			picked = list(self.match.seeding).difference(self.match.rounds[-1].picked)
+			prevPicked = self.rounds[-1].loser
+			picked = list(self.seeding).difference(self.rounds[-1].picked)
 			
 		newRnd = TournamentRound(num=len(self.rounds) + 1, ongoing_match=self.matchDb, picked=picked)
 		self.rounds.append(newRnd)
@@ -280,7 +312,7 @@ class DiscordMatch():
 			embed.title = f"{self.tourney.short_name} - {self.bracket.name} - Group {self.group.name}"
 			embed.add_field(name="Player Select", value=f"Select which players the match is for", inline=False)
 		else:
-			embed.title = f"{self.tourney.short_name} - {self.bracket.name} - Group {self.group.name} - {self.seeding[0].player.ch_name} ({self.seeding[0].seed}) vs {self.seeding[1].player.ch_name} ({self.seeding[1].seed})"
+			embed.title = f"{self.tourney.short_name} - {self.bracket.name} - Group {self.group.name}\n{self.seeding[0].player.ch_name}({self.seeding[0].seed}) vs {self.seeding[1].player.ch_name} ({self.seeding[1].seed})"
 			outStr = ""
 			for i, seed in enumerate(self.seeding):
 				outStr += f"**{seed.player.ch_name} Bans**\n"
@@ -294,14 +326,15 @@ class DiscordMatch():
 			else:
 				embed.add_field(name="Bans", value=outStr, inline=False)
 		
-		outStr = ""
-		for rnd in self.rounds:
-			outStr += f"{rnd.picked.ch_name} picks - {rnd.chart.name if rnd.chart else "..."}"
-			if rnd.winner:
-				outStr += f" - {rnd.winner.ch_name} wins!"
-			outStr+= "\n"
+		if self.bans and len(self.bans) == self.bracket.total_bans:
+			outStr = ""
+			for rnd in self.rounds:
+				outStr += f"{rnd.picked.ch_name} picks {rnd.chart.name if rnd.chart else "---"}"
+				if rnd.winner:
+					outStr += f" - {rnd.winner.ch_name} wins!"
+				outStr+= "\n"
 
-		embed.add_field(name="Rounds", value=outStr, inline=False)
+			embed.add_field(name="Rounds", value=outStr, inline=False)
 		return embed
 
 class DiscordMatchView(discord.ui.View):
@@ -380,7 +413,7 @@ class DiscordMatchView(discord.ui.View):
 	async def cancelBtn(self, interaction: discord.Interaction):
 		if self.match.confirmCancel:
 			await interaction.response.edit_message(content="Closing", embed=None, view=None, delete_after=1)
-			await self.match.matchDB.adelete()
+			await self.match.matchDb.adelete()
 			self.stop()
 		else:
 			self.match.confirmCancel = True

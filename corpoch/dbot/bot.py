@@ -21,7 +21,7 @@ class CorpoDbot(commands.Bot):
 		django.setup()
 		intents = discord.Intents.default()
 		intents.members = True
-		self.bot = super().__init__(intents=intents, chunk_guilds_at_startup=False)
+		self.client = super().__init__(intents=intents, chunk_guilds_at_startup=False)
 		self.session = aiohttp.ClientSession(loop=self.loop)
 		self.redis = self.loop.run_until_complete(aioredis.from_url(os.getenv("CELERY_BROKER_URL"), encoding="utf-8", decode_responses=True))
 		print(f"redis pool started {os.getenv("CELERY_BROKER_URL")}")
@@ -78,8 +78,8 @@ class CorpoDbot(commands.Bot):
 		from corpoch.models import TournamentMatchOngoing
 		async for match in TournamentMatchOngoing.objects.exclude(channel=None):
 			print(f"Got ongoing match {match.id}")
-			view = DiscordMatch(self.bot, uuid=match.id)
-			#await view.init()
+			view = DiscordMatch(self._bot, uuid=match.id)
+			await view.init()
 
 		print('------Done with Startup------')
 

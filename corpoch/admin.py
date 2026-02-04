@@ -77,6 +77,7 @@ class TournamentQualifierAdmin(admin.ModelAdmin):
 
 class SeedingInline(SortableStackedInline):
 	model = GroupSeed
+	extra = 1
 
 @admin.register(BracketGroup)
 class BracketGroupAdmin(SortableAdminBase, admin.ModelAdmin):
