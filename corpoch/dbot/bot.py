@@ -1,31 +1,31 @@
-import sys, os, discord, asyncio, time, json, logging
+import sys, os, discord, asyncio, time, json, logging, aiohttp, logging
+from discord.ext import commands, tasks
 
-sys.path.append('..')
 #Django
+import pendulum
 import django
 import django.db
-from django.conf import settings
+from django.apps import apps
+import settings
 from django.utils import timezone
-
-os.environ.setdefault(
-    'DJANGO_SETTINGS_MODULE',
-    'DiscordOauth2.settings'
-)
-
+from redis import asyncio as aioredis
 from dotenv import load_dotenv
 
 dirname = os.path.dirname(sys.argv[0]) or '.'
-sys.path.append(f"{dirname}/modules")
+sys.path.append(f"{dirname}/modules") # This should be able to die soon
 
-#loadConfig()
-class CorpoDbot(discord.Bot):
+logger = logging.getLogger(__name__)
+
+class CorpoDbot(commands.Bot):
 	def __init__(self):
 		django.setup()
-		load_dotenv("../.env")
 		intents = discord.Intents.default()
 		intents.members = True
-		self.client = super().__init__(intents=intents, chunk_guilds_at_startup=False)
-
+		self.bot = super().__init__(intents=intents, chunk_guilds_at_startup=False)
+		self.session = aiohttp.ClientSession(loop=self.loop)
+		self.redis = self.loop.run_until_complete(aioredis.from_url(os.getenv("CELERY_BROKER_URL"), encoding="utf-8", decode_responses=True))
+		print(f"redis pool started {os.getenv("CELERY_BROKER_URL")}")
+		
 		# cogs
 		cogList = [
 			#'fun',
@@ -41,21 +41,17 @@ class CorpoDbot(discord.Bot):
 
 		self.owners = []
 		self.proofCalls = None
-		
+
 	def run(self):
 		self.startUpLogging()
 		print(f"--- Starting up at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} ---")
 		print('Logging into discord')
-		super().run(os.getenv("client_token"), reconnect=True)
+		super().run(os.getenv("BOT_TOKEN"), reconnect=True)
 
 		print(f"--- Shutting down at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} ---")
 
 	def startUpLogging(self):
-		#if configData.get('output_to_log'):
-		#os.makedirs(f"{dirname}/logs", exist_ok=True)
-		#sys.stdout = open(f"{dirname}/logs/discordbot.log", 'a+')
 		sys.stdout.reconfigure(line_buffering = True)
-		#sys.stderr = open(f"{dirname}/logs/discordbot.err", 'a+')
 		sys.stderr.reconfigure(line_buffering = True)
 
 	async def retrieveOwners(self):
@@ -77,10 +73,13 @@ class CorpoDbot(discord.Bot):
 		print(f"Logged in as {self.user.name}#{self.user.discriminator} id {self.user.id}")
 
 		await self.retrieveOwners()
-		#await client.tourneyDB.loadMatches()
-		print("Checking Proofcalls")
-		#self.proofCalls = proofcalls.ProofCalls(self)
-		#await self.proofCalls.init()
+		print("Loading on-going matches")
+		from cogs.tourneycmds import DiscordMatch
+		from corpoch.models import TournamentMatchOngoing
+		async for match in TournamentMatchOngoing.objects.exclude(channel=None):
+			print(f"Got ongoing match {match.id}")
+			view = DiscordMatch(self.bot, uuid=match.id)
+			#await view.init()
 
 		print('------Done with Startup------')
 
