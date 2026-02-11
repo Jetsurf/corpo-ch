@@ -1,5 +1,6 @@
 import requests, json, io, hashlib, re, gspread, asyncio, discord, os, uuid, platform, subprocess, pytesseract
 from datetime import datetime
+from random import randbytes
 from PIL import Image, ImageEnhance
 from django.db import models
 from corpoch import __user_agent__
@@ -10,8 +11,35 @@ from corpoch.models import GSheetAPI, Chart
 
 #Big shoutout to @mirjay for this until they actually get a proper collaborator role on the project
 class SNGHandler:
-	def __init__(self):
-		pass
+	def __init__(self, chartFolder: os.path=None, sngData: bytes=None, playlist: str=None):
+		if chartFolder is None and sngData is None:
+			raise ValueError("chartFolder or sngData must be provided")
+		self._playlist = playlist
+		
+		if sngData is not None:
+			self._files = self.get_sng_files(sngData)
+		else:
+			results = []
+			files = os.listdir(chartFolder)
+			for file in files:
+				valid_picture_names = ("album.","background.","highway.")
+				valid_picture_extensions = ("png","jpg","jpeg")
+				valid_music_names = ("guitar.","bass.","rhythm.","vocals.","vocals_1.","vocals_2.","drums.","drums_1.","drums_2.","drums_3.","drums_4.","keys.","song.","crowd.","preview.")
+				valid_music_extensions = ("mp3","ogg","opus","wav")
+				valid_video_names = ("video.")
+				valid_video_extensions = ("mp4","avi","webm","vp8","ogv","mpeg")
+				valid_notes = ["notes.chart","notes.mid"]
+				valid_songini = "song.ini"
+
+				if ((file.lower().startswith(valid_picture_names) and file.lower().endswith(valid_picture_extensions)) or
+					(file.lower().startswith(valid_music_names) and file.lower().endswith(valid_music_extensions)) or
+					(file.lower().startswith(valid_video_names) and file.lower().endswith(valid_video_extensions)) or
+					(file.lower() in valid_notes) or
+					(file.lower() == valid_songini)):
+					with open(os.path.join(chartFolder,file), 'rb') as f:
+						file_bytes = f.read()
+						results.append([file.lower(), file_bytes])
+			self._files = results
 
 	def parse_metadataPairArray(self, data: bytes) -> list[str, str]:
 		results = []
@@ -60,7 +88,7 @@ class SNGHandler:
 		for i in range(len(dataArray)):
 			xorKey = xorMask[i % 16] ^ (i % 256)
 			unmasked_file_bytes[i] = dataArray[i] ^ xorKey
-			return unmasked_file_bytes
+		return unmasked_file_bytes
 
 	#Meant to be fed in raw content - this may be able to be improved?
 	def get_sng_files(self, all_bytes: bytes) -> list[str, bytes]:
@@ -75,7 +103,7 @@ class SNGHandler:
 		
 		all_bytes_stream.seek(8,1)
 		
-		metadataPairArray_bytes = all_bytes_stream.seek(metadataLen-8, 1)
+		metadataPairArray_bytes = all_bytes_stream.read(metadataLen-8)
 		metadataPairArray = self.parse_metadataPairArray(metadataPairArray_bytes)
 		
 		fileMetaLen_bytes = all_bytes_stream.read(8)
@@ -101,15 +129,104 @@ class SNGHandler:
 			
 		return results
 
-	def get_chart_data(self, content) -> bytes:
-		chart_files = self.get_sng_files(content)
-		for row in chart_files:
+	def get_chart_data(self) -> bytes:
+		for row in self._files:
 			filename = row[0]
 			if "notes.chart" in filename or "notes.mid" in filename:
 				return row[1]
 	
-	def get_md5(self, content) -> str:
-		return hashlib.md5(self.get_chart_data(content)).hexdigest()
+	def get_md5(self) -> str:
+		return hashlib.md5(self.get_chart_data()).hexdigest()
+	
+	def build_sng(self) -> bytes:
+		with io.BytesIO() as sng_stream:
+			header ="SNGPKG"
+			sng_stream.write(bytes(header.encode('utf-8')))
+			version = 1
+			sng_stream.write(version.to_bytes(4, byteorder="little"))
+			xorMask = randbytes(16)
+			sng_stream.write(xorMask)
+
+			metadataPairArray = []
+			for row in self._files:
+				filename = row[0].lower()
+				if "song.ini" in filename:
+					songini_bytes = row[1]
+			songini_text = songini_bytes.decode('utf-8').split('\n',1)[-1]
+			for line in songini_text.strip().split('\n'):
+				line = line.split('=',1)
+				key = line[0].strip()
+				value = line[1].strip()
+				metadataPairArray.append([key,value])
+			if "playlist" not in metadataPairArray[0] and self._playlist is not None:
+				metadataPairArray.append(["playlist",self._playlist])
+			with io.BytesIO() as songini_stream:
+				for row in metadataPairArray:
+					if "playlist" == row[0] and self._playlist is not None:
+						key = bytes("playlist".encode('utf-8'))
+						keyLen = len(key).to_bytes(4, byteorder="little",signed=True)
+						value = bytes(self._playlist.encode('utf-8'))
+						valueLen = len(value).to_bytes(4, byteorder='little',signed=True)
+						songini_stream.write(keyLen)
+						songini_stream.write(key)
+						songini_stream.write(valueLen)
+						songini_stream.write(value)	
+						continue
+					key = bytes(row[0].encode('utf-8'))
+					keyLen = len(key).to_bytes(4, byteorder="little",signed=True)
+					value = bytes(row[1].encode('utf-8'))
+					valueLen = len(value).to_bytes(4, byteorder='little',signed=True)
+					songini_stream.write(keyLen)
+					songini_stream.write(key)
+					songini_stream.write(valueLen)
+					songini_stream.write(value)
+				metadataLen = (8+songini_stream.getbuffer().nbytes).to_bytes(8, byteorder='little',signed=False)
+				metadataCount = len(metadataPairArray).to_bytes(8, byteorder='little',signed=False)
+				sng_stream.write(metadataLen)
+				sng_stream.write(metadataCount)
+				songini_stream.seek(0)
+				sng_stream.write(songini_stream.read())
+			
+			fileCount = len(self._files)-1
+			fileMetaLen = 8 + (17)*fileCount
+			for row in self._files:
+				if "song.ini" == row[0]:
+					continue
+				fileMetaLen += len(bytes(row[0].encode('utf-8')))
+			sng_stream.write(fileMetaLen.to_bytes(8, byteorder='little', signed=False))
+			sng_stream.write(fileCount.to_bytes(8, byteorder='little' ,signed=False))
+
+			fileDataArray_index = sng_stream.getbuffer().nbytes + fileMetaLen
+			fileDataArray_Array =[]
+			with io.BytesIO() as fileMeta_stream:
+				for row in self._files:
+					if "song.ini" == row[0]:
+						continue
+					filename = bytes(row[0].lower().encode('utf-8'))
+					filenameLen = len(filename).to_bytes(1, byteorder="little",signed=False)
+					contentsLen = len(row[1]).to_bytes(8, byteorder='little',signed=False)
+					contentsIndex = (fileDataArray_index).to_bytes(8, byteorder='little',signed=False)
+					fileMeta_stream.write(filenameLen)
+					fileMeta_stream.write(filename)
+					fileMeta_stream.write(contentsLen)
+					fileMeta_stream.write(contentsIndex)
+					fileDataArray_Array.append([row[0], len(row[1]), fileDataArray_index])
+					fileDataArray_index += len(row[1])
+				fileMeta_stream.seek(0)
+				sng_stream.write(fileMeta_stream.read())
+			
+			fileDataLen = 0
+			for row in fileDataArray_Array:
+				fileDataLen += row[1]
+			sng_stream.write((fileDataLen).to_bytes(8, byteorder='little',signed=False))
+
+			for row in self._files:
+				if "song.ini" == row[0].lower():
+					continue
+				sng_stream.write(bytes(self.unmaskFileByteArray(list(row[1]),xorMask)))
+
+			sng_stream.seek(0)
+			return sng_stream.read()
 
 class EncoreClient:
 	def __init__(self, limit: int=24, exact: bool=True):
