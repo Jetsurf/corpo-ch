@@ -4,7 +4,7 @@ from PIL import Image, ImageEnhance
 from django.db import models
 from corpoch import __user_agent__
 from corpoch import settings 
-from corpoch.models import GSheetAPI, Chart
+from corpoch.models import GSheetAPI, Chart, Tournament, TournamentQualifier
 
 #TODO: Add requests-cached to not hit encore hard for /chopt runs
 
@@ -258,7 +258,9 @@ class CHStegTool:
 	async def getStegInfo(self, image: discord.Attachment) -> dict:
 		img = await self._prep_image(image)
 		print(f"Steg Input PNG: {img}")
-		return self._call_steg(img)
+		info = self._call_steg(img)
+		print(f"Steg Json: {info}")
+		return info
 
 	def buildStatsEmbed(self, title: str, stegData: dict) -> discord.Embed:
 		embed = discord.Embed(colour=0x3FFF33)
@@ -285,9 +287,11 @@ class CHStegTool:
 		return embed
 
 class GSheets():
-	def __init__(self, tid: int):	
+	def __init__(self, tournament: Tournament, qualifier: TournamentQualifier=None):	
 		self._format_border = None#{'textFormat': {'bold': False}, "horizontalAlignment": "CENTER", 'borders': {'right': {'style' : 'SOLID'}, 'left': {'style' : 'SOLID' }}}
 		#TODO: Make a django-admin task to resend the match data to the airtable (or any sheet)
+		self._tourney = tournament
+		self._qualifier = qualifier
 
 	#Needed as if the GSheetApi objects call is in the normal init, app load fails for dbot due to DB access before django is ready
 	def init(self, sheet: str) -> bool:
