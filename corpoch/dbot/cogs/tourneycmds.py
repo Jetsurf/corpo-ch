@@ -6,7 +6,7 @@ from discord.ui import *
 from discord.enums import ComponentType, InputTextStyle
 from asgiref.sync import sync_to_async
 
-from corpoch.models import Tournament, Chart, TournamentMatchOngoing, TournamentBracket, BracketGroup, TournamentPlayer, TournamentMatchCompleted, GroupSeed, TournamentRound, MatchBan
+from corpoch.models import Tournament, Chart, TournamentMatchOngoing, TournamentBracket, BracketGroup, TournamentPlayer, TournamentMatchCompleted, GroupSeed, MatchRound, MatchBan
 
 class BanSelect(discord.ui.Select):
 	def __init__(self, match):

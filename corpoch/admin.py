@@ -4,7 +4,7 @@ from adminsortable2.admin import CustomInlineFormSet, SortableAdminBase, Sortabl
 
 from django.contrib import admin
 from django.contrib.contenttypes.models import ContentType
-from corpoch.models import Chart, Tournament, TournamentConfig, TournamentBracket, TournamentQualifier, TournamentPlayer, GroupSeed, TournamentRound
+from corpoch.models import Chart, Tournament, TournamentConfig, TournamentBracket, Qualifier, TournamentPlayer, GroupSeed, MatchRound
 from corpoch.models import TournamentMatchCompleted, TournamentMatchOngoing, BracketGroup, QualifierSubmission, CH_MODIFIERS, MatchBan, GSheetAPI
 from corpoch.providers import EncoreClient
 
@@ -75,7 +75,7 @@ class TournamentBracketAdmin(admin.ModelAdmin):
 class TournamentPlayerAdmin(admin.ModelAdmin):
 	list_display = ('user', 'tournament', 'ch_name', 'is_active')
 
-@admin.register(TournamentQualifier)
+@admin.register(Qualifier)
 class TournamentQualifierAdmin(admin.ModelAdmin):
 	list_display = ('id', 'tournament')
 
@@ -109,18 +109,18 @@ class BracketGroupAdmin(SortableAdminBase, admin.ModelAdmin):
 
 @admin.register(QualifierSubmission)
 class QualifierSubmission(admin.ModelAdmin):
-	list_display = ('quali', 'qualifier', 'player_ch_name')
+	list_display = ('id', 'qualifier', 'player_ch_name')
 
 	def player_ch_name(self, obj):
 		return obj.player.ch_name
 
 class RoundsOngoingInline(SortableStackedInline):
-	model = TournamentRound
+	model = MatchRound
 	exclude = ['completed_match']
 	extra = 1
 
 class RoundsCompletedInline(SortableStackedInline):
-	model = TournamentRound
+	model = MatchRound
 	exclude = ['ongoing_match']
 	extra = 1
 

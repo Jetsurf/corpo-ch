@@ -5,7 +5,7 @@ from PIL import Image, ImageEnhance
 from django.db import models
 from corpoch import __user_agent__
 from corpoch import settings 
-from corpoch.models import GSheetAPI, Chart, Tournament, TournamentQualifier
+from corpoch.models import GSheetAPI, Chart, Tournament, Qualifier
 
 class SNGHandler:
 	def __init__(self, chartFolder: os.path=None, sngData: bytes=None, playlist: str=None):
@@ -229,7 +229,7 @@ class SNGHandler:
 class EncoreClient:
 	def __init__(self, limit: int=24, exact: bool=True):
 		#limit 24 for discord view select options limit
-		self._session = requests.Session()
+		self._session = requests_cache.CachedSession()
 		self._session.headers = {
 			'User-Agent' : __user_agent__,
 			"Content-Type": "application/json"
@@ -242,7 +242,6 @@ class EncoreClient:
 
 		self.limit = limit
 		self.exact = exact
-		self.sng = SNGHandler()
 
 	def search(self, query: dict) -> dict:
 		d = { 'number' : 1, 'page' : 1 }
@@ -289,10 +288,10 @@ class EncoreClient:
 		return self._session.get(url).content
 
 	def get_md5_from_chart(self, chart) -> str:
-		return self.sng.get_md5(self.download_from_chart(chart))
+		return SNGHandler(sngData=self.download_from_chart(chart)).get_md5()
 
 	def get_md5_from_url(self, url) -> str:
-		return self.sng.get_md5(self.download_from_url(url))
+		return SNGHandler(sngData=self.download_from_url(url)).get_md5()
 
 class CHOpt:
 	def __init__(self):
@@ -355,88 +354,86 @@ class CHStegTool:
 		if not os.path.isdir(self._scratch):
 			os.makedirs(self._scratch)
 
-	def _get_over_strums(self, imageName: str, roundData: dict) -> dict:
+		self.img_path = None
+		self.img_name = ""
+		self.output = None
+		self.img = None
+
+	def __del__(self):
+		if self.img:
+			os.remove(self.img_path)
+
+	def _get_over_strums(self):
 		#print(f"OS Counts: {osCnt}")
-		img = Image.open(imageName)
+		img = Image.open(self.img_path)
 		osImg = img.crop((0, 690, 1080, 727))
 		outStr = pytesseract.image_to_string(osImg)
 		osCnt = re.findall("(?<=Overstrums )([Oo0-9]+)", outStr)
 		#Sanity check OS's before adding
-		for i, player in enumerate(roundData['players']):
+		for i, player in enumerate(self.output['players']):
 			## TODO: THIS NEEDS TO BE FIXED FOR ACTUAL ROUND DATA INFO
-			if len(osCnt) == len(roundData['players']):
-				player['overstrums'] = osCnt[i]
+			if len(osCnt) == len(self.output['players']):
+				player['excess_hits'] = osCnt[i]
 			else:
-				player['overstrums'] = '-'
+				player['excess_hits'] = '-'
 
 	#TODO: Needs sync providers for django
 
-	async def _prep_image(self, image) -> str:
+	async def _prep_image(self, image):
 		image.filename = re.sub(r'[^a-zA-Z0-9-_.]', '', image.filename)
-		out = f"{self._scratch}/{image.filename}"
-		await image.save(out, seek_begin=True)
-		return out
+		self.img_name = image.filename
+		self.img_path = f"{self._scratch}/{image.filename}"
+		await image.save(self.img_path, seek_begin=True)
+		self.img = Image.open(self.img_path)
 
 	def _sanitize_steg(self, steg: dict):
-		print(f"DEBUG: STEG: {steg}")
-		steg = json.loads(steg.stdout.decode())
+		steg = json.loads(steg.stdout.decode("utf-8"))
 		steg['charter_name'] = re.sub(r"(?:<[^>]*>)", "", steg['charter_name'])
 		for ply in steg['players']:
 			ply['profile_name'] = re.sub(r"(?:<[^>]*>)", "", ply['profile_name'])
 		return steg
 
-	def _call_steg(self, imagePath):
-		stegCall = f"{self._steg} --json {imagePath}"
+	def _call_steg(self):
+		stegCall = f"{self._steg} --json {self.img_path}"
+		try:
+			proc = subprocess.run(stegCall.split(), stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+			if proc.returncode != 0 or proc.returncode != '0':
+				self.output = self._sanitize_steg(proc)
+				if self.output['game_version'] in "v1.0.0.4080-final":
+					print("Running 1.0.0-4080 fixes")
+					self._get_over_strums()
 
-		#try:
-		proc = subprocess.run(stegCall.split(), stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-		if proc.returncode != 0 or proc.returncode != '0':
-			output = self._sanitize_steg(proc)
-
-			if output['game_version'] in "v1.0.0.4080-final":
-				print("Running 1.0.0-4080 fixes")
-				self._get_over_strums(imagePath, output)
-				#Notes missed isn't explicitly in steg :shrug:
-				for i, player in enumerate(output['players']):
+				for i, player in enumerate(self.output['players']):
 					player["notes_missed"] = player["total_notes"] - player['notes_hit']
-
-				os.remove(imagePath)
 			else:
 				print(f"Error returned from steg tool, usually invalid chart: [ {" ".join(proc.args)} ] - {proc.stderr.decode("utf-8")}")
-				os.remove(imagePath)
-				return None
-		#except Exception as e:
-		#	print(f"Steg Cli Failed: {e}")
-		#	os.remove(imagePath)
-		#	return None
-
-		return output
+		except Exception as e:
+			print(f"Steg Cli Failed: {e}")
 
 	async def getStegInfo(self, image: discord.Attachment) -> dict:
-		img = await self._prep_image(image)
-		print(f"Steg Input PNG: {img}")
-		info = self._call_steg(img)
-		print(f"Steg Json: {info}")
-		return info
+		await self._prep_image(image)
+		self._call_steg()
+		return self.output
 
-	def buildStatsEmbed(self, title: str, stegData: dict) -> discord.Embed:
+	def buildStatsEmbed(self, title: str) -> discord.Embed:
 		embed = discord.Embed(colour=0x3FFF33)
 		embed.title = title
 
-		if 'image_url' in stegData:
-			embed.set_image(url=stegData['image_url'])
+		if 'players' in self.output:
+			chartStr = f"Chart Name: {self.output["song_name"]}" + f"({self.output["playback_speed"]}%)\n" if self.output["playback_speed"] != 100 else '\n'
+			chartStr += f"Run Time: <t:{int(round(datetime.strptime(self.output["score_timestamp"], '%Y-%m-%dT%H:%M:%S.%fZ').timestamp()))}:f>\n"
+			chartStr += f"Game Version: {self.output['game_version']}"
+			embed.add_field(name="Submission Stats", value=chartStr, inline=False)
+			plySteg = self.output['players']
+		else:
+			plySteg = self.output
 
-		chartStr = f"Chart Name: {stegData["song_name"]}\n"
-		chartStr += f"Run Time: <t:{int(round(datetime.strptime(stegData["score_timestamp"], '%Y-%m-%dT%H:%M:%S.%fZ').timestamp()))}:f>\n"
-		chartStr += f"Game Version: {stegData['game_version']}"
-		embed.add_field(name="Submission Stats", value=chartStr, inline=False)
-
-		for i, player in enumerate(stegData["players"]):
+		for i, player in enumerate(plySteg):
 			plyStr = ""
 			plyStr += f"Player Name: {player["profile_name"]}\n"
 			plyStr += f"Score: {player["score"]}\n"
 			plyStr += f"Notes Hit: {player["notes_hit"]}/{player["total_notes"]} - {(player["notes_hit"]/player["total_notes"]) * 100:.2f}% {' - 👑' if player['is_fc'] else ''}\n"
-			plyStr += f"Overstrums: {player["overstrums"]}\n"
+			plyStr += f"Overstrums: {player["excess_hits"]}\n"
 			plyStr += f"Ghosts: {player["frets_ghosted"]}\n"
 			plyStr += f"SP Phrases: {player["sp_phrases_earned"]}/{player["sp_phrases_total"]}\n"
 			embed.add_field(name=f"Player {i+1}", value=plyStr, inline=False)
@@ -444,7 +441,7 @@ class CHStegTool:
 		return embed
 
 class GSheets():
-	def __init__(self, tournament: Tournament, qualifier: TournamentQualifier=None):	
+	def __init__(self, tournament: Tournament, qualifier: Qualifier=None):	
 		self._format_border = None#{'textFormat': {'bold': False}, "horizontalAlignment": "CENTER", 'borders': {'right': {'style' : 'SOLID'}, 'left': {'style' : 'SOLID' }}}
 		#TODO: Make a django-admin task to resend the match data to the airtable (or any sheet)
 		self._tourney = tournament

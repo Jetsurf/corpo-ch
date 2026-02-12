@@ -1,6 +1,4 @@
-import uuid
-import typing
-import json
+import uuid, typing, json, pydantic
 from corpoch import settings#corpoch.settings.py
 
 from multiselectfield import MultiSelectField
@@ -23,7 +21,7 @@ CH_MODIFIERS = (
 )
 
 CH_VERSIONS = [
-	("v1.0.0.4080-final", "v1.0.0.4080-final")
+	("v1.0.0.4080-final", "v1.0.0.4080-final"),
 ]
 
 class GSheetAPI(models.Model):
@@ -77,6 +75,11 @@ class Chart(models.Model):
 	def __str__(self):
 		return self.name
 
+	def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
+		self.blake3 = self.blake3.upper() #Force these always upper 
+		self.md5 = self.md5.upper() #Steg is output as always upper
+		super().save()
+
 class Tournament(models.Model):
 	id = models.AutoField(primary_key=True)
 	guild = models.BigIntegerField(verbose_name="Discord Server ID", db_index=True)
@@ -105,7 +108,7 @@ class TournamentConfig(models.Model):
 	enable_gsheets = models.BooleanField(verbose_name="Gsheets Integration", default=True)
 	ref_role = models.BigIntegerField(verbose_name="Discord Ref Role ID", null=True, blank=True)
 	proof_channel = models.BigIntegerField(verbose_name="Discord Proof Channel ID", null=True, blank=True)
-	version = models.CharField(verbose_name="Clone Hero Version", choices=CH_VERSIONS, max_length=32, default=["v1.0.0.4080-final"])
+	version = models.CharField(verbose_name="Clone Hero Version", choices=CH_VERSIONS, max_length=32, default=['v1.0.0.4080-final'])
 
 	class Meta:
 		verbose_name = "Config"
@@ -163,9 +166,9 @@ class TournamentPlayer(models.Model):
 		return self.tournament.brackets.objects.select_related('player').filter(players__id=self.id)
 
 	def check_ch_name(self, testname):
-		return True if testname in self.ch_name else False ## do more checks for formatting, testing now
+		return True if testname.replace(" ", "") in self.ch_name.replace(" ", "") else False
 
-class TournamentQualifier(models.Model):
+class Qualifier(models.Model):
 	id = models.AutoField(primary_key=True)
 	#Use either tournament or bracket+tourney - allows for multiple "main" brackets to have a single qualifier or a qualifier per bracket
 	tournament = models.ForeignKey(Tournament, related_name='qualifier', verbose_name="Tournament", on_delete=models.CASCADE)
@@ -322,7 +325,7 @@ class TournamentMatchOngoing(TournamentMatch):
 			outStr += f" - {self.match_players[0].ch_name} ({self.match_players[0].seed}) vs {self.match_players[1].ch_name} ({self.match_players[0].seed})"
 		return 
 
-class TournamentRound(models.Model):
+class MatchRound(models.Model):
 	num = models.PositiveIntegerField(blank=False, null=False)
 	ongoing_match = models.ForeignKey(TournamentMatchOngoing, related_name="ongoing_rounds", verbose_name="Ongoing Match ID", on_delete=models.CASCADE, null=True, blank=True)
 	completed_match = models.ForeignKey(TournamentMatchCompleted, related_name="completeds_rounds", verbose_name="Completed Match ID", on_delete=models.CASCADE, null=True, blank=True)
@@ -330,7 +333,7 @@ class TournamentRound(models.Model):
 	chart = models.ForeignKey(Chart, related_name="rounds_played", verbose_name="Chart Played", null=True, blank=True, on_delete=models.SET_NULL)
 	winner = models.ForeignKey(TournamentPlayer, related_name="rounds_won", verbose_name="Winner", null=True, on_delete=models.SET_NULL)
 	loser = models.ForeignKey(TournamentPlayer, related_name="rounds_lost", verbose_name="Loser", null=True, on_delete=models.SET_NULL)
-	steg_data = models.JSONField(verbose_name="Steg Data", null=True, blank=True)
+	steg = models.JSONField(verbose_name="Steg Data", null=True, blank=True) #This is the players list in the steg data
 	screenshot = models.ImageField(upload_to="rounds/", verbose_name="Screenshot", null=True)
 
 	class Meta:
@@ -372,17 +375,16 @@ class MatchBan(models.Model):
 		return str(self.player.ch_name)
 
 class QualifierSubmission(models.Model):
-	quali = models.CharField(primary_key=True, verbose_name="Qualifier ID", max_length=40, default=uuid.uuid1)
-	#This will need to be tweaked if going to allow multiple qualifiers for a tourney
+	id = models.CharField(primary_key=True, verbose_name="Qualifier ID", max_length=40, default=uuid.uuid1)
 	player = models.ForeignKey(TournamentPlayer, related_name="qualifiers", verbose_name="Submittor", on_delete=models.CASCADE)
 	submit_time = models.DateTimeField(verbose_name="Submission Time", auto_now_add=True)
 	screenshot = models.ImageField(upload_to="qualifiers/", verbose_name="Screenshot", null=True)
-	qualifier = models.ForeignKey(TournamentQualifier, related_name='submissions', verbose_name="Tournament Qualifier", on_delete=models.CASCADE)
-	steg_json = models.JSONField(verbose_name="Steg Data", default=dict, blank=True)
+	qualifier = models.ForeignKey(Qualifier, related_name='submissions', verbose_name="Tournament Qualifier", on_delete=models.CASCADE)
+	steg = models.JSONField(verbose_name="Steg Data", default=dict, blank=True) #This is the steg output in it's entirety
 
 	class Meta:
 		verbose_name = "Qualifier Submission"
 		verbose_name_plural = "Qualifier Submissions"
 
 	def __str__(self):
-		return f"{self.player.user.name} - {self.qualifier.tournament.name} Qualifier"
+		return f"{self.player.ch_name} - {self.qualifier.tournament.name} {self.qualifier.bracket.name if self.qualifier.bracket else ''} Qualifier"

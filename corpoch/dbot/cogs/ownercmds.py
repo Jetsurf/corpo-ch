@@ -5,9 +5,6 @@ from discord.ui import *
 from discord.enums import ComponentType, InputTextStyle
 from dotenv import load_dotenv
 
-from corpoch.models import Tournament, TournamentBracket, TournamentPlayer, TournamentQualifier
-
-
 ## These Were obsoleted by django admin - keeping for discord end specific commands
 load_dotenv()
 

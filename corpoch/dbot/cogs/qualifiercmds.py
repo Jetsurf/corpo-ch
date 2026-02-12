@@ -8,8 +8,9 @@ from discord.enums import ComponentType, InputTextStyle
 from django.db.models.functions import Now
 from asgiref.sync import sync_to_async
 from django.utils import timezone
+from django.core.files.base import ContentFile
 
-from corpoch.models import Tournament, TournamentBracket, TournamentPlayer, TournamentQualifier
+from corpoch.models import Tournament, TournamentBracket, TournamentPlayer, Qualifier, QualifierSubmission
 from corpoch.providers import CHOpt, CHStegTool
 
 class QualifierSelect(discord.ui.Select):
@@ -35,7 +36,7 @@ class ScreenshotModal(discord.ui.DesignerModal):
 	def __init__(self):
 		self.screen = None
 		file = discord.ui.Label("Screenshot of your qualifier run to upload", discord.ui.FileUpload(max_values=1, required=True))
-		super().__init__(discord.ui.TextDisplay("Screenshot Submission"), file, *args, **kwargs)
+		super().__init__(discord.ui.TextDisplay("Screenshot Submission"), file, title="Qualifier Screenshot")
 
 	async def callback(self, interaction: discord.Interaction):
 		self.screen = self.children[1].item.values[0]
@@ -61,9 +62,9 @@ class DiscordQualifierView(discord.ui.View):
 		self.ctx = ctx
 		self.qualifier = None
 		self.qualifiers = []
-		self.stegData = None
 		self.tourney = None
-		self.steg = CHStegTool()
+		self.steg = None
+		self.screen = None
 		self.doneStartup = False
 
 		cancel = discord.ui.Button(label="Cancel", style=discord.ButtonStyle.red, custom_id="cancelBtn")
@@ -82,13 +83,20 @@ class DiscordQualifierView(discord.ui.View):
 	async def show(self):
 		if not self.doneStartup:
 			await self.ctx.defer(ephemeral=True)
-			self.tourney = await Tournament.objects.select_related('config').aget(guild=self.ctx.guild.id, active=True)
-			if not self.tourney:
+			try:
+				self.tourney = await Tournament.objects.select_related('config').aget(guild=self.ctx.guild.id, active=True)
+			except Tournament.DoesNotExist:
 				await self.ctx.respond("There are no active tournaments running in this server at this time.", ephemeral=True)
 				return
+
 			if not self.qualifier:
-				async for qualifier in TournamentQualifier.objects.select_related('chart', 'bracket').all().filter(tournament=self.tourney, end_time__gte=timezone.now()):
+				async for qualifier in Qualifier.objects.select_related('chart', 'bracket').all().filter(tournament=self.tourney, end_time__gte=timezone.now()):
 					self.qualifiers.append(qualifier)
+
+			try:
+				self.ply = await TournamentPlayer.objects.aget(user=self.ctx.user.id)
+			except TournamentPlayer.DoesNotExist:
+				self.ply = TournamentPlayer(user=self.ctx.user.id, tournament=self.tourney, ch_name="</Null>")
 
 		embeds = []
 		if self.qualifier == None and len(self.qualifiers) > 1:
@@ -105,13 +113,14 @@ class DiscordQualifierView(discord.ui.View):
 		if self.qualifier:
 			embeds.append(self.buildRulesEmbed())
 
-		if self.stegData:
-			embeds.append(self.steg.buildStatsEmbed("Qualifier Submission", self.stegData))
-			if len(self.stegData['players']) > 1:
+		if self.steg:
+			embeds.append(self.steg.buildStatsEmbed("Qualifier Submission"))
+			if len(self.steg.output['players']) > 1:
 				embeds.append(self.buildPlySelEmbed())
 				self.add_item(QualiPlayerSel(self))
 			else:
-				embeds.append(self.buildNoticeEmbed())
+				if self.ply.ch_name == "</Null>":
+					embeds.append(self.buildNoticeEmbed())
 				embeds.append(self.buildSubmitEmbed())
 				self.submit.disabled = False
 			
@@ -121,32 +130,51 @@ class DiscordQualifierView(discord.ui.View):
 		else:
 			await self.ctx.edit(embeds=embeds, view=self)
 
-	@sync_to_async
-	def load_bracket_qualifier(self):
-		pass
-
-	@sync_to_async
-	def save_qualifier(self):
-		pass
-
-	def load_player_qualifier(self):
-		pass
-
 	async def cancelBtn(self, interaction: discord.Interaction):
 		await interaction.response.edit_message(content="Closing", embed=None, view=None, delete_after=1)
 		self.stop()
 
 	async def screenBtn(self, interaction: discord.Interaction):
-		modal = ScreenshotModal(title="Screenshot Submission")
+		modal = ScreenshotModal()
 		await interaction.response.send_modal(modal=modal)
 		await modal.wait()
-		self.stegData = await self.steg.getStegInfo(modal.screen)
+		steg = CHStegTool()
+		await steg.getStegInfo(modal.screen)
+		plySteg = []
+		for i, ply in enumerate(steg.output['players']):
+			try:
+				otherPly = await TournamentPlayer.objects.aget(ch_name=ply['profile_name'])
+				if self.ply and self.ply != otherPly:
+					print(f"Removing player {ply['profile_name']} already in tournament {self.tourney.short_name}")
+					continue
+			except TournamentPlayer.DoesNotExist:
+				pass
+
+			if self.ply.ch_name != "</Null>" and not self.ply.check_ch_name(ply['profile_name']):
+					print(f"Stripping {i}:{ply['profile_name']} from {self.ply.ch_name} qualifier screen")
+					continue
+
+			plySteg.append(ply)
+
+		steg.output['players'] = plySteg
+		if steg.output['checksum'] != self.qualifier.chart.md5:
+			await interaction.followup.send("Screenshot is not for the qualifier chart.", ephemeral=True, delete_after=5)
+		elif steg.output['game_version'] != self.tourney.config.version:
+			await interaction.followup.send(f"Qualifier is not Clone Hero version {self.tourney.config.version}", ephemeral=True, delete_after=5)
+		elif steg.output['playback_speed'] != self.qualifier.chart.speed:
+			await interaction.followup.send(f"Qualifier is not ran at the right speed of {self.qualifier.chart.speed}%", ephemeral=True, delete_after=5)
+		else:
+			self.steg = steg
+			self.screen = modal.screen
 		await self.show()
 
 	async def submitBtn(self, interaction: discord.Interaction):
 		await interaction.response.defer()
+		quali = QualifierSubmission(player=self.ply, qualifier=self.qualifier, steg=self.steg.output['players'][0])
+		quali.screenshot = self.steg.img_path
+		await quali.asave()
 		await self.ctx.interaction.delete_original_response()
-		await interaction.followup.send(f"{self.ctx.user.mention} submitted a qualifier for {self.qualifier}!", ephemeral=False)
+		await interaction.followup.send(f"{self.ctx.user.mention} submitted a qualifier for {await sync_to_async(lambda: self.qualifier)()}!", ephemeral=False)
 
 	def buildQualiSelEmbed(self) -> discord.Embed:
 		embed = discord.Embed(colour=0xFF8000)
