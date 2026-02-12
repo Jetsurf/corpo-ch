@@ -69,8 +69,10 @@ class Chart(models.Model):
 	def tournament_name(self):
 		retStr = f"{self.name}"
 		if self.name.speed != 100:
-			retStr += f" {speed}"
-		return retStr + self.modifiers_short
+			retStr += f" ({speed}%) "
+		if self.modifiers.short != ['NM']:
+			retStr += self.modifiers_short
+		return retStr
 
 	def __str__(self):
 		return self.name
@@ -105,9 +107,11 @@ class Tournament(models.Model):
 class TournamentConfig(models.Model):
 	tournament = models.OneToOneField(Tournament, related_name="config", verbose_name="Tournament Configuration", on_delete=models.CASCADE)
 	rules = models.TextField(verbose_name="Rules", max_length=1024, default="Some rules go here")
-	enable_gsheets = models.BooleanField(verbose_name="Gsheets Integration", default=True)
 	ref_role = models.BigIntegerField(verbose_name="Discord Ref Role ID", null=True, blank=True)
 	proof_channel = models.BigIntegerField(verbose_name="Discord Proof Channel ID", null=True, blank=True)
+	enable_gsheets = models.BooleanField(verbose_name="Gsheets Integration", default=True)
+	match_gsheet = models.URLField(verbose_name="Live-Match Google Sheet", null=True, blank=True)
+	stats_gsheet = models.URLField(verbose_name="Air Table Stats Google Sheet", null=True, blank=True)
 	version = models.CharField(verbose_name="Clone Hero Version", choices=CH_VERSIONS, max_length=32, default=['v1.0.0.4080-final'])
 
 	class Meta:

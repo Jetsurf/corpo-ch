@@ -47,14 +47,14 @@ class QualiPlayerSel(discord.ui.Select):
 		self.quali = quali
 		self.retOpts = {}
 		opts = []
-		for i, player in enumerate(self.quali.stegData['players']):
+		for i, player in enumerate(self.quali.steg.output['players']):
 			self.retOpts[player['profile_name']] = i
 			opts.append(discord.SelectOption(label=player['profile_name']))
 		super().__init__(max_values=1, options=opts, custom_id="bracket_sel")
 
 	async def callback(self, interaction: discord.Interaction):
 		#Purge all non-selected players from steg data
-		self.quali.stegData['players'] = [ ply for i, ply in enumerate(self.quali.stegData['players']) if i == self.retOpts[self.values[0]]]
+		self.quali.steg.output['players'] = [ ply for i, ply in enumerate(self.quali.steg.output['players']) if i == self.retOpts[self.values[0]]]
 
 class DiscordQualifierView(discord.ui.View):
 	def __init__(self, ctx):

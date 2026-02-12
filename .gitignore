@@ -9,6 +9,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+#Requests cache files
+*http_cache.sqlite*
+
 # C extensions
 *.so
 celerybeat*
