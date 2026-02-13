@@ -4,6 +4,11 @@ gsheets-key.json
 *.err
 *.log
 
+#This needs to be disabled eventually - things are NOT settled enough to be managing this now
+**/migrations/**
+!**/migrations
+!**/migrations/__init__.py
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -16,3 +16,5 @@ pytesseract
 pillow
 requests-cache
 pydantic
+django-celery-results
+python-decouple

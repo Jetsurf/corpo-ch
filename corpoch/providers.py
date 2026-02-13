@@ -301,23 +301,33 @@ class CHOpt:
 		self._scratch = f"{self._path}/scratch"
 		self._output = os.getenv("CHOPT_OUTPUT")
 		self._url = os.getenv("CHOPT_URL")
+		self._upload_dir = f"{os.getenv("MEDIA_ROOT")}chopt"
 		self._encore = EncoreClient()
-		self._sng = None
 		self.opts = { 'whammy' : 0, 'squeeze' : 0, 'speed' : 100, 'output_path' : True }
 		self.url = ""
 		self.img = None
-		self.file = ""
+		self.img_path = ""
+		self.img_name = ""
+
 		#Create dirs
 		if not os.path.isdir(self._scratch):
 			os.makedirs(self._scratch)
 		if not os.path.isdir(self._output):
 			os.makedirs(self._output)
 
+	def __del__(self):
+		if self.img:
+			self.img.close()
+			os.remove(self.img_path)
+
 	def _prep_chart(self, content):
 		outFile = f"{self._scratch}/notes.chart"
 		with open(outFile, 'wb') as f:
 			f.write(content)
 		return outFile
+
+	def save_for_upload(self):
+		self.img.save(f"{self._upload_dir}/{self.img_name}", "PNG")
 
 	def gen_path(self, chart) -> str:
 		if isinstance(chart, Chart):
@@ -328,7 +338,8 @@ class CHOpt:
 			print("gen_path called incorrectly, chart not type Chart or encore chart dict")
 			return None
 
-		chartFile = self._prep_chart(self._sng.get_chart_data(content))
+		sng = SNGHandler(sngData=content)
+		chartFile = self._prep_chart(sng.get_chart_data())
 		fileId = uuid.uuid1()
 		outPng = f"{self._output}/{fileId}.png"
 		print(f"CHOPT: Output PNG: {outPng}")
@@ -343,7 +354,8 @@ class CHOpt:
 		os.remove(chartFile)
 		self.url = f"{self._url}/{fileId}.png"
 		self.img = Image.open(outPng)
-		self.file = outPng
+		self.img_path = outPng
+		self.img_name = f"{fileId}.png"
 		return self.url
 
 class CHStegTool:

@@ -1,4 +1,5 @@
-import json, base64, io, os, uuid
+import json, base64, io, os
+
 import discord
 import pytz
 from discord.ext import commands
@@ -7,8 +8,7 @@ from discord.enums import ComponentType, InputTextStyle
 from django.db.models.functions import Now
 from asgiref.sync import sync_to_async
 from django.utils import timezone
-from django.core.files import File
-from django.conf import settings
+from django.core.files.base import ContentFile
 
 from corpoch.models import Tournament, TournamentBracket, TournamentPlayer, Qualifier, QualifierSubmission
 from corpoch.providers import CHOpt, CHStegTool
@@ -55,8 +55,6 @@ class QualiPlayerSel(discord.ui.Select):
 	async def callback(self, interaction: discord.Interaction):
 		#Purge all non-selected players from steg data
 		self.quali.steg.output['players'] = [ ply for i, ply in enumerate(self.quali.steg.output['players']) if i == self.retOpts[self.values[0]]]
-		await interaction.response.defer(invisible=True)
-		await self.quali.show()
 
 class DiscordQualifierView(discord.ui.View):
 	def __init__(self, ctx):
@@ -98,7 +96,7 @@ class DiscordQualifierView(discord.ui.View):
 			try:
 				self.ply = await TournamentPlayer.objects.aget(user=self.ctx.user.id)
 			except TournamentPlayer.DoesNotExist:
-				self.ply = TournamentPlayer(user=self.ctx.user.id, name=self.ctx.user.display_name, tournament=self.tourney, ch_name="</Null>")
+				self.ply = TournamentPlayer(user=self.ctx.user.id, tournament=self.tourney, ch_name="</Null>")
 
 		embeds = []
 		if self.qualifier == None and len(self.qualifiers) > 1:
@@ -173,11 +171,10 @@ class DiscordQualifierView(discord.ui.View):
 	async def submitBtn(self, interaction: discord.Interaction):
 		await interaction.response.defer()
 		self.steg.output['players'][0]['score_timestamp'] = self.steg.output['score_timestamp'] #Copy into player row for slicing out metadata
-		quali = QualifierSubmission(player=self.ply, qualifier=self.qualifier, steg=self.steg.output['players'][0])
-		#quali.screenshot = File(self.steg.img, name=)
-		await sync_to_async(quali.screenshot.save)(f'{uuid.uuid1()}.png', open(self.steg.img_path, 'rb'))
 		self.ply.ch_name = self.steg.output['players'][0]['profile_name']
 		await self.ply.asave()
+		quali = QualifierSubmission(player=self.ply, qualifier=self.qualifier, steg=self.steg.output['players'][0])
+		await sync_to_async(quali.screenshot.save)(f'{uuid.uuid1()}.png', open(self.steg.img_path, 'rb'))
 		await quali.asave()
 		await self.ctx.interaction.delete_original_response()
 		tmp = await sync_to_async(lambda: self.qualifier.tournament)()
@@ -219,6 +216,10 @@ class DiscordQualifierView(discord.ui.View):
 
 		embed.add_field(name="Qualifier Chart Link", value=f"[Link Here]({self.qualifier.chart.url})", inline=False)
 		embed.add_field(name="Agreement", value="By submitting a qualifier, you are agreeing to these rules")
+
+
+		#TODO - add 
+
 		return embed
 
 class QualifierCmds(commands.Cog):
@@ -254,5 +255,3 @@ class QualifierCmds(commands.Cog):
 
 def setup(bot):
 	bot.add_cog(QualifierCmds(bot))
-
-
