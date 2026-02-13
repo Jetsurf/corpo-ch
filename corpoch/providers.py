@@ -3,6 +3,7 @@ from datetime import datetime
 from random import randbytes
 from PIL import Image, ImageEnhance
 from django.db import models
+
 from corpoch import __user_agent__
 from corpoch import settings 
 from corpoch.models import GSheetAPI, Chart, Tournament, TournamentMatchCompleted, TournamentMatchOngoing, Qualifier, QualifierSubmission
@@ -377,7 +378,7 @@ class CHStegTool:
 			else:
 				player['excess_hits'] = '-'
 
-	#TODO: Needs sync providers for django
+	#TODO: Needs sync providers for django or changed to celery tasks
 
 	async def _prep_image(self, image):
 		image.filename = re.sub(r'[^a-zA-Z0-9-_.]', '', image.filename)
@@ -389,8 +390,8 @@ class CHStegTool:
 	def _sanitize_steg(self, steg: dict):
 		steg = json.loads(steg.stdout.decode("utf-8"))
 		steg['charter_name'] = re.sub(r"(?:<[^>]*>)", "", steg['charter_name'])
-		for ply in steg['players']:
-			ply['profile_name'] = re.sub(r"(?:<[^>]*>)", "", ply['profile_name'])
+		#for ply in steg['players']:
+			#ply['profile_name'] = re.sub(r"(?:<[^>]*>)", "", ply['profile_name']) - might not be the best idea
 		return steg
 
 	def _call_steg(self):
@@ -420,7 +421,7 @@ class CHStegTool:
 		embed.title = title
 
 		if 'players' in self.output:
-			chartStr = f"Chart Name: {self.output["song_name"]}" + f"({self.output["playback_speed"]}%)\n" if self.output["playback_speed"] != 100 else '\n'
+			chartStr = f"Chart Name: {self.output["song_name"]}" + f" ({self.output["playback_speed"]}%)\n" if self.output["playback_speed"] != 100 else '\n'
 			chartStr += f"Run Time: <t:{int(round(datetime.strptime(self.output["score_timestamp"], '%Y-%m-%dT%H:%M:%S.%fZ').timestamp()))}:f>\n"
 			chartStr += f"Game Version: {self.output['game_version']}"
 			embed.add_field(name="Submission Stats", value=chartStr, inline=False)
@@ -442,7 +443,7 @@ class CHStegTool:
 
 class GSheets():
 	def __init__(self, submission: typing.Union[TournamentMatchOngoing, TournamentMatchCompleted, Qualifier]=None):	
-		self._format_border = None#{'textFormat': {'bold': False}, "horizontalAlignment": "CENTER", 'borders': {'right': {'style' : 'SOLID'}, 'left': {'style' : 'SOLID' }}}
+		self._format_border = {'textFormat': {'bold': False}, "horizontalAlignment": "CENTER", 'borders': {'right': {'style' : 'SOLID'}, 'left': {'style' : 'SOLID' }}}
 		#TODO: Make a django-admin task to resend the match data to the airtable (or any sheet)
 		self._submission = submission
 		if not self._submission:
@@ -450,111 +451,71 @@ class GSheets():
 
 	#Needed as if the GSheetApi objects call is in the normal init, app load fails for dbot due to DB access before django is ready
 	#Needs to be broken up for async/sync access
-	def _init(self):
+	def init(self):
+		gs = GSheetAPI.objects.get()
+		self._gc = gspread.service_account_from_dict(gs.api_key)
 		#Setup object types
-		if not self.gc:
+		if not self._gc:
 			print("Gsheels API: API Key invalid/failed to login")
 			return
-		if isinstance(self.submission, QualifierSubmission):
-			self._tourney = self.submission.tournament
-			self._bracket = self.submission.bracket
-			self._sheet = self.submission.gsheet
-		elif isinstance(self.submission, TournamentMatchOngoing):
-			self._tourney = self.match.group.bracket.tourney
-			self._bracket = self.match.group.bracket
+		if isinstance(self._submission, QualifierSubmission):
+			self._tourney = self._submission.qualifier.tournament
+			self._bracket = self._submission.qualifier.bracket
+			self._url = self._submission.qualifier.gsheet
+		elif isinstance(self._submission, TournamentMatchOngoing):
+			self._tourney = self._submission.group.bracket.tourney
+			self._bracket = self._submission.group.bracket
 			self._url = self._tourney.config.gsheet
-		elif isinstance(self.submission, TournamentMatchCompleted):
-			self._tourney = self.match.group.bracket.tourney
-			self._bracket = self.match.group.bracket
+		elif isinstance(self._submission, TournamentMatchCompleted):
+			self._tourney = self._submission.group.bracket.tourney
+			self._bracket = self._submission.group.bracket
 			self._url = self._tourney.config.gsheet
-		else:
-			raise TypeError("Submission must be a 'QualifierSubmission', 'TournamentMatchCompleted' or 'TournamentMatchOngoing' type for Gsheets provider!")
-			return
 
 		try:
-			self._sheet = self.gc.open_by_url(self._url)
+			self._sheet = self._gc.open_by_url(self._url)
 		except Exception as e:
 			print(f"Error opening GSheet {self._url} failed with exception {e}")
 			return
 
 		#Load relevant workspace in sheet
-		if isinstance(self.submission, QualifierSubmission):
-			ws = self._sheet.worksheet((f"{self.submission.qualifier} - Data"))
-			if not ws:
-				ws = self._sheet.add_worksheet(title=f"{self.submission.qualifier} - Data", rows=2, cols=12)
-				ws.update([["Discord Name", "Clone Hero Name", "Score", "Notes Missed", "Notes Hit", "Overstrums", "Ghosts", "Phrases Earned", "Submission Timestamp", "Screenshot Timestamp", "Image URL", "Game Version" ]], "A2:L2")
-				ws.format("A2:L2", {'textFormat': {'bold': True}, "horizontalAlignment": "CENTER", 'borders': { 'bottom': { 'style' : 'SOLID' }, 'left': { 'style' : 'SOLID' }, 'right': { 'style' : 'SOLID' }}})
-		elif isinstance(self.submission, TournamentMatchOngoing) or isinstance(self.submission, TournamentMatchCompleted):
+		if isinstance(self._submission, QualifierSubmission):
+			try:
+				ws = self._sheet.worksheet((f"{self._submission.qualifier} - Data"))
+			except gspread.exceptions.WorksheetNotFound:
+				print(f"Creating worksheet in sheet {self._url}")
+				ws = self._sheet.add_worksheet(title=f"{self._submission.qualifier} - Data", rows=1, cols=12)
+				ws.update([["Discord Name", "Clone Hero Name", "Score", "Notes Missed", "Notes Hit", "Overstrums", "Ghosts", "Phrases Earned", "Submission Timestamp", "Screenshot Timestamp", "Image URL", "Game Version" ]], "A1:L1")
+				ws.format("A1:L1", {'textFormat': {'bold': True}, "horizontalAlignment": "CENTER", 'borders': { 'bottom': { 'style' : 'SOLID' }, 'left': { 'style' : 'SOLID' }, 'right': { 'style' : 'SOLID' }}})
+		elif isinstance(self._submission, TournamentMatchOngoing) or isinstance(self._submission, TournamentMatchCompleted):
 			pass #Not ready
 
 		self._ws = ws
 
-	def init(self):
-		self.gc = gspread.service_account(GSheetApi.objects.get())
-		self._init()
+	def update_row(self) -> bool:
+		pass
 
-	async def init(self):
-		self.gc = gspread.service_account(await GSheetApi.objects.aget())
-		self._init()
+	def add_row(self) -> bool:
+		pass
 
-	def deadfunc(self):
-		#Create Sheet
-		if "qualifier_sheet" not in self.tourneyConf and "qualifier" in sheet:
-			try:
-				self.qualiSheet = self.gc.open(f"{self.tourneyConf['name']} - Qualifier Submissions")
-			except:
-				return False
+	def submit_qualifier(self):
+		self._ws.append_row(self.qualifier_line)
+		self._submission.submitted = True
+		self._submission.save()
 
-			print(f"Setting up quali sheet for {self.tourneyConf['name']} : {self.qualiSheet.url}")
-			self.ws = self.qualiSheet.add_worksheet(title="Raw Qualifier Submissions", rows=2, cols=12)
-
-
-			self.tourneyConf['qualifier_sheet'] = self.qualiSheet.url
-			#await self.sql.setTourneyConfig(self.tid, self.tourneyConf)
-		elif "qualifier" in sheet:
-			self.qualiSheet = self.gc.open_by_url(self.tourneyConf['qualifier_sheet'])
-			self.qualiws = self.qualiSheet.worksheet("Raw Qualifier Submissions")
-
-		if 'livematch_sheet' not in self.tourneyConf and "livematch" in sheet:
-			try:
-				self.liveMatchSheet = self.gc.open(f"{self.tourneyConf['name']} - Live Match Data")
-				print(f"Setting up live match sheet for {self.tourneyConf['name']} : {self.liveMatchSheet.url}")
-				self.lmws = self.liveMatchSheet.worksheet("match_data")
-				self.tourneyConf['livematch_sheet'] = self.liveMatchSheet.url
-				#await self.sql.setTourneyConfig(self.tid, self.tourneyConf)
-			except:
-				return False
-		elif "livematch" in sheet:
-			self.liveMatchSheet = self.gc.open_by_url(self.tourneyConf['livematch_sheet'])
-			self.lmws = self.liveMatchSheet.worksheet("match_data")
-
-		if 'stats_sheet' not in self.tourneyConf and "stats" in sheet:
-			try:
-				self.statsSheet = self.gc.open(f"{self.tourneyConf['name']} - Airtable")
-				print(f"Setting up quali sheet for {self.tourneyConf['name']} : {self.statsSheet.url}")
-				self.sws = self.statsSheet.worksheet("match_data")
-				self.tourneyConf['stats_sheet'] = self.statsSheet.url
-				#await self.sql.setTourneyConfig(self.tid, self.tourneyConf)
-			except:
-				return False
-		elif "stats" in sheet:
-			self.statsSheet = self.gc.open_by_url(self.tourneyConf['stats_sheet'])
-			self.sws = self.statsSheet.worksheet("match_data")
-
-		return True
-
-	def fixSongName(self, song: str, setlist: dict) -> str: #Obsoleted by Chart.tourney_name property
-		name = song
-		songData = setlist['set_list'][song]
-
-		if songData['speed'] != 100:
-			name += f" ({songData['speed']}%)"
-		if "NoModifiers" not in songData['modifiers']:
-			#Gross
-			mods = re.sub('[a-z]', '', str(songData['modifiers'])).replace(" ", "").replace("'", "")
-			name += f" {mods}"
-
-		return name
+	@property
+	def qualifier_line(self):
+		chName = self._submission.steg['profile_name']
+		score = self._submission.steg['score']
+		missed = self._submission.steg['notes_missed']
+		hit = self._submission.steg['notes_hit']
+		excess = self._submission.steg['excess_hits']
+		ghosts = self._submission.steg['frets_ghosted']
+		phrases = self._submission.steg['sp_phrases_earned']
+		submissionTimestamp = str(self._submission.submit_time.strftime("%Y-%m-%d %H:%M:%S") + "-UTC")
+		screenshotTimestamp = f"{datetime.strptime(self._submission.steg['score_timestamp'], '%Y-%m-%dT%H:%M:%S.%fZ').strftime("%Y-%m-%d %H:%M:%S")}-UTC"
+		imgUrl = f"https://{os.getenv('BASE_URL')}{self._submission.screenshot.url}"
+		gameVer = self._submission.qualifier.tournament.config.version
+		return [self._submission.player.name, chName, score, missed, hit, excess, ghosts, phrases, submissionTimestamp, screenshotTimestamp, imgUrl, gameVer]
 
 	async def submitLiveMatch(self, match) -> bool: #To collapse this and submit match complete/qualifier into one generic "send_row" and "update_row"
 		if "disable_gsheets" in self.tourneyConf and self.tourneyConf['disable_gsheets']:
@@ -665,25 +626,7 @@ class GSheets():
 		if "disable_gsheets" in self.tourneyConf and self.tourneyConf['disable_gsheets']:
 			return True
 
-		chName = qualifierData['players'][0]['profile_name']
-		score = qualifierData['players'][0]['score']
-		missed = qualifierData['players'][0]['notes_missed']
-		hit = qualifierData['players'][0]['notes_hit']
-		os = qualifierData['players'][0]['overstrums']
-		ghosts = qualifierData['players'][0]['frets_ghosted']
-		phrases = qualifierData['players'][0]['sp_phrases_earned']
-		submissionTimestamp = f"{datetime.strptime(qualifierData['submission_timestamp'], '%Y-%m-%dT%H:%M:%S.%fZ').strftime("%Y-%m-%d %H:%M:%S")}-UTC"
-		screenshotTimestamp = f"{datetime.strptime(qualifierData['score_timestamp'], '%Y-%m-%dT%H:%M:%S.%fZ').strftime("%Y-%m-%d %H:%M:%S")}-UTC"
-		imgUrl = qualifierData['image_url']
-		gameVer = qualifierData['game_version']
 
-		try:
-			self.qualiws.append_row([user.global_name, chName, score, missed, hit, os, ghosts, phrases, submissionTimestamp, screenshotTimestamp, imgUrl, gameVer])
-			numRows = len(self.ws.get_all_values())
-			self.qualiws.format(f"A{numRows}:L{numRows}", self.frmtBorder)
-		except Exception as e:
-			print(f"Exception in gspread: {e}")
-			return False
 
 		return True
 

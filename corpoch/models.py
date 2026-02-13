@@ -26,7 +26,9 @@ CH_VERSIONS = [
 
 class GSheetAPI(models.Model):
 	api_key = fields.EncryptedJSONField(null=False, blank=True, default=dict, encoder=DjangoJSONEncoder)
+	sa_name = models.CharField(verbose_name="API Service Account Name", max_length=96)
 	#ONLY ONE KEY SHOULD BE IN THIS TABLE
+
 	class Meta:
 		verbose_name = "Google Sheets API"
 
@@ -110,8 +112,7 @@ class TournamentConfig(models.Model):
 	ref_role = models.BigIntegerField(verbose_name="Discord Ref Role ID", null=True, blank=True)
 	proof_channel = models.BigIntegerField(verbose_name="Discord Proof Channel ID", null=True, blank=True)
 	enable_gsheets = models.BooleanField(verbose_name="Gsheets Integration", default=True)
-	match_gsheet = models.URLField(verbose_name="Live-Match Google Sheet", null=True, blank=True)
-	stats_gsheet = models.URLField(verbose_name="Air Table Stats Google Sheet", null=True, blank=True)
+	gsheet = models.URLField(verbose_name="Match Reporting Google Sheet", null=True, blank=True)
 	version = models.CharField(verbose_name="Clone Hero Version", choices=CH_VERSIONS, max_length=32, default=['v1.0.0.4080-final'])
 
 	class Meta:
@@ -152,6 +153,7 @@ class TournamentBracket(models.Model):
 class TournamentPlayer(models.Model):
 	id = models.AutoField(primary_key=True)
 	user = models.BigIntegerField(verbose_name="Player Discord ID", db_index=True)
+	name = models.CharField(verbose_name="Discord Name", max_length=128, null=True, blank=True)
 	tournament = models.ForeignKey(Tournament, related_name="players", verbose_name="Tournament", on_delete=models.CASCADE)
 	is_active = models.BooleanField(verbose_name="Player Active", default=False)
 	ch_name = models.CharField(verbose_name="Clone Hero Name", max_length=128, default="New Player")
@@ -298,6 +300,7 @@ class TournamentMatchCompleted(TournamentMatch):
 	ended_on = models.DateTimeField(verbose_name="Match end time", auto_now_add=True)
 	winner = models.ForeignKey(TournamentPlayer, related_name="matches_won", verbose_name="Winner", on_delete=models.CASCADE)
 	loser = models.ForeignKey(TournamentPlayer, related_name="matches_lost", verbose_name="Loser", on_delete=models.CASCADE)
+	submitted = models.BooleanField(verbose_name="Uploaded to GSheet", default=False)
 
 	class Meta:
 		verbose_name = "Completed Match"
@@ -385,6 +388,7 @@ class QualifierSubmission(models.Model):
 	screenshot = models.ImageField(upload_to="qualifiers/", verbose_name="Screenshot", null=True)
 	qualifier = models.ForeignKey(Qualifier, related_name='submissions', verbose_name="Tournament Qualifier", on_delete=models.CASCADE)
 	steg = models.JSONField(verbose_name="Steg Data", default=dict, blank=True) #This is the steg output in it's entirety
+	submitted = models.BooleanField(verbose_name="Uploaded to GSheet", default=False)
 
 	class Meta:
 		verbose_name = "Qualifier Submission"

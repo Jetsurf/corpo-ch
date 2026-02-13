@@ -121,7 +121,7 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = "/var/www/ch"
-MEDIA_ROOT = '/var/www/ch/images'
+MEDIA_ROOT = '/var/www/ch/images/'
 MEDIA_URL = '/images/'
 
 # Default primary key field type
