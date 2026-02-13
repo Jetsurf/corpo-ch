@@ -73,9 +73,10 @@ class DiscordQualifierView(discord.ui.View):
 		cancel.callback = self.cancelBtn
 		self.add_item(cancel)
 
-		upload = discord.ui.Button(label="Upload Screenshot", custom_id="screenBtn")
-		upload.callback = self.screenBtn
-		self.add_item(upload)
+		self.upload = discord.ui.Button(label="Upload Screenshot", custom_id="screenBtn")
+		self.upload.callback = self.uploadBtn
+		self.upload.disabled = True
+		self.add_item(self.upload)
 
 		self.submit = discord.ui.Button(label="Submit", style=discord.ButtonStyle.green, custom_id="submitBtn")
 		self.submit.callback = self.submitBtn
@@ -109,6 +110,7 @@ class DiscordQualifierView(discord.ui.View):
 				self.qualifier = self.qualifiers[0]
 
 		if self.qualifier:
+			self.upload.disabled = False
 			try:
 				self.ply = await TournamentPlayer.objects.aget(user=self.ctx.user.id)
 				self.prev_subs = []
@@ -117,7 +119,7 @@ class DiscordQualifierView(discord.ui.View):
 				self.num_subs = len(self.prev_subs)
 			except TournamentPlayer.DoesNotExist:
 				self.ply = TournamentPlayer(user=self.ctx.user.id, tournament=self.tourney, ch_name="</Null>")
-				self.num_subs
+				self.num_subs = 0
 		
 			embeds.append(self.buildRulesEmbed())
 
@@ -141,7 +143,7 @@ class DiscordQualifierView(discord.ui.View):
 		await interaction.response.edit_message(content="Closing", embed=None, view=None, delete_after=1)
 		self.stop()
 
-	async def screenBtn(self, interaction: discord.Interaction):
+	async def uploadBtn(self, interaction: discord.Interaction):
 		modal = ScreenshotModal()
 		await interaction.response.send_modal(modal=modal)
 		await modal.wait()

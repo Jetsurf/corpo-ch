@@ -120,7 +120,7 @@ class SNGHandler:
 				line = f"{row[0]} = {row[1]}\n"
 				line_bytes = bytes(line.encode('utf-8'))
 				songini_bytes = songini_stream.write(line_bytes)
-			results.append(["song.ini", songini_bytes])
+			results.append(["song.ini", line_bytes])
 			
 		for row in fileMetaArray:
 			all_bytes_stream.seek(row[2])
@@ -132,6 +132,12 @@ class SNGHandler:
 		for row in self._files:
 			filename = row[0]
 			if "notes.chart" in filename or "notes.mid" in filename:
+				return row[1]
+
+	def get_song_ini(self) -> bytes: #Quick hack to make this work
+		for row in self._files:
+			filename = row[0]
+			if "song.ini" in filename:
 				return row[1]
 	
 	def get_md5(self) -> str:
@@ -303,11 +309,13 @@ class CHOpt:
 		self._url = os.getenv("CHOPT_URL")
 		self._upload_dir = f"{os.getenv("MEDIA_ROOT")}chopt"
 		self._encore = EncoreClient()
+		self._tmp = ""
 		self.opts = { 'whammy' : 0, 'squeeze' : 0, 'speed' : 100, 'output_path' : True }
 		self.url = ""
 		self.img = None
 		self.img_path = ""
 		self.img_name = ""
+		self._file_id = uuid.uuid1()
 
 		#Create dirs
 		if not os.path.isdir(self._scratch):
@@ -319,12 +327,19 @@ class CHOpt:
 		if self.img:
 			self.img.close()
 			os.remove(self.img_path)
+		if self._tmp != "":
+			os.rmtree(self._tmp)
 
-	def _prep_chart(self, content):
-		outFile = f"{self._scratch}/notes.chart"
-		with open(outFile, 'wb') as f:
-			f.write(content)
-		return outFile
+	def _prep_chart(self, chart, sngini):
+		self._tmp = f"{self._scratch}/{self._file_id}"
+		os.makedirs(self._tmp)
+		with open(f"{self._tmp}/notes.chart", 'wb') as f:
+			f.write(chart)
+
+		with open(f"{self._tmp}/song.ini", 'wb') as f:
+			f.write(sngini)
+
+		return self._tmp
 
 	def save_for_upload(self):
 		self.img.save(f"{self._upload_dir}/{self.img_name}", "PNG")
@@ -339,23 +354,21 @@ class CHOpt:
 			return None
 
 		sng = SNGHandler(sngData=content)
-		chartFile = self._prep_chart(sng.get_chart_data())
-		fileId = uuid.uuid1()
-		outPng = f"{self._output}/{fileId}.png"
+		chartFile = self._prep_chart(sng.get_chart_data(), sng.get_song_ini())
+		
+		outPng = f"{self._output}/{self._file_id}.png"
 		print(f"CHOPT: Output PNG: {outPng}")
-		choptCall = f"{self._chopt} -s {self.opts['speed']} --ew {self.opts['whammy']} --sqz {self.opts['squeeze']} -f {chartFile} -i guitar -d expert {'' if self.opts['output_path'] else '-b'} -o {outPng}"
+		choptCall = f"{self._chopt} -s {self.opts['speed']} --ew {self.opts['whammy']} --sqz {self.opts['squeeze']} -f {self._tmp}/notes.chart -i guitar -d expert {'' if self.opts['output_path'] else '-b'} -o {outPng}"
 		try:
 			subprocess.run(choptCall, check=True, shell=True, stdout=subprocess.DEVNULL)
 		except Exception as e:
 			print(f"CHOpt call failed with exception: {e}")
-			os.remove(chartFile)
 			return None
 
-		os.remove(chartFile)
-		self.url = f"{self._url}/{fileId}.png"
+		self.url = f"{self._url}/{self._file_id}.png"
 		self.img = Image.open(outPng)
 		self.img_path = outPng
-		self.img_name = f"{fileId}.png"
+		self.img_name = f"{self._file_id}.png"
 		return self.url
 
 class CHStegTool:

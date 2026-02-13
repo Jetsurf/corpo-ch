@@ -30,7 +30,7 @@ class CorpoDbot(commands.Bot):
 		# cogs
 		cogList = [
 			'chcmds',
-			'tourneycmds',
+			#'tourneycmds',
 			'qualifiercmds',
 			'ownercmds'
 		]

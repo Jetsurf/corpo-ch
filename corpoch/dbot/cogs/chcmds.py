@@ -180,11 +180,11 @@ class Path():
 	async def showResult(self, interaction):
 		self.chopt.gen_path(self.chart)
 		self.chopt.save_for_upload()
-		if not imageUrl:
+		if not self.chopt.url:
 			await interaction.followup.send("Path generation died on CHOpt call.", ephemeral=True)
 			await self.hide()
 		else:
-			await interaction.followup.send(embed=self.genResultEmbed(imageUrl), ephemeral=True)
+			await interaction.followup.send(embed=self.genResultEmbed(), ephemeral=True)
 			await self.hide()
 
 	async def doSearch(self, inQuery):
@@ -268,7 +268,7 @@ class PathView(discord.ui.View):
 		await modal.wait()
 		await self.path.show()
 
-	@discord.ui.button(label="Tourney Search", style=discord.ButtonStyle.secondary, custom_id="tourneyBtn")
+	@discord.ui.button(label="Tourney Search", style=discord.ButtonStyle.secondary, custom_id="tourneyBtn", disabled=True)
 	async def tourneyBtn(self, button, interaction: discord.Interaction):
 		await self.clear()
 		try:
