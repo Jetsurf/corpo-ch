@@ -1,0 +1,10 @@
+# General thoughts
+NOTE: I don't quite yet have the confidence to implement a lot of these yet, questionable design decisions are not intentional
+"Known" issues:
+ - These async_to_sync/needing to account for dbot is still messy - move to celery tasks for both directions
+ - These very likely need to break apart into their own separate django apps
+ - Pydantic basemodel to steg model fields is a better idea/route
+ - Admin views need to limit options in selectons for objects
+ - User view needs to be made
+ - Air table/Live match html needs to be made
+
