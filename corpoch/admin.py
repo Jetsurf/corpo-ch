@@ -15,6 +15,7 @@ class GSheetAPIAdmin(admin.ModelAdmin):
 @admin.register(Chart)
 class ChartAdmin(admin.ModelAdmin):
 	list_display = ('name',  '_bracket', 'charter', 'artist', 'album', 'speed', '_modifiers', 'tiebreaker')
+	list_filter = ['bracket', 'charter', 'artist', 'tiebreaker']
 	actions = ['run_encore_import']
 
 	def _bracket(self,obj):
@@ -67,6 +68,7 @@ class TournamentConfigAdmin(admin.ModelAdmin):
 @admin.register(TournamentBracket)
 class TournamentBracketAdmin(admin.ModelAdmin):
 	list_display = ("_name", 'tournament')
+	list_filter = ['tournament']
 
 	def _name(self, obj):
 		return f"{obj}"
@@ -74,10 +76,12 @@ class TournamentBracketAdmin(admin.ModelAdmin):
 @admin.register(TournamentPlayer)
 class TournamentPlayerAdmin(admin.ModelAdmin):
 	list_display = ('user', 'tournament', 'ch_name', 'is_active')
+	list_filter = ['tournament']
 
 @admin.register(Qualifier)
 class TournamentQualifierAdmin(admin.ModelAdmin):
 	list_display = ('id', 'tournament')
+	list_filter = ['tournament']
 
 class SeedingInline(SortableStackedInline):
 	model = GroupSeed

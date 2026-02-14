@@ -149,6 +149,8 @@ class DiscordQualifierView(discord.ui.View):
 		await modal.wait()
 		steg = CHStegTool()
 		await steg.getStegInfo(modal.screen)
+		if not steg.output:
+			await interaction.followup.send("Screenshot is not a valid in-game screenshot. Please use a screenshot taken with the select button on the results screen or from using auto-screenshots!", ephemeral=True, delete_after=5)
 		plySteg = []
 		for i, ply in enumerate(steg.output['players']):
 			try:
@@ -180,6 +182,7 @@ class DiscordQualifierView(discord.ui.View):
 	async def submitBtn(self, interaction: discord.Interaction):
 		await interaction.response.defer()
 		self.steg.output['players'][0]['score_timestamp'] = self.steg.output['score_timestamp'] #Copy into player row for slicing out metadata
+		self.ply.name = self.ctx.user.display_name
 		self.ply.ch_name = self.steg.output['players'][0]['profile_name']
 		await self.ply.asave()
 		quali = QualifierSubmission(player=self.ply, qualifier=self.qualifier, steg=self.steg.output['players'][0])
@@ -218,6 +221,7 @@ class DiscordQualifierView(discord.ui.View):
 		embed = discord.Embed(colour=0xFF2800)
 		embed.title = "Qualifier Submission Rules"
 		embed.add_field(name=f"{self.tourney.name} Rules", value=self.tourney.config.rules, inline=False)
+		embed.add_field(name="Submissions Deadline", value=f"<t:{int(self.qualifier.end_time.timestamp())}>", inline=False)
 		if self.qualifier.required_submissions > 1:
 			subs_met = '✅' if self.qualifier.required_submissions < self.num_subs else '❌'
 			embed.add_field(name="Required Submissions", value=f"This qualifier requires {self.qualifier.required_submissions} submissions\n\nYou've submitted: {self.num_subs} time(s) {subs_met}")
