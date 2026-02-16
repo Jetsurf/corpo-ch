@@ -1,5 +1,6 @@
 import typing, requests_cache, json, io, hashlib, re, gspread, asyncio, discord, os, uuid, platform, subprocess, pytesseract
 from datetime import datetime
+from typing import Union
 from random import randbytes
 from PIL import Image, ImageEnhance
 from django.db import models
@@ -9,7 +10,7 @@ from corpoch import settings
 from corpoch.models import GSheetAPI, Chart, Tournament, TournamentMatchCompleted, TournamentMatchOngoing, Qualifier, QualifierSubmission
 
 class SNGHandler:
-	def __init__(self, submission: typing.Union[str,bytes], playlist: str=None):
+	def __init__(self, submission: Union[str,bytes], playlist: str=None):
 		if not ((isinstance(submission, bytes) and submission[:6].decode('utf-8') == "SNGPKG") or 
 			(os.path.isfile(os.path.join(submission,"song.ini")) and 
 			(os.path.isfile(os.path.join(submission,"notes.chart")) or os.path.isfile(os.path.join(submission,"notes.mid"))))):
