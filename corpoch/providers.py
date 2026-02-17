@@ -1,4 +1,4 @@
-import typing, requests_cache, json, io, hashlib, re, gspread, asyncio, discord, os, uuid, platform, subprocess, pytesseract
+import typing, requests_cache, json, io, hashlib, re, gspread, asyncio, discord, os, uuid, platform, subprocess, pytesseract, shutil
 from datetime import datetime
 from typing import Union
 from random import randbytes
@@ -330,7 +330,7 @@ class CHOpt:
 			self.img.close()
 			os.remove(self.img_path)
 		if self._tmp != "":
-			os.rmtree(self._tmp)
+			shutil.rmtree(self._tmp)
 
 	def _prep_chart(self, chart, sngini):
 		self._tmp = f"{self._scratch}/{self._file_id}"
