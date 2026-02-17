@@ -73,7 +73,6 @@ class EncoreModal(discord.ui.Modal):
 
 		await interaction.response.defer(invisible=True)
 		tmp = self.path.encore.search(retData)
-		print(f"Got results {tmp}")
 		self.path.charts = tmp
 		await self.path.show()
 		self.stop()
@@ -282,7 +281,6 @@ class PathView(discord.ui.View):
 
 	@discord.ui.button(label='CHOpt Options', style=discord.ButtonStyle.secondary, custom_id="chopts")
 	async def choptsBtn(self, button, interaction: discord.Interaction):
-
 		choptsModal = CHOptModal(self.path, title="CHOpt options to use for path")
 		await interaction.response.send_modal(choptsModal)
 		await choptsModal.wait()
@@ -298,7 +296,6 @@ class PathView(discord.ui.View):
 class CHCmds(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
-		self.steg = CHStegTool()
 
 	ch = discord.SlashCommandGroup('ch','CloneHero tools')
 
@@ -316,14 +313,15 @@ class CHCmds(commands.Cog):
 		elif len(msg.attachments) >= 1:
 			#Only gets first screenshot if multiple are attached
 			submission = msg.attachments[0]
-			
-		stegData = await self.steg.getStegInfo(submission)
+		
+		steg = CHStegTool()
+		stegData = await steg.getStegInfo(submission)
 
 		if stegData == None:
 			await ctx.respond("Submitted screenshot is not a valid in-game Clone Hero screenshot", delete_after=5)
 			return
 
-		embed = self.steg.buildStatsEmbed("Screenshot Results")
+		embed = steg.buildStatsEmbed("Screenshot Results")
 		if len(msg.attachments) > 1:
 			await ctx.respond("Only getting first screenshot data from this message", embed=embed)
 		else:

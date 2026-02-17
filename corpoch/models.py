@@ -179,7 +179,7 @@ class Qualifier(models.Model):
 	#Use either tournament or bracket+tourney - allows for multiple "main" brackets to have a single qualifier or a qualifier per bracket
 	tournament = models.ForeignKey(Tournament, related_name='qualifier', verbose_name="Tournament", on_delete=models.CASCADE)
 	bracket = models.ForeignKey(TournamentBracket, related_name='qualifier', verbose_name="Bracket", blank=True, null=True, on_delete=models.CASCADE)
-	chart = models.ForeignKey(Chart, verbose_name="Qualifier Chart", on_delete=models.CASCADE)
+	charts = models.ManyToManyField(Chart, related_name="charts", verbose_name="Qualifier Chart(s)")
 	limit_submissions = models.BooleanField(verbose_name="Limit Submissions to # Required", default=False)
 	required_submissions = models.PositiveIntegerField(verbose_name="Required Submissions", default=1)
 	form_link = models.URLField(verbose_name="Google Form Link", null=True, blank=True)
@@ -202,7 +202,7 @@ class BracketGroup(models.Model):
 	id = models.AutoField(primary_key=True, db_index=True)
 	bracket = models.ForeignKey(TournamentBracket, related_name="groups", verbose_name="Bracket Groups", on_delete=models.CASCADE)
 	name = models.CharField(verbose_name="Group Name", max_length=8, default="A")
-	discord = models.BigIntegerField(verbose_name="Group Role Discord ID", null=True, blank=True, db_index=True)
+	role = models.BigIntegerField(verbose_name="Discord Group Role ID", null=True, blank=True, db_index=True)
 
 	class Meta:
 		verbose_name = "Bracket Group"
