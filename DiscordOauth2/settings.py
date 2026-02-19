@@ -20,7 +20,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 ALLOWED_HOSTS = [ os.getenv("BASE_URL") ]
-CSRF_TRUSTED_ORIGINS=[f"https://{os.getenv("BASE_URL")}"]
+CSRF_TRUSTED_ORIGINS=[f"https://{os.getenv('BASE_URL')}"]
 SECRET_KEY = os.getenv("BOT_SECRET")
 CHOPT_PATH = os.getenv("CHOPT_PATH")
 CHOPT_OUTPUT = os.getenv("CHOPT_OUTPUT")
@@ -85,6 +85,7 @@ DATABASES = {
         "USER" : os.getenv("MYSQL_USER"),
         "PASSWORD" : os.getenv("MYSQL_PW"),
         "HOST" : os.getenv("MYSQL_HOST"),
+        "PORT": os.getenv("MYSQL_PORT"),
     }
 }
 

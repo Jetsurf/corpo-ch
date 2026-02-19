@@ -309,7 +309,7 @@ class CHOpt:
 		self._scratch = f"{self._path}/scratch"
 		self._output = os.getenv("CHOPT_OUTPUT")
 		self._url = os.getenv("CHOPT_URL")
-		self._upload_dir = f"{os.getenv("MEDIA_ROOT")}chopt"
+		self._upload_dir = f"{os.getenv('MEDIA_ROOT')}chopt"
 		self._encore = EncoreClient()
 		self._tmp = ""
 		self.opts = { 'whammy' : 0, 'squeeze' : 0, 'speed' : 100, 'output_path' : True }
@@ -448,8 +448,8 @@ class CHStegTool:
 		embed = discord.Embed(colour=0x3FFF33)
 		embed.title = title
 		if 'players' in self.output:
-			chartStr = f"Chart Name: {self.output["song_name"]}" + f" ({self.output["playback_speed"]}%)\n" if self.output["playback_speed"] != 100 else '\n'
-			chartStr += f"Run Time: <t:{int(round(datetime.strptime(self.output["score_timestamp"], '%Y-%m-%dT%H:%M:%S.%fZ').timestamp()))}:f>\n"
+			chartStr = f"Chart Name: {self.output['song_name']}" + f" ({self.output['playback_speed']}%)\n" if self.output["playback_speed"] != 100 else '\n'
+			chartStr += f"Run Time: <t:{int(round(datetime.strptime(self.output['score_timestamp'], '%Y-%m-%dT%H:%M:%S.%fZ').timestamp()))}:f>\n"
 			chartStr += f"Game Version: {self.output['game_version']}"
 			embed.add_field(name="Submission Stats", value=chartStr, inline=False)
 			embed.set_footer(text=f"Chart md5 {self.output['checksum']}")
@@ -459,12 +459,12 @@ class CHStegTool:
 
 		for i, player in enumerate(plySteg):
 			plyStr = ""
-			plyStr += f"Player Name: {player["profile_name"]}\n"
-			plyStr += f"Score: {player["score"]}\n"
-			plyStr += f"Notes Hit: {player["notes_hit"]}/{player["total_notes"]} - {(player["notes_hit"]/player["total_notes"]) * 100:.2f}% {' - 👑' if player['is_fc'] else ''}\n"
-			plyStr += f"Overstrums: {player["excess_hits"]}\n"
-			plyStr += f"Ghosts: {player["frets_ghosted"]}\n"
-			plyStr += f"SP Phrases: {player["sp_phrases_earned"]}/{player["sp_phrases_total"]}\n"
+			plyStr += f"Player Name: {player['profile_name']}\n"
+			plyStr += f"Score: {player['score']}\n"
+			plyStr += f"Notes Hit: {player['notes_hit']}/{player['total_notes']} - {(player['notes_hit']/player['total_notes']) * 100:.2f}% {' - 👑' if player['is_fc'] else ''}\n"
+			plyStr += f"Overstrums: {player['excess_hits']}\n"
+			plyStr += f"Ghosts: {player['frets_ghosted']}\n"
+			plyStr += f"SP Phrases: {player['sp_phrases_earned']}/{player['sp_phrases_total']}\n"
 			embed.add_field(name=f"Player {i+1}", value=plyStr, inline=False)
 
 		return embed
@@ -540,7 +540,7 @@ class GSheets():
 		ghosts = self._submission.steg['frets_ghosted']
 		phrases = self._submission.steg['sp_phrases_earned']
 		submissionTimestamp = str(self._submission.submit_time.strftime("%Y-%m-%d %H:%M:%S") + "-UTC")
-		screenshotTimestamp = f"{datetime.strptime(self._submission.steg['score_timestamp'], '%Y-%m-%dT%H:%M:%S.%fZ').strftime("%Y-%m-%d %H:%M:%S")}-UTC"
+		screenshotTimestamp = f"{datetime.strptime(self._submission.steg['score_timestamp'], '%Y-%m-%dT%H:%M:%S.%fZ').strftime('%Y-%m-%d %H:%M:%S')}-UTC"
 		imgUrl = f"https://{os.getenv('BASE_URL')}{self._submission.screenshot.url}"
 		gameVer = self._submission.qualifier.tournament.config.version
 		return [self._submission.player.name, chName, score, missed, hit, excess, ghosts, phrases, submissionTimestamp, screenshotTimestamp, imgUrl, gameVer]
@@ -635,7 +635,7 @@ class GSheets():
 			ply2List.append(ply2Fnd['notes_hit'])
 			ply1List.append(ply1Fnd['frets_ghosted'])
 			ply2List.append(ply2Fnd['frets_ghosted'])
-			ply1List.append(f"{datetime.strptime(stegData['score_timestamp'], '%Y-%m-%dT%H:%M:%S.%fZ').strftime("%Y-%m-%d %H:%M:%S")}-UTC")
+			ply1List.append(f"{datetime.strptime(stegData['score_timestamp'], '%Y-%m-%dT%H:%M:%S.%fZ').strftime('%Y-%m-%d %H:%M:%S')}-UTC")
 			ply2List.append("")
 			ply1List.append(stegData['image_url'])
 			ply2List.append("")

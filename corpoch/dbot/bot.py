@@ -25,7 +25,7 @@ class CorpoDbot(commands.Bot):
 		self.client = super().__init__(intents=intents, chunk_guilds_at_startup=False)
 		self.session = aiohttp.ClientSession(loop=self.loop)
 		self.redis = self.loop.run_until_complete(aioredis.from_url(os.getenv("CELERY_BROKER_URL"), encoding="utf-8", decode_responses=True))
-		print(f"redis pool started {os.getenv("CELERY_BROKER_URL")}")
+		print(f"redis pool started {os.getenv('CELERY_BROKER_URL')}")
 		self.message_connection = Connection(os.getenv("CELERY_BROKER_URL"))
 		queuename = "corpoch.dbot"
 		queue_keys = [f"{queuename}",
