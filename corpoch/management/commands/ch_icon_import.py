@@ -15,7 +15,7 @@ class Command(BaseCommand):
 		members=tar.getmembers()
 		for member in members:
 			if member.name.lower().endswith('.png'):
-				filename = re.sub("(.*)(icons\\/)(.*)", "\\3", member.name)
+				filename = re.sub("(.*)(icons\\/)(.*)(png)", "\\3png", member.name, flags=re.IGNORECASE)
 				extracted_file = tar.extractfile(member)
 				name = filename.replace(".png", "")
 				print(f"Setting up icon {filename}")
