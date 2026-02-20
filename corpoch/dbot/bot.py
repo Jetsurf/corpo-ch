@@ -1,4 +1,4 @@
-import sys, os, discord, asyncio, time, json, logging, aiohttp, logging
+import sys, os, discord, asyncio, time, json, logging, aiohttp, logging, time
 from discord.ext import commands, tasks
 
 #Django
@@ -62,7 +62,11 @@ class CorpoDbot(commands.Bot):
 		self.startUpLogging()
 		print(f"--- Starting up at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} ---")
 		print('Logging into discord')
-		super().run(settings.BOT_TOKEN, reconnect=True)
+		try:
+			super().run(settings.BOT_TOKEN, reconnect=True)
+		except discord.PrivilegedIntentsRequired as e:
+			print("Unable to login to discord - missing discord.intentes.members privledge - Sleeping then exiting")
+			print(f"    Please visit https://support-dev.discord.com/hc/en-us/articles/6207308062871-What-are-Privileged-Intents")
 		print(f"--- Shutting down at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} ---")
 
 	def on_queue_message(self, body, message):

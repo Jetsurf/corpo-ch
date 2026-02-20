@@ -524,12 +524,8 @@ class CHStegTool:
 class GSheets():
 	def __init__(self):	
 		self._format_border = {'textFormat': {'bold': False}, "horizontalAlignment": "CENTER", 'borders': {'right': {'style' : 'SOLID'}, 'left': {'style' : 'SOLID' }}}
-		self._submission = submission
-		if not self._submission:
-			raise ValueError("Submission must be set for Gsheets provider!")
+		self._format_header = {'textFormat': {'bold': True}, "horizontalAlignment": "CENTER", 'borders': { 'bottom': { 'style' : 'SOLID' }, 'left': { 'style' : 'SOLID' }, 'right': { 'style' : 'SOLID' }}}
 
-	#Needed as if the GSheetApi objects call is in the normal init, app load fails for dbot due to DB access before django is ready
-	#Needs to be broken up for async/sync access
 	def login(self):
 		gs = GSheetAPI.objects.get()
 		self._gc = gspread.service_account_from_dict(gs.api_key)
@@ -537,6 +533,7 @@ class GSheets():
 			raise RuntimeError("Gsheels API: API Key invalid/failed to login")
 
 	def set_submission(submission: typing.Union[TournamentMatchOngoing, TournamentMatchCompleted, Qualifier]):
+		self._submission = submission
 		if isinstance(self._submission, QualifierSubmission):
 			self._tourney = self._submission.qualifier.tournament
 			self._bracket = self._submission.qualifier.bracket
@@ -561,19 +558,31 @@ class GSheets():
 			try:
 				ws = self._sheet.worksheet((f"{self._submission.qualifier} - Data"))
 			except gspread.exceptions.WorksheetNotFound:
-				print(f"Creating worksheet in sheet {self._url}")
-				ws = self._sheet.add_worksheet(title=f"{self._submission.qualifier} - Data", rows=1, cols=12)
-				ws.update([["Discord Name", "Clone Hero Name", "Score", "Notes Missed", "Notes Hit", "Overstrums", "Ghosts", "Phrases Earned", "Submission Timestamp", "Screenshot Timestamp", "Image URL", "Game Version" ]], "A1:L1")
-				ws.format("A1:L1", {'textFormat': {'bold': True}, "horizontalAlignment": "CENTER", 'borders': { 'bottom': { 'style' : 'SOLID' }, 'left': { 'style' : 'SOLID' }, 'right': { 'style' : 'SOLID' }}})
+				ws = self.setup_qualifier_sheet()
 		elif isinstance(self._submission, TournamentMatchOngoing) or isinstance(self._submission, TournamentMatchCompleted):
 			pass #Not ready
 
 		self._ws = ws
 
-	def update_row(self) -> bool:
+	#Upcoming air-table/stats sheets
+
+	def setup_qualifier_sheet(self) -> gspread.Worksheet:
+		print(f"Creating qualifier {self._submission._qualifier} worksheet in sheet {self._url}")
+		ws = self._sheet.add_worksheet(title=f"{self._submission.qualifier} - Data", rows=1, cols=12)
+		ws.update([["Discord Name", "Clone Hero Name", "Score", "Notes Missed", "Notes Hit", "Overstrums", "Ghosts", "Phrases Earned", "Submission Timestamp", "Screenshot Timestamp", "Image URL", "Game Version" ]], "A1:L1")
+		ws.format("A1:L1", self._format_header)
+		return ws
+
+	def setup_ongoing_sheet(self) -> bool:
 		pass
 
-	def add_row(self) -> bool:
+	def set_completed_sheet(self) -> bool:
+		pass
+
+	def submit_completed(self) -> bool:
+		pass
+
+	def submit_ongoing(self) -> bool:
 		pass
 
 	def submit_qualifier(self):
@@ -592,122 +601,17 @@ class GSheets():
 		phrases = self._submission.steg['sp_phrases_earned']
 		submissionTimestamp = str(self._submission.submit_time.strftime("%Y-%m-%d %H:%M:%S") + "-UTC")
 		screenshotTimestamp = f"{datetime.strptime(self._submission.steg['score_timestamp'], '%Y-%m-%dT%H:%M:%S.%fZ').strftime('%Y-%m-%d %H:%M:%S')}-UTC"
-		imgUrl = f"https://{os.getenv('BASE_URL')}{self._submission.screenshot.url}"
+		imgUrl = f"https://{settings.BASE_URL}{self._submission.screenshot.url}"
 		gameVer = self._submission.qualifier.tournament.config.version
 		return [self._submission.player.name, chName, score, missed, hit, excess, ghosts, phrases, submissionTimestamp, screenshotTimestamp, imgUrl, gameVer]
 
-	async def submitLiveMatch(self, match) -> bool: #To collapse this and submit match complete/qualifier into one generic "send_row" and "update_row"
-		if "disable_gsheets" in self.tourneyConf and self.tourneyConf['disable_gsheets']:
-			return True
+	@property
+	def ongoing_line(self):
+		pass
 
-		brackets = await self.sql.getTourneyBrackets(match['tourneyid'])
-		bracket = brackets[self.tourneyConf['name']]
-		matchJson = match['matchjson']
-		ply1 = matchJson['highSeed']
-		ply2 = matchJson['lowSeed']
-		#Dirty hard-coded indexes for now to get this working - this is going to need to be changed
-		ply1Pts = ply1['points'] if 'points' in ply1 else 0
-		ply2Pts = ply2['points'] if 'points' in ply1 else 0
-		matchList = [match['matchuuid'], ply1['name'], ply1Pts, ply1['ban'][0], ply1['ban'][1], ply2['name'], ply2Pts, ply2['ban'][0], ply2['ban'][1], matchJson['setlist'], matchJson['winner'] ]
-		for song in matchJson['rounds']:
-			matchList.append(song['pick'])
-			matchList.append(self.fixSongName(song['song'], bracket))
-
-		if 'tb' in matchJson:
-			matchList.append(self.fixSongName(matchJson['tb']['song'], bracket))
-		else:
-			matchList.append("")
-
-		for song in matchJson['rounds']:
-			matchList.append(song['winner'])
-
-		if 'tb' in matchJson:
-			matchList.append(matchJson['tb']['winner'])
-		else:
-			matchList.append("")
-
-		if match['sheetrow'] is None:
-			print("Adding new row to sheet...")
-			self.lmws.append_row(matchList)
-			numRows = len(self.lmws.get_all_values())
-		
-			self.lmws.format(f"A{numRows}:AE{numRows}", self.frmtBorder)
-			match['sheetrow'] = numRows
-			await self.sql.replaceRefToolMatch(match['matchuuid'], match['tourneyid'], match['finished'], matchJson, match['sheetrow'], match['postid'])
-		else:
-			self.lmws.update([matchList], f"A{match['sheetrow']}:AE{match['sheetrow']}")
-
-	async def submitMatchResults(self, match, tourney) -> bool:
-		if "disable_gsheets" in self.tourneyConf and self.tourneyConf['disable_gsheets']:
-			return True
-
-		print(f"Submitting {match['matchuuid']} to airtable")
-		brackets = await self.sql.getTourneyBrackets(match['tourneyid'])
-		bracket = brackets[self.tourneyConf['name']]
-		matchJson = match['matchjson']
-		ply1 = matchJson['highSeed']
-		ply2 = matchJson['lowSeed']
-		matchName = f"{ply1['name']} vs {ply2['name']}"
-
-		for song in matchJson['rounds']:
-			ply1List = []
-			ply2List = []
-			ply1Fnd = {}
-			ply2Fnd = {}
-
-			if song['index'] == 1:
-				ply1List.append(matchName)
-				ply2List.append("")
-			else:
-				ply1List.append("")
-				ply2List.append("")
-
-			ply1List.append(self.fixSongName(song['song'], bracket))
-			ply2List.append(self.fixSongName(song['song'], bracket))
-
-			stegData = song['steg_data']
-			for ply in stegData['players']:
-				if ply1['name'] == ply['profile_name']:
-						ply1Fnd = ply
-						continue
-				if ply2['name'] == ply['profile_name']:
-						ply2Fnd = ply
-						continue
-
-			ply1List.append(ply1Fnd['profile_name'])
-			ply2List.append(ply2Fnd['profile_name'])
-			ply1List.append(ply1Fnd['score'])
-			ply2List.append(ply2Fnd['score'])
-			ply1List.append(ply1Fnd['notes_missed'])
-			ply2List.append(ply2Fnd['notes_missed'])
-			ply1List.append(ply1Fnd['overstrums'])
-			ply2List.append(ply2Fnd['overstrums'])
-			ply1List.append(ply1Fnd['notes_hit'])
-			ply2List.append(ply2Fnd['notes_hit'])
-			ply1List.append(ply1Fnd['frets_ghosted'])
-			ply2List.append(ply2Fnd['frets_ghosted'])
-			ply1List.append(f"{datetime.strptime(stegData['score_timestamp'], '%Y-%m-%dT%H:%M:%S.%fZ').strftime('%Y-%m-%d %H:%M:%S')}-UTC")
-			ply2List.append("")
-			ply1List.append(stegData['image_url'])
-			ply2List.append("")
-			try:
-				self.sws.append_row(ply1List)
-				numRows = len(self.sws.get_all_values())
-				self.sws.format(f"A{numRows}:L{numRows}", self.frmtBorder)
-				self.sws.append_row(ply2List)
-				numRows = len(self.sws.get_all_values())
-				self.sws.format(f"A{numRows}:L{numRows}", self.frmtBorder)
-			except Exception as e:
-				print(f"Exception in gspread: {e}")
-				return False
-
-	async def submitQualifier(self, user, qualifierData: dict) -> bool:
-		if "disable_gsheets" in self.tourneyConf and self.tourneyConf['disable_gsheets']:
-			return True
-
-
-
-		return True
+	@property
+	def complete_line(self):
+		pass
 
 
 #Keeping for future OCR use/reference

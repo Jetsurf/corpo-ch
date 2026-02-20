@@ -32,7 +32,7 @@ CH_INSTRUMENTS = (
 	("drums", "Drums"),
 	("ghl", "GHL Guitar"),
 	("ghlbass", "GHL Bass"),
-	("rhlrythm", "GHL Rhythm"),
+	("ghlrythm", "GHL Rhythm"),
 	("ghlcoop", "GHL Guitar Coop"),
 )
 
@@ -41,6 +41,12 @@ CH_DIFFICULTIES = (
 	("hard", "Hard"),
 	("medium", "Medium"),
 	("easy", "Easy"),
+)
+
+TIEBREAKER_RULESETS = (
+	("", ""),
+	("", ""),
+	("", "")
 )
 
 class GSheetAPI(models.Model):
@@ -80,14 +86,13 @@ class Chart(models.Model):
 	url = models.URLField(verbose_name="Chart URL", blank=True)
 	icon = models.ForeignKey(CHIcon, related_name="charts", verbose_name="CH Icon", null=True, blank=True, on_delete=models.SET_NULL)
 
-	#TODO: More formatting work needs to be done for instrument/difficulty
 	class Meta:
 		verbose_name = "Chart"
 		verbose_name_plural = "Charts"
 
 	@property
 	def long_name(self):
-		return f"{self.name} - {self.charter} - {self.artist} - {self.album}"
+		return f"{self.name} - {self.charter} - {self.artist} - {self.album}{' -'+self.instrument[1] if self.instrument[0] != 'guitar' else ''}{f' {self.difficulty[1]}' if self.difficulty[0] != 'expert' else ''}"
 
 	@property
 	def encore_search_query(self):
@@ -184,7 +189,7 @@ class TournamentBracket(models.Model):
 	def short_name(self):
 		return self.name
 
-class TournamentPlayer(models.Model):
+class TournamentPlayer(models.Model): #TODO: This should be broken up a bit? Model fields for discord should move to dbot app
 	id = models.AutoField(primary_key=True)
 	user = models.BigIntegerField(verbose_name="Player Discord ID", db_index=True)
 	name = models.CharField(verbose_name="Discord Name", max_length=128, null=True, blank=True)

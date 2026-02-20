@@ -37,7 +37,7 @@ class Command(BaseCommand):
 					emoji = None
 
 				if not emoji:
-					print("Queueing bot task to create emoji")
+					print(f"Queueing bot task to create emoji {name} ")
 					corpoch.dbot.tasks.add_bot_emoji(name)
 
 				time.sleep(1)
