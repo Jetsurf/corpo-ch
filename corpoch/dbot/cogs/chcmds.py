@@ -4,42 +4,63 @@ from discord.ext import commands
 from discord.ui import *
 from discord.enums import ComponentType, InputTextStyle
 
-from corpoch.providers import CHOpt, EncoreClient, CHStegTool
+from corpoch.providers import CHOpt, EncoreClient, CHStegTool, Hydra
 from corpoch.models import Tournament, TournamentBracket, Chart, CH_INSTRUMENTS, CH_DIFFICULTIES
 from corpoch.dbot.models import CHEmoji
 
 class CHOptModal(discord.ui.DesignerModal):
 	def __init__(self, path, *args, **kwargs):
 		self.path = path
-		whm = discord.ui.Label("Early Whammy %", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, placeholder='0-100'))
-		sqz = discord.ui.Label("Squeeze %", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, placeholder='0-100'))
-		spd = discord.ui.Label("Song Speed (10-1000)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value=100))
-		pth = discord.ui.Label("Show Path in Image", discord.ui.Select(max_values=1, options=[discord.SelectOption(label='True', value='True', default=True), discord.SelectOption(label="False", value='False')], required=True))
-		super().__init__(discord.ui.TextDisplay("CHOpt Options"), whm, sqz, spd, pth, *args, **kwargs)
+		args += (discord.ui.Label("Early Whammy %", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, placeholder='0-100')),)
+		args += (discord.ui.Label("Squeeze %", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, placeholder='0-100')),)
+		args += (discord.ui.Label("Song Speed (10-1000)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value=100)),)
+		args += (discord.ui.Label("Show Path in Image", discord.ui.Select(max_values=1, options=[discord.SelectOption(label='True', value='True', default=True), discord.SelectOption(label="False", value='False')], required=True)),)
+		super().__init__(discord.ui.TextDisplay("CHOpt Options"), *args, **kwargs)
 
 	async def callback(self, interaction: discord.Interaction):
-		if not self.children[0][0].value.isdigit() and not int(self.children[0][0].content) >= 0 and not int(self.children[0][0].content <= 100):
+		if not self.children[1].item.value.isdigit() and not int(self.children[1].item.value) >= 0 and not int(self.children[1].item.value <= 100):
 			await interaction.response.send_message("Invalid whammy value, please use a number between 0 and 100", ephemeral=True)
 			self.stop()
 			return
 		else:
-			self.path.chopt.opts.whammy = int(self.children[0][0].value)
+			self.path.chopt.opts.whammy = int(self.children[1].item.value)
 
-		if not self.children[0][1].value.isdigit() and not int(self.children[0][1].content) >= 0 and not int(self.children[0][1].content <= 100):
+		if not self.children[2].item.value.isdigit() and not int(self.children[2].item.value) >= 0 and not int(self.children[2].item.value <= 100):
 			await interaction.response.send_message("Invalid squeeze value, please use a number between 0 and 100", ephemeral=True)
 			self.stop()
 			return
 		else:
-			self.path.chopt.opts.squeeze = int(self.children[0][1].value)
+			self.path.chopt.opts.squeeze = int(self.children[2].item.value)
 
-		if not self.children[2].value.isdigit() and not int(self.children[0][2].content) >= 10 and not int(self.children[0][2].content <= 1000):
+		if not self.children[3].item.value.isdigit() and not int(self.children[3].item.value) >= 10 and not int(self.children[3].item.value <= 1000):
 			await interaction.response.send_message("Invalid speed value, please use a number between 10 and 250", ephemeral=True)
 			self.stop()
 			return
 		else:
-			self.path.chopt.opts.speed = int(self.children[0][2].value)
+			self.path.chopt.opts.speed = int(self.children[3].item.value)
 
-		self.path.chopt.opts.output_path = True if self.children[0][3].value in "True" else False
+		self.path.chopt.opts.output_path = True if self.children[4].item.value in "True" else False
+
+		await interaction.response.defer(invisible=True)
+		self.stop()
+
+class HydraModal(discord.ui.DesignerModal):
+	def __init__(self, path, *args, **kwargs):
+		self.path = path
+		args += (discord.ui.Label("Bass/Kick 2x Pedal", discord.ui.Select(max_values=1, options=[discord.SelectOption(label='True', value='True', default=True), discord.SelectOption(label="False", value='False')], required=True)),)
+		args += (discord.ui.Label("Pro Drums", discord.ui.Select(max_values=1, options=[discord.SelectOption(label='True', value='True', default=True), discord.SelectOption(label="False", value='False')], required=True)),)
+		args += (discord.ui.Label("Depth Mode", discord.ui.Select(max_values=1, options=[discord.SelectOption(label='Scores', value='scores', default=True), discord.SelectOption(label="Points", value='points')], required=True)),)
+		args += (discord.ui.Label("Score Depth", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, placeholder=self.path.hydra.opts.depth)),)
+		#args += (discord.ui.Label("Difficulty", discord.ui.Select(max_values=1, options=[discord.SelectOption(label='True', value='True', default=True), discord.SelectOption(label="False", value='False')], required=True)),)
+		super().__init__(discord.ui.TextDisplay("Hydra Options"), *args, **kwargs)
+
+	async def callback(self, interaction: discord.Interaction):
+		self.path.hydra.opts.bass2x = True if self.children[1].item.values[0] in "True" else False
+		self.path.hydra.opts.pro = True if self.children[2].item.values[0] in "True" else False
+		self.path.hydra.opts.depth_mode = 'scores' if self.children[3].item.values[0] in "score" else 'points'
+		if not self.children[4].item.value.isdigit() or (int(self.children[4].item.value) < 1 or int(self.children[4].item.value) > 1000000):
+			await interaction.response.send_message("Invalid depth - must be 1-1000000", delete_after=5)
+			return
 
 		await interaction.response.defer(invisible=True)
 		self.stop()
@@ -59,7 +80,6 @@ class EncoreModal(discord.ui.DesignerModal):
 
 	async def callback(self, interaction: discord.Interaction):
 		retData = {}
-		print(f"DEBUG: {self.children[0]} {self.children[1]} {self.children[2]} {self.children[3]} {self.children[4]}")
 		retData['name'] = self.children[0].item.value
 		if self.children[1].item.value:
 			retData['artist'] = self.children[1].item.value
@@ -69,6 +89,10 @@ class EncoreModal(discord.ui.DesignerModal):
 			retData['charter'] = self.children[3].item.value
 		if self.children[4].item.values[0]:
 			retData['instrument'] = self.children[4].item.values[0]
+			for inst in CH_INSTRUMENTS:
+				if inst[0] == self.children[4].item.values[0]:
+					self.path.instrument = inst
+					break
 
 		await interaction.response.defer(invisible=True)
 		tmp = self.path.encore.search(retData)
@@ -142,6 +166,9 @@ class ChartSelect(discord.ui.Select):
 			else:#dict
 				icon = await CHEmoji.objects.select_related().aget(icon_id=chart['icon'])
 				emoji = await self.path.bot.fetch_emoji(icon.id)
+				if not emoji:
+					icon = await CHEmoji.objects.select_related().aget(icon_id="ch")#Failback to 
+					emoji = await self.path.bot.fetch_emoji(icon.id)
 				opts.append(discord.SelectOption(label=chart['name'], emoji=emoji if emoji else None, value=chart['md5'], description=f"{chart['artist']} - {chart['album']} - {chart['charter']}"))
 				self.retOpts[chart['md5']] = chart
 
@@ -155,6 +182,8 @@ class ChartSelect(discord.ui.Select):
 
 	async def callback(self, interaction: discord.Interaction):
 		self.path.chart = self.retOpts[self.values[0]]
+		if isinstance(self.path.chart, Chart):
+			self.path.instrument = self.path.chart.instrument[0]
 		await interaction.response.defer(ephemeral=True)
 		await self.path.show()
 
@@ -164,7 +193,9 @@ class Path():
 		self.ctx = ctx
 		self.user = ctx.user
 		self.encore = EncoreClient(exact=False)
+		self.instrument = "guitar"
 		self.chopt = CHOpt()
+		self.hydra = Hydra()
 		#self.tournament = None #Here as a kindness - presence of these attrs flags touney search enabled
 		#self.bracket = None
 		self.charts = []
@@ -179,13 +210,19 @@ class Path():
 		await self.ctx.interaction.delete_original_response()
 
 	async def showResult(self, interaction):
-		self.chopt.gen_path(self.chart)
-		self.chopt.save_for_upload()
+		if self.instrument[0] == 'drums':
+			self.hydra.gen_path(self.chart)
+		else:
+			self.chopt.gen_path(self.chart)
+			self.chopt.save_for_upload()
 		if not self.chopt.url:
 			await interaction.followup.send("Path generation died on CHOpt call.", ephemeral=True)
 			await self.hide()
 		else:
-			await interaction.followup.send(embed=self.genResultEmbed(), ephemeral=True)
+			if self.chart.instrument == "drums":
+				await interaction.folloup.send(embed=self.genHydraResultEmbed())
+			else:
+				await interaction.followup.send(embed=self.genCHOptResultEmbed(), ephemeral=True)
 			await self.hide()
 
 	async def doSearch(self, inQuery):
@@ -202,34 +239,47 @@ class Path():
 	def genChartEmbed(self) -> discord.Embed:
 		embed = discord.Embed(colour=0x3FFF33)
 		embed.title = "CH Path Generator"
-		embed.add_field(name="Instructions", value="Set the CHOpt settings, then hit submit", inline=False)
 		chartListing = ""
 		if self.charts:
-			embed.add_field(name="Directions", value="Charts shown in dropdown below.\nSelect the one you want to generate a path for.\nSet CHOpt options, then submit!", inline=False) 
+			embed.add_field(name="Directions", value="Charts shown in dropdown below.\nSelect the one you want to generate a path for.\nSet options, then submit!", inline=False) 
 		else:
 			embed.add_field(name="Directions", value="No results found for search.\nTry searching again with different options.", inline=False) 
 
 		if self.chart:
-			embed.add_field(name="Current CHOpt Options", value=f"Early Whammy: {self.chopt.opts.whammy}%\nSqueeze: {self.chopt.opts.squeeze}%\nSong Speed: {self.chopt.opts.speed}%\nShow path in output: {self.chopt.opts.output_path}", inline = False)
+			self.addEmbedToolField(embed)
+
 		return embed
 
-	def genResultEmbed(self) -> discord.Embed:
+	def genEmbedBase(self) -> discord.Embed:
 		embed = discord.Embed(colour=0x00F2FF)
 		embed.set_author(name=f"Generated by:{self.ctx.user.display_name}", icon_url=self.ctx.user.avatar.url)
 		embed.title = "/ch path run result"
 		embed.set_author(name=self.ctx.user.display_name, icon_url=self.ctx.user.avatar.url)
+
+	def addEmbedToolField(self, embed: discord.Embed):
+		if self.instrument[0] == 'drums':
+			embed.add_field(name="Hydra Options Used", value=f"Kick/Bass 2x: {self.hydra.opts.bass2x}\nPro Drums: {self.hydra.opts.pro}\nDepth Mode: {self.hydra.opts.depth_mode}\nDepth Value: {self.hydra.opts.depth}", inline=False)
+		else:
+			embed.add_field(name="CHOpt Options Used", value=f"Early Whammy: {self.chopt.opts.whammy}%\nSqueeze: {self.chopt.opts.squeeze}%\nSong Speed: {self.chopt.opts.speed}%\nShow Path: {self.chopt.opts.output_path}", inline=False)
+
+	def genHydraResultEmbed(self) -> discord.Embed:
+		embed = self.genEmbedBase()
+		if isinstance(self.chart, Chart):
+			embed.add_field(name="Hydra Path For", value=f"{self.chart.name} - {self.chart.artist} - {self.chart.album} - {self.chart.charter} - {self.chart.instrument}", inline=False)
+		else:
+			embed.add_field(name="Hydra Path For", value=f"{self.chart["name"]} - {self.chart["artist"]} - {self.chart["album"]} - {self.chart["charter"]} - {self.instrument[1]}", inline=False)
+		embed.add_field(name="Path", value=self.hydra.output, inline=False)
+		self.addEmbedToolField(embed)
+		return embed
+
+	def genCHOptResultEmbed(self) -> discord.Embed:
+		embed = self.genEmbedBase()
 		embed.set_image(url=self.chopt.url)
 		if isinstance(self.chart, Chart):
-			embed.add_field(name="CHOpt Path For", value=f"{self.chart.name} - {self.chart.artist} - {self.chart.album} - {self.chart.charter}", inline=False)
+			embed.add_field(name="CHOpt Path For", value=f"{self.chart.name} - {self.chart.artist} - {self.chart.album} - {self.chart.charter} - {self.chart.instrument}", inline=False)
 		else:
-<<<<<<< HEAD
-			embed.add_field(name="CHOpt Path For", value=f"{self.chart["name"]} - {self.chart["artist"]} - {self.chart["album"]} - {self.chart["charter"]}", inline=False)
-		embed.add_field(name="CHOpt Options Used", value=f"Early Whammy: {self.chopt.opts.whammy}%\nSqueeze: {self.chopt.opts.squeeze}%\nSong Speed: {self.chopt.opts.speed}%\nShow Path: {self.chopt.opts.output_path}", inline=False)
-=======
-			embed.add_field(name="CHOpt Path For", value=f"{self.chart['name']} - {self.chart['artist']} - {self.chart['album']} - {self.chart['charter']}", inline=False)
-		embed.add_field(name="CHOpt Options Used", value=f"Early Whammy: {self.chopt.opts['whammy']}%\nSqueeze: {self.chopt.opts['squeeze']}%\nSong Speed: {self.chopt.opts['speed']}%\nShow Path: {self.chopt.opts['output_path']}", inline=False)
-		embed.add_field(name="Path shown", value=f"**{self.outputPath}**", inline=False)
->>>>>>> 5694511e575c15e903f424485b441c0b51f22e32
+			embed.add_field(name="CHOpt Path For", value=f"{self.chart["name"]} - {self.chart["artist"]} - {self.chart["album"]} - {self.chart["charter"]} - {self.instrument[1]}", inline=False)
+		self.addEmbedToolField(embed)
 		embed.add_field(name="Image Link", value=f"[Link to Image]({self.chopt.url})", inline=False)
 		return embed
 
@@ -238,8 +288,8 @@ class PathView(discord.ui.View):
 		self.path = path
 		super().__init__(timeout = None)
 		if not self.path.chart:
-			self.get_item('submitBtn').disabled = True
-			self.get_item('chopts').disabled = True
+			self.get_item('submit').disabled = True
+			self.get_item('opts').disabled = True
 
 	async def init(self):
 		if hasattr(self.path, 'tournament'):
@@ -262,7 +312,7 @@ class PathView(discord.ui.View):
 			del self.path.bracket
 		self.path.charts = []
 
-	@discord.ui.button(label="Cancel", style=discord.ButtonStyle.red, custom_id="cancelBtn")
+	@discord.ui.button(label="Cancel", style=discord.ButtonStyle.red, custom_id="cancel")
 	async def cancelBtn(self, button, interaction: discord.Interaction):
 		await interaction.response.edit_message(content="Closing", embed=None, view=None, delete_after=1)
 		self.stop()
@@ -275,7 +325,7 @@ class PathView(discord.ui.View):
 		await modal.wait()
 		await self.path.show()
 
-	@discord.ui.button(label="Tourney Search", style=discord.ButtonStyle.secondary, custom_id="tourneyBtn", disabled=True)
+	@discord.ui.button(label="Tourney Search", style=discord.ButtonStyle.secondary, custom_id="tourney")
 	async def tourneyBtn(self, button, interaction: discord.Interaction):
 		await self.clear()
 		try:
@@ -287,16 +337,18 @@ class PathView(discord.ui.View):
 		await interaction.response.defer(invisible=True)
 		await self.path.show()
 
-	@discord.ui.button(label='Options', style=discord.ButtonStyle.secondary, custom_id="chopts")
-	async def choptsBtn(self, button, interaction: discord.Interaction):
-		choptsModal = CHOptModal(self.path, title="Options to use for path tool")
-		await interaction.response.send_modal(choptsModal)
-		await choptsModal.wait()
+	@discord.ui.button(label='Options', style=discord.ButtonStyle.secondary, custom_id="opts")
+	async def optsBtn(self, button, interaction: discord.Interaction):
+		if self.path.instrument[0] == 'drums':
+			optsModal = HydraModal(self.path, title="Options to use for Hydra")
+		else:
+			optsModal = CHOptModal(self.path, title="Options to use for CHOpt")
+		await interaction.response.send_modal(optsModal)
+		await optsModal.wait()
 
-		self.path.choptOpts = choptsModal.choptOpts
 		await self.path.show()
 
-	@discord.ui.button(label="Submit", style=discord.ButtonStyle.green, custom_id="submitBtn")
+	@discord.ui.button(label="Submit", style=discord.ButtonStyle.green, custom_id="submit")
 	async def submitBtn(self, button, interaction: discord.Interaction):
 		await interaction.response.defer(invisible=False)
 		await self.path.showResult(interaction)

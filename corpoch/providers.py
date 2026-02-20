@@ -8,6 +8,7 @@ from django.db import models
 from corpoch import __user_agent__
 from corpoch import settings 
 from corpoch.models import GSheetAPI, Chart, Tournament, TournamentMatchCompleted, TournamentMatchOngoing, Qualifier, QualifierSubmission, CH_DIFFICULTIES, CH_INSTRUMENTS
+from corpoch.utils.hydra.hydra.hyutil import analyze_chart_bytes_chart, analyze_chart_bytes_mid
 
 class SNGHandler:
 	def __init__(self, submission: Union[str,bytes], playlist: str=None):
@@ -56,6 +57,13 @@ class SNGHandler:
 			filename = row[0]
 			if "notes.chart" in filename or "notes.mid" in filename:
 				return row[1]
+
+	@property
+	def is_chart_format(self) -> bool:
+		for row in self._files:
+			if "notes.chart" in row[0]:
+				return True
+		return False
 
 	@property
 	def md5(self) -> str:
@@ -364,14 +372,14 @@ class CHOpt:
 		elif isinstance(chart, dict):
 			content = self._encore.download_from_chart(chart)
 		else:
-			raise TypeError("gen_path called incorrectly, chart not type Chart or encore chart dict")
+			raise TypeError("CHOPT: gen_path called incorrectly, chart not type Chart or encore chart dict")
 
 		sng = SNGHandler(content)
 		chartFile = self._prep_chart(sng.chart, sng.songini)
 		
 		outPng = f"{self._output}/{self._file_id}.png"
 		print(f"CHOPT: Output PNG: {outPng}")
-		choptCall = f"{self._chopt} -s {self.opts['speed']} --ew {self.opts['whammy']} --sqz {self.opts['squeeze']} -f {self._tmp}/notes.chart -i {self.opts['instrument']} -d expert {'' if self.opts['output_path'] else '-b'} -o {outPng}"
+		choptCall = f"{self._chopt} -s {self.opts.speed} --ew {self.opts.whammy} --sqz {self.opts.squeeze} -f {self._tmp}/notes.chart -i {self.opts.instrument} -d {self.opts.difficulty} {'' if self.opts.output_path else '-b'} -o {outPng}"
 		try:
 			subprocess.run(choptCall, check=True, shell=True, stdout=subprocess.DEVNULL)
 		except Exception as e:
@@ -384,9 +392,38 @@ class CHOpt:
 		self.img_name = f"{self._file_id}.png"
 		return self.url
 
-class HydraPath:
+class Hydra:
+	class Opts:
+		bass2x: bool = True
+		pro: bool = True
+		depth_mode: typing.Literal["scores", "points"] = "scores"
+		depth: int = 4
+		difficulty: CH_DIFFICULTIES = CH_DIFFICULTIES[0]
+
 	def __init__(self):
-		pass
+		self.opts = self.Opts()
+		self._encore = EncoreClient()
+
+	def gen_path(self, chart: typing.Union[dict, Chart]):
+		if isinstance(chart, Chart):
+			content = self._encore.download_from_url(chart.url)
+		elif isinstance(chart, dict):
+			content = self._encore.download_from_chart(chart)
+		sng = SNGHandler(content)
+		self._chart = sng
+		if self._chart.is_chart_format:
+			output = analyze_chart_bytes_chart(self._chart.chart, self.opts.difficulty, self.opts.pro, self.opts.bass2x, self.opts.depth_mode, self.opts.depth)
+		else:
+			output = analyze_chart_bytes_mid(self._chart.chart, self.opts.difficulty, self.opts.pro, self.opts.bass2x, self.opts.depth_mode, self.opts.depth)
+
+		self.output = []
+		for path in output:
+			self.output.append(path)
+			print(f"HYDRA: OUTPUT: {path}")
+
+		self.output = output
+		return output
+
 
 class CHStegTool:
 	def __init__(self):
