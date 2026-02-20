@@ -1,8 +1,7 @@
 import uuid, typing, json, pydantic
-from corpoch import settings#corpoch.settings.py
+from corpoch import settings
 
 from multiselectfield import MultiSelectField
-from django.db import models
 from django.contrib import admin
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.core.serializers.json import DjangoJSONEncoder
@@ -17,12 +16,32 @@ CH_MODIFIERS = (
 	("DS", "Dropless Sustains"),
 	("AS", "All Strums"),
 	("NS", "Note Shuffle"),
-	("BM", "Brutal Mode")
+	("BM", "Brutal Mode"),
 )
 
-CH_VERSIONS = [
+CH_VERSIONS = (
 	("v1.0.0.4080-final", "v1.0.0.4080-final"),
-]
+)
+
+CH_INSTRUMENTS = (
+	("guitar", "Guitar"),
+	("coop", "Guitar Coop"),
+	("bass", "Bass"),
+	("rhythm", "Rhythm"),
+	("keys", "Keys"),
+	("drums", "Drums"),
+	("ghl", "GHL Guitar"),
+	("ghlbass", "GHL Bass"),
+	("rhlrythm", "GHL Rhythm"),
+	("ghlcoop", "GHL Guitar Coop"),
+)
+
+CH_DIFFICULTIES = (
+	("expert", "Expert"),
+	("hard", "Hard"),
+	("medium", "Medium"),
+	("easy", "Easy"),
+)
 
 class GSheetAPI(models.Model):
 	api_key = fields.EncryptedJSONField(null=False, blank=True, default=dict, encoder=DjangoJSONEncoder)
@@ -32,6 +51,17 @@ class GSheetAPI(models.Model):
 	class Meta:
 		verbose_name = "Google Sheets API"
 
+class CHIcon(models.Model):
+	name = models.CharField(verbose_name="Name", blank=False, max_length=32, default="newicon", primary_key=True)
+	img = models.ImageField(upload_to="chicons/", verbose_name="Image", null=True, blank=True)
+
+	class Meta:
+		verbose_name = "Chart Icon"
+		verbose_name_plural = "Chart Icons"
+
+	def __str__(self):
+		return self.name
+
 class Chart(models.Model):
 	id = models.AutoField(primary_key=True)
 	name = models.CharField(verbose_name="Chart Name", max_length=256, blank=True)
@@ -39,14 +69,18 @@ class Chart(models.Model):
 	album = models.CharField(verbose_name="Album", max_length=256, blank=True)
 	charter = models.CharField(verbose_name="Charter", max_length=32, blank=True)
 	tiebreaker = models.BooleanField(verbose_name="Tiebreaker", default=False)
-	modifiers = MultiSelectField("Modifiers", choices=CH_MODIFIERS, default=['NM'])
+	difficulty = models.CharField(verbose_name="Difficulty", choices=CH_DIFFICULTIES, max_length=16, default=CH_DIFFICULTIES[0][0], null=True)
+	instrument = models.CharField(verbose_name="Instrument", choices=CH_INSTRUMENTS, max_length=32, default=CH_INSTRUMENTS[0][0])
+	modifiers = MultiSelectField("Modifiers", choices=CH_MODIFIERS, default=CH_MODIFIERS[0][0])
 	speed = models.PositiveIntegerField(verbose_name="Speed", validators=[MinValueValidator(5), MaxValueValidator(1000)], default=100)
 	category = models.CharField(verbose_name="Chart Category", max_length=16, default="Hybrid")#This needs to be choices
 	brackets = models.ManyToManyField("TournamentBracket", related_name="setlist", verbose_name="Bracket Setlist", blank=True)
 	md5 = models.CharField(verbose_name="MD5 Hash", max_length=32, blank=True)
 	blake3 = models.CharField(verbose_name="Blake3 Hash", max_length=32, blank=True)
 	url = models.URLField(verbose_name="Chart URL", blank=True)
+	icon = models.ForeignKey(CHIcon, related_name="charts", verbose_name="CH Icon", null=True, blank=True, on_delete=models.SET_NULL)
 
+	#TODO: More formatting work needs to be done for instrument/difficulty
 	class Meta:
 		verbose_name = "Chart"
 		verbose_name_plural = "Charts"
@@ -57,7 +91,7 @@ class Chart(models.Model):
 
 	@property
 	def encore_search_query(self):
-		return { 'name' : self.name, 'charter' : self.charter, 'artist' : self.artist, 'album' : self.album, 'blake3' : self.blake3 }
+		return { 'name' : self.name, 'charter' : self.charter, 'artist' : self.artist, 'album' : self.album, 'instrument': self.instrument, 'difficulty' : self.difficulty, 'blake3' : self.blake3 }
 
 	@property
 	def modifiers_short(self):
@@ -113,7 +147,7 @@ class TournamentConfig(models.Model):
 	proof_channel = models.BigIntegerField(verbose_name="Discord Proof Channel ID", null=True, blank=True)
 	enable_gsheets = models.BooleanField(verbose_name="Gsheets Integration", default=True)
 	gsheet = models.URLField(verbose_name="Match Reporting Google Sheet", null=True, blank=True)
-	version = models.CharField(verbose_name="Clone Hero Version", choices=CH_VERSIONS, max_length=32, default=['v1.0.0.4080-final'])
+	version = models.CharField(verbose_name="Clone Hero Version", choices=CH_VERSIONS, max_length=32, default=CH_VERSIONS[0][0])
 
 	class Meta:
 		verbose_name = "Config"

@@ -19,12 +19,10 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-ALLOWED_HOSTS = [ os.getenv("BASE_URL") ]
-CSRF_TRUSTED_ORIGINS=[f"https://{os.getenv("BASE_URL")}"]
+BASE_URL = os.getenv("BASE_URL")
+ALLOWED_HOSTS = [ BASE_URL ]
+CSRF_TRUSTED_ORIGINS=[f"https://{BASE_URL}"]
 SECRET_KEY = os.getenv("BOT_SECRET")
-CHOPT_PATH = os.getenv("CHOPT_PATH")
-CHOPT_OUTPUT = os.getenv("CHOPT_OUTPUT")
-CHSTEG_PATH = os.getenv("CHSTEG_PATH")
 EJF_ENCRYPTION_KEYS = os.getenv("DB_CRYPT_KEY")
 DEBUG = os.getenv("DEBUG")
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL")
@@ -114,7 +112,6 @@ USE_I18N = True
 USE_L10N = True
 
 USE_TZ = True
-
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.2/howto/static-files/

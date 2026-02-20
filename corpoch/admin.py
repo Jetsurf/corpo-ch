@@ -4,7 +4,7 @@ from adminsortable2.admin import CustomInlineFormSet, SortableAdminBase, Sortabl
 
 from django.contrib import admin
 from django.contrib.contenttypes.models import ContentType
-from corpoch.models import Chart, Tournament, TournamentConfig, TournamentBracket, Qualifier, TournamentPlayer, GroupSeed, MatchRound
+from corpoch.models import Chart, Tournament, TournamentConfig, TournamentBracket, Qualifier, TournamentPlayer, GroupSeed, MatchRound, CHIcon
 from corpoch.models import TournamentMatchCompleted, TournamentMatchOngoing, BracketGroup, QualifierSubmission, CH_MODIFIERS, MatchBan, GSheetAPI
 from corpoch.providers import EncoreClient
 import corpoch.dbot.tasks
@@ -45,12 +45,11 @@ class ChartAdmin(admin.ModelAdmin):
 				continue
 			if len(search) > 1:
 				print(f"Chart {chart.name} returned multiple results")
-				continue
 
 			newChart = search[0]
-			print(f"new chart: {newChart}")
 			chart.url = encore.url(newChart)
 			chart.name = newChart['name']
+			chart.icon = CHIcon.objects.get(name=newChart['icon'])
 			chart.blake3 = newChart['md5'] #Encore's md5 uses blake3
 			chart.md5 = encore.get_md5_from_chart(newChart)
 			chart.album = newChart['album']
@@ -123,7 +122,7 @@ class BracketGroupAdmin(SortableAdminBase, admin.ModelAdmin):
 class QualifierSubmission(admin.ModelAdmin):
 	list_display = ('id', 'qualifier', 'player_ch_name')
 	list_filter = ["qualifier", "player"]
-	actions = ['set_unsubmitted']
+	actions = ['set_unsubmitted', 'resubmit_gsheets']
 	def tournament(self, obj):
 		return obj.qualifier.tournament.short_name
 
@@ -134,6 +133,12 @@ class QualifierSubmission(admin.ModelAdmin):
 	def set_unsubmitted(modeladmin, request, queryset):
 		for quali in queryset:
 			quali.submitted = False
+			quali.save()
+
+	@admin.action(description="Mark Qualifiers GS Unsubmitted")
+	def resubmit_gsheets(modeladmin, request, queryset):
+		for quali in queryset:
+			quali = False
 			quali.save()
 
 class RoundsOngoingInline(SortableStackedInline):

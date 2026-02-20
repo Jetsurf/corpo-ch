@@ -24,9 +24,9 @@ class CorpoDbot(commands.Bot):
 		intents.members = True
 		self.client = super().__init__(intents=intents, chunk_guilds_at_startup=False)
 		self.session = aiohttp.ClientSession(loop=self.loop)
-		self.redis = self.loop.run_until_complete(aioredis.from_url(os.getenv("CELERY_BROKER_URL"), encoding="utf-8", decode_responses=True))
-		print(f"redis pool started {os.getenv("CELERY_BROKER_URL")}")
-		self.message_connection = Connection(os.getenv("CELERY_BROKER_URL"))
+		self.redis = self.loop.run_until_complete(aioredis.from_url(settings.CELERY_BROKER_URL, encoding="utf-8", decode_responses=True))
+		print(f"redis pool started {settings.CELERY_BROKER_URL}")
+		self.message_connection = Connection(settings.CELERY_BROKER_URL)
 		queuename = "corpoch.dbot"
 		queue_keys = [f"{queuename}",
               f"{queuename}\x06\x161",
@@ -62,7 +62,7 @@ class CorpoDbot(commands.Bot):
 		self.startUpLogging()
 		print(f"--- Starting up at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} ---")
 		print('Logging into discord')
-		super().run(os.getenv("BOT_TOKEN"), reconnect=True)
+		super().run(settings.BOT_TOKEN, reconnect=True)
 		print(f"--- Shutting down at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} ---")
 
 	def on_queue_message(self, body, message):

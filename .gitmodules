@@ -1,0 +1,3 @@
+[submodule "corpoch/utils/hydra"]
+	path = corpoch/utils/hydra
+	url = https://github.com/DragonDelgar/hydra.git

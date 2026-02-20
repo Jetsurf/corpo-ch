@@ -188,7 +188,7 @@ class DiscordQualifierView(discord.ui.View):
 			print(f"QUALIFIER: {self.qualifier}: {self.ctx.user.display_name} screenshot speed {steg.output['playback_speed']}% does not match speed of qualifier: {playedChart.speed}%")
 			await interaction.followup.send(f"Uploaded screenshot speed ({steg.output['playback_speed']}%) does not match speed of qualifier: {playedChart.speed}%", ephemeral=True, delete_after=5)
 		else:
-			print(f"QUALIFIER: {self.ctx.user.display_name} screenshot accepted")
+			print(f"QUALIFIER: {self.ctx.user.display_name} screenshot {steg.img_path} accepted")
 			self.steg = steg
 			self.screen = modal.screen
 		await self.show()
@@ -250,10 +250,16 @@ class DiscordQualifierView(discord.ui.View):
 class QualifierCmds(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
+		self._views = {}
+
+		#TODO - add check to limit only one command run open at once - can cause multiple player object if ran 2x then submit through both
 
 	@commands.slash_command(name='qualifier', description='Submit a qualifier score for a tournament/bracket', integration_types={discord.IntegrationType.guild_install})
 	async def qualifierSubmitCmd(self, ctx):
+		if self._views[ctx.user]:
+			await view.stop()
 		view = DiscordQualifierView(ctx)
+		self._views[ctx.user] = view
 		await view.init()
 
 def setup(bot):

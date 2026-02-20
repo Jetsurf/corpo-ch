@@ -7,7 +7,7 @@ from django.db import models
 
 from corpoch import __user_agent__
 from corpoch import settings 
-from corpoch.models import GSheetAPI, Chart, Tournament, TournamentMatchCompleted, TournamentMatchOngoing, Qualifier, QualifierSubmission
+from corpoch.models import GSheetAPI, Chart, Tournament, TournamentMatchCompleted, TournamentMatchOngoing, Qualifier, QualifierSubmission, CH_DIFFICULTIES, CH_INSTRUMENTS
 
 class SNGHandler:
 	def __init__(self, submission: Union[str,bytes], playlist: str=None):
@@ -260,19 +260,24 @@ class EncoreClient:
 			blake3 = None
 
 		for i in query:
-			d[i] = { 'value' : query[i], 'exact' : self.exact, 'exclude' : False }
-
+			if i == "instrument" or i == "difficulty":
+				d[i] =  query[i]
+			else:
+				d[i] = { 'value' : query[i], 'exact' : self.exact, 'exclude' : False }
 		resp = self._session.post(self._encore['adv'], data = json.dumps(d))
-		#remove dupelicate chart entries from search
+
+		print(f"DEBUG: resp: {resp} text: {resp.text}\nQuery{d}")
 		theJson = resp.json()['data']
+		#remove dupelicate chart entries from search
+		#print(json.dumps(theJson, indent=4))
 		for i, chart1 in enumerate(theJson):
 			for j, chart2 in enumerate(theJson):
 				if chart1['ordering'] == chart2['ordering'] and i != j:
 					del theJson[j]
 
-		#print(json.dumps(theJson, indent=4))
+		
 		retData = []
-		atts = ['name','artist','md5','charter','album','hasVideoBackground']
+		atts = ['name', 'artist','md5','charter','album','hasVideoBackground', 'icon']
 		for i, v in enumerate(theJson):
 			if i > self.limit:
 				break
@@ -303,16 +308,23 @@ class EncoreClient:
 		return SNGHandler(self.download_from_url(url)).md5
 
 class CHOpt:
+	class Opts:
+		whammy: int = 0
+		squeeze: int = 0
+		speed: int = 100
+		output_path: bool = True
+		instrument: CH_INSTRUMENTS = CH_INSTRUMENTS[0]
+		difficulty: CH_DIFFICULTIES = CH_DIFFICULTIES[0]
+
 	def __init__(self):
-		self._path = os.getenv("CHOPT_PATH")
+		self._path = settings.CHOPT_PATH
 		self._chopt = f"{self._path}/CHOpt.exe" if platform.system() == 'Windows' else f"{self._path}/CHOpt"
 		self._scratch = f"{self._path}/scratch"
-		self._output = os.getenv("CHOPT_OUTPUT")
-		self._url = os.getenv("CHOPT_URL")
-		self._upload_dir = f"{os.getenv("MEDIA_ROOT")}chopt"
+		self._output = settings.CHOPT_OUTPUT
+		self._url = settings.CHOPT_URL
 		self._encore = EncoreClient()
 		self._tmp = ""
-		self.opts = { 'whammy' : 0, 'squeeze' : 0, 'speed' : 100, 'output_path' : True }
+		self.opts = self.Opts()
 		self.url = ""
 		self.img = None
 		self.img_path = ""
@@ -344,7 +356,7 @@ class CHOpt:
 		return self._tmp
 
 	def save_for_upload(self):
-		self.img.save(f"{self._upload_dir}/{self.img_name}", "PNG")
+		self.img.save(f"{self._output}/{self.img_name}", "PNG")
 
 	def gen_path(self, chart) -> str:
 		if isinstance(chart, Chart):
@@ -352,15 +364,14 @@ class CHOpt:
 		elif isinstance(chart, dict):
 			content = self._encore.download_from_chart(chart)
 		else:
-			print("gen_path called incorrectly, chart not type Chart or encore chart dict")
-			return None
+			raise TypeError("gen_path called incorrectly, chart not type Chart or encore chart dict")
 
 		sng = SNGHandler(content)
 		chartFile = self._prep_chart(sng.chart, sng.songini)
 		
 		outPng = f"{self._output}/{self._file_id}.png"
 		print(f"CHOPT: Output PNG: {outPng}")
-		choptCall = f"{self._chopt} -s {self.opts['speed']} --ew {self.opts['whammy']} --sqz {self.opts['squeeze']} -f {self._tmp}/notes.chart -i guitar -d expert {'' if self.opts['output_path'] else '-b'} -o {outPng}"
+		choptCall = f"{self._chopt} -s {self.opts['speed']} --ew {self.opts['whammy']} --sqz {self.opts['squeeze']} -f {self._tmp}/notes.chart -i {self.opts['instrument']} -d expert {'' if self.opts['output_path'] else '-b'} -o {outPng}"
 		try:
 			subprocess.run(choptCall, check=True, shell=True, stdout=subprocess.DEVNULL)
 		except Exception as e:
@@ -373,11 +384,15 @@ class CHOpt:
 		self.img_name = f"{self._file_id}.png"
 		return self.url
 
+class HydraPath:
+	def __init__(self):
+		pass
+
 class CHStegTool:
 	def __init__(self):
-		self._path = os.getenv("CHSTEG_PATH")
+		self._path = settings.CHSTEG_PATH
 		self._steg = f"{self._path}/ch_steg_reader.exe" if platform.system() == "Windows" else f"{self._path}/ch_steg_reader"
-		self._media_root = os.getenv("MEDIA_ROOT")
+		self._media_root = settings.MEDIA_ROOT
 		self._scratch = f"{self._path}/scratch"
 		if not os.path.isdir(self._scratch):
 			os.makedirs(self._scratch)
@@ -417,8 +432,8 @@ class CHStegTool:
 	def _sanitize_steg(self, steg: dict):
 		steg = json.loads(steg.stdout.decode("utf-8"))
 		steg['charter_name'] = re.sub(r"(?:<[^>]*>)", "", steg['charter_name'])
-		#for ply in steg['players']:
-			#ply['profile_name'] = re.sub(r"(?:<[^>]*>)", "", ply['profile_name']) - might not be the best idea
+		for ply in steg['players']:
+			ply['profile_name'] = re.sub(r"(?:<[^>]*>)", "", ply['profile_name'])
 		return steg
 
 	def _call_steg(self):
@@ -461,8 +476,8 @@ class CHStegTool:
 			plyStr = ""
 			plyStr += f"Player Name: {player["profile_name"]}\n"
 			plyStr += f"Score: {player["score"]}\n"
-			plyStr += f"Notes Hit: {player["notes_hit"]}/{player["total_notes"]} - {(player["notes_hit"]/player["total_notes"]) * 100:.2f}% {' - 👑' if player['is_fc'] else ''}\n"
-			plyStr += f"Overstrums: {player["excess_hits"]}\n"
+			plyStr += f"Notes Hit: {player["notes_hit"]}/{player["total_notes"]} - {(player["notes_hit"]/player["total_notes"]) * 100:.2f}% {' - 👑' if player['is_fc'] else f'(-{player["notes_missed"]})'}\n"
+			plyStr += f"Overstrums: (+){player["excess_hits"]}\n"
 			plyStr += f"Ghosts: {player["frets_ghosted"]}\n"
 			plyStr += f"SP Phrases: {player["sp_phrases_earned"]}/{player["sp_phrases_total"]}\n"
 			embed.add_field(name=f"Player {i+1}", value=plyStr, inline=False)
@@ -470,22 +485,21 @@ class CHStegTool:
 		return embed
 
 class GSheets():
-	def __init__(self, submission: typing.Union[TournamentMatchOngoing, TournamentMatchCompleted, Qualifier]=None):	
+	def __init__(self):	
 		self._format_border = {'textFormat': {'bold': False}, "horizontalAlignment": "CENTER", 'borders': {'right': {'style' : 'SOLID'}, 'left': {'style' : 'SOLID' }}}
-		#TODO: Make a django-admin task to resend the match data to the airtable (or any sheet)
 		self._submission = submission
 		if not self._submission:
 			raise ValueError("Submission must be set for Gsheets provider!")
 
 	#Needed as if the GSheetApi objects call is in the normal init, app load fails for dbot due to DB access before django is ready
 	#Needs to be broken up for async/sync access
-	def init(self):
+	def login(self):
 		gs = GSheetAPI.objects.get()
 		self._gc = gspread.service_account_from_dict(gs.api_key)
-		#Setup object types
 		if not self._gc:
-			print("Gsheels API: API Key invalid/failed to login")
-			return
+			raise RuntimeError("Gsheels API: API Key invalid/failed to login")
+
+	def set_submission(submission: typing.Union[TournamentMatchOngoing, TournamentMatchCompleted, Qualifier]):
 		if isinstance(self._submission, QualifierSubmission):
 			self._tourney = self._submission.qualifier.tournament
 			self._bracket = self._submission.qualifier.bracket

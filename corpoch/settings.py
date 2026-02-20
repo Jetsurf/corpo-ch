@@ -3,12 +3,11 @@ from dotenv import load_dotenv
 from pathlib import Path
 from celery.schedules import crontab
 
-load_dotenv('../')
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "DiscordOauth2.settings")
 
-CELERY_BEAT_SCHEDULE = {
-    'upload_qualifiers_gsheet': {
-        'task': 'corpoch.upload_qualifiers_gsheet',
-        'schedule': crontab(minute='*/2'),
-    },
-}
+from django.conf import settings
+
+CHOPT_PATH = os.getenv("CHOPT_PATH")
+CHOPT_OUTPUT = os.getenv("CHOPT_OUTPUT")
+CHSTEG_PATH = os.getenv("CHSTEG_PATH")
+CHOPT_URL = os.getenv("CHOPT_URL")
