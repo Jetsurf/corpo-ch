@@ -7,6 +7,7 @@ from django.contrib.contenttypes.models import ContentType
 from corpoch.models import Chart, Tournament, TournamentConfig, TournamentBracket, Qualifier, TournamentPlayer, GroupSeed, MatchRound, CHIcon
 from corpoch.models import TournamentMatchCompleted, TournamentMatchOngoing, BracketGroup, QualifierSubmission, CH_MODIFIERS, MatchBan, GSheetAPI
 from corpoch.providers import EncoreClient
+from django.utils.html import mark_safe
 import corpoch.dbot.tasks
 
 @admin.register(GSheetAPI)
@@ -15,8 +16,9 @@ class GSheetAPIAdmin(admin.ModelAdmin):
 
 @admin.register(Chart)
 class ChartAdmin(admin.ModelAdmin):
-	list_display = ('name',  '_bracket', 'charter', 'artist', 'album', 'speed', '_modifiers', 'tiebreaker')
+	list_display = ('_icon','name',  '_bracket', 'charter', 'artist', 'album', 'speed', '_modifiers', 'tiebreaker')
 	list_filter = ['brackets', 'charter', 'artist', 'tiebreaker']
+	readonly_fields = ['_icon']
 	actions = ['run_encore_import']
 
 	def _bracket(self,obj):
@@ -33,6 +35,10 @@ class ChartAdmin(admin.ModelAdmin):
 		for i in range(0, len(obj.modifiers)):
 			out.append(CH_MODIFIERS[i][1])
 		return out
+
+	@mark_safe
+	def _icon(self, obj):
+		return f'<img src="{obj.icon.img.url}" width="{obj.icon.img.width/3}" height="{obj.icon.img.height/3}"'
 
 	@admin.action(description="Run Encore import")
 	def run_encore_import(modeladmin, request, queryset):
@@ -57,13 +63,14 @@ class ChartAdmin(admin.ModelAdmin):
 			chart.charter = newChart['charter']
 			chart.save()
 
+class TournamentConfigInline(admin.TabularInline):
+	model = TournamentConfig
+	extra = 0
+
 @admin.register(Tournament)
 class TournamentAdmin(admin.ModelAdmin):
 	list_display = ('name', 'guild', 'active')
-
-@admin.register(TournamentConfig)
-class TournamentConfigAdmin(admin.ModelAdmin):
-	list_display = ('tournament', 'ref_role', 'proof_channel', 'version')
+	inlines = [TournamentConfigInline]
 
 @admin.register(TournamentBracket)
 class TournamentBracketAdmin(admin.ModelAdmin):

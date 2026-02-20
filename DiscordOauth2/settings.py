@@ -21,8 +21,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 BASE_URL = os.getenv("BASE_URL")
 ALLOWED_HOSTS = [ BASE_URL ]
 CSRF_TRUSTED_ORIGINS=[f"https://{BASE_URL}"]
+SALT_KEY = os.getenv("DB_CRYPT_KEY")
 SECRET_KEY = os.getenv("BOT_SECRET")
-EJF_ENCRYPTION_KEYS = os.getenv("DB_CRYPT_KEY")
 DEBUG = os.getenv("DEBUG")
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND")
@@ -38,7 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django_celery_beat',
     'django_celery_results',
-    'encrypted_json_fields',
+    'encrypted_fields',
     'redis',
     'corpoch',
     'corpoch.dbot',

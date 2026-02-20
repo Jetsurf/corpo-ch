@@ -17,7 +17,9 @@ Make migrations -> `python3 manage.py makemigrations corpoch`
 
 Migrate -> `python3 manage.py migrate`
 
-Collect Static `python3 manage.py collectstatic`
+Collect Static -> `python3 manage.py collectstatic`
+
+Load CH AppEmotes -> `python3 manage.py ch_icon_import` - takes a while to not hammer any API's
 
 Start Processes:
  - `celery -A corpoch beat -l INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler`
@@ -25,3 +27,6 @@ Start Processes:
  - `python3 manage.py runserver`
  - `python3 manage.py run_dbot`
 
+Needs nginx/apache2/web server hosting the static directories - preferable turn off autoindexing/view on images/qualifiers
+
+More to come!

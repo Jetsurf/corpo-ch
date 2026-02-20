@@ -547,24 +547,42 @@ class GSheets():
 			self._bracket = self._submission.group.bracket
 			self._url = self._tourney.config.gsheet
 
-		try:
-			self._sheet = self._gc.open_by_url(self._url)
-		except Exception as e:
-			print(f"Error opening GSheet {self._url} failed with exception {e}")
-			return
-
+		if not self._url or self._url == "":
+			self.create_sheet()
+		else:
+			try:
+				self._sheet = self._gc.open_by_url(self._url)
+			except Exception as e:
+				print(f"Error opening GSheet {self._url} failed with exception {e}")
+				raise e
 		#Load relevant workspace in sheet
 		if isinstance(self._submission, QualifierSubmission):
 			try:
 				ws = self._sheet.worksheet((f"{self._submission.qualifier} - Data"))
 			except gspread.exceptions.WorksheetNotFound:
 				ws = self.setup_qualifier_sheet()
-		elif isinstance(self._submission, TournamentMatchOngoing) or isinstance(self._submission, TournamentMatchCompleted):
-			pass #Not ready
+		elif isinstance(self._submission, TournamentMatchOngoing):
+			try:
+				ws = self._sheet.worksheet((f"{self._submission.tourney.short_name} - Live Data"))
+			except gspread.exceptions.WorksheetNotFound:
+				ws = self.setup_ongoing_sheet()
+		elif isinstance(self._submission, TournamentMatchCompleted):
+			try:
+				ws = self._sheet.worksheet((f"{self._submission.tourney.short_name} - Completed Data"))
+			except gspread.exceptions.WorksheetNotFound:
+				ws = self.setup_completed_sheet()
 
 		self._ws = ws
 
-	#Upcoming air-table/stats sheets
+	def create_sheet(self):
+		if isinstance(self._submission, QualifierSubmission):
+			print(f"Creating new qualifier sheet for {self._submission.qualifier}")
+			self._sheet = self._gc.create(f"{self._submission.qualifier} - Qualifier Sheet")
+		else:
+			print(f"Creating new match data sheet for {self._tourney}")
+		from django.contrib.auth import get_user_model
+		for usr in get_user_model().objects.all():
+			self._sheet.share(usr.email, "user", 'owner')
 
 	def setup_qualifier_sheet(self) -> gspread.Worksheet:
 		print(f"Creating qualifier {self._submission._qualifier} worksheet in sheet {self._url}")
@@ -589,6 +607,8 @@ class GSheets():
 		self._ws.append_row(self.qualifier_line)
 		self._submission.submitted = True
 		self._submission.save()
+
+	#worksheet.update([['=SUM(A1:A4)']], 'A5', raw=False)
 
 	@property
 	def qualifier_line(self):

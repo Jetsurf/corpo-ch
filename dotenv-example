@@ -16,6 +16,7 @@ BOT_TOKEN = "**BOT TOKEN**"
 BASE_URL = "**DOMAIN NAME**"
 REDIRECT_URI = "https://${BASE_URL}/auth"
 AUTH_URL_DISCORD = "https://discord.com/oauth2/authorize?client_id=${client_id}&response_type=code&redirect_uri=https%3A%2F%2F${BASE_URL}%2Fauth&scope=identify"
+COGS_ENABLED = "chcmds,tourneycmds,qualifiercmds,ownercmds"
 
 #Corpo CH Settings
 CHOPT_PATH = "${PROJECT_HOME}/corpoch/utils/CHOpt"

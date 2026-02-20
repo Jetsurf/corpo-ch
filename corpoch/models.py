@@ -4,8 +4,8 @@ from corpoch import settings
 from multiselectfield import MultiSelectField
 from django.contrib import admin
 from django.core.validators import MaxValueValidator, MinValueValidator
+from encrypted_fields.fields import EncryptedJSONField
 from django.core.serializers.json import DjangoJSONEncoder
-from encrypted_json_fields import fields
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.db import models
@@ -43,6 +43,14 @@ CH_DIFFICULTIES = (
 	("easy", "Easy"),
 )
 
+CHART_CATEGORIES = (
+	("hybrid", "Hybrid"),
+	("solo", "Solo"),
+	("strum", "Strum"),
+	("sprint", "Sprint"),
+	("marathon", "Marathon"),
+)
+
 TIEBREAKER_RULESETS = (
 	("", ""),
 	("", ""),
@@ -50,7 +58,7 @@ TIEBREAKER_RULESETS = (
 )
 
 class GSheetAPI(models.Model):
-	api_key = fields.EncryptedJSONField(null=False, blank=True, default=dict, encoder=DjangoJSONEncoder)
+	api_key = EncryptedJSONField(null=False, blank=True, default=dict, encoder=DjangoJSONEncoder)
 	sa_name = models.CharField(verbose_name="API Service Account Name", max_length=96)
 	#ONLY ONE KEY SHOULD BE IN THIS TABLE
 
@@ -92,7 +100,7 @@ class Chart(models.Model):
 
 	@property
 	def long_name(self):
-		return f"{self.name} - {self.charter} - {self.artist} - {self.album}{' -'+self.instrument[1] if self.instrument[0] != 'guitar' else ''}{f' {self.difficulty[1]}' if self.difficulty[0] != 'expert' else ''}"
+		return f"{self.name} - {self.charter} - {self.artist} - {self.album}{f' -{self.instrument[1]}' if self.instrument[0] != 'guitar' else ''}{f' {self.difficulty[1]}' if self.difficulty[0] != 'expert' else ''}"
 
 	@property
 	def encore_search_query(self):
@@ -241,7 +249,7 @@ class BracketGroup(models.Model):
 	id = models.AutoField(primary_key=True, db_index=True)
 	bracket = models.ForeignKey(TournamentBracket, related_name="groups", verbose_name="Bracket Groups", on_delete=models.CASCADE)
 	name = models.CharField(verbose_name="Group Name", max_length=8, default="A")
-	role = models.BigIntegerField(verbose_name="Discord Group Role ID", null=True, blank=True, db_index=True)
+	role = models.BigIntegerField(verbose_name="Discord Role ID", null=True, blank=True, db_index=True)
 
 	class Meta:
 		verbose_name = "Bracket Group"
