@@ -104,9 +104,9 @@ class BracketGroupAdmin(SortableAdminBase, admin.ModelAdmin):
 		return obj.bracket.name
 
 	def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
-		 if db_field.name == "group_players":
-				 kwargs["queryset"] = Tournament.players.objects.all()
-		 return super(BracketGroupAdmin, self).formfield_for_foreignkey(db_field, request, **kwargs)
+		if db_field.name == "group_players":
+			kwargs["queryset"] = Tournament.players.objects.all()
+		return super(BracketGroupAdmin, self).formfield_for_foreignkey(db_field, request, **kwargs)
 
 	@admin.action(description="Set group role for players")
 	def set_group_role(modeladmin, request, queryset):

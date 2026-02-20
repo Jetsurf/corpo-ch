@@ -336,7 +336,7 @@ class DiscordMatch():
 				if i > self.bracket.num_rounds:
 					outStr += "**TIEBREAKER**"
 
-				outStr += f"{rnd.picked.ch_name} picks {rnd.chart.name if rnd.chart else "---"}"
+				outStr += f"{rnd.picked.ch_name} picks {rnd.chart.name if rnd.chart else '---'}"
 				if rnd.winner:
 					outStr += f" - {rnd.winner.ch_name} wins!"
 				outStr+= "\n"

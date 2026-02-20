@@ -222,8 +222,14 @@ class Path():
 		if isinstance(self.chart, Chart):
 			embed.add_field(name="CHOpt Path For", value=f"{self.chart.name} - {self.chart.artist} - {self.chart.album} - {self.chart.charter}", inline=False)
 		else:
+<<<<<<< HEAD
 			embed.add_field(name="CHOpt Path For", value=f"{self.chart["name"]} - {self.chart["artist"]} - {self.chart["album"]} - {self.chart["charter"]}", inline=False)
 		embed.add_field(name="CHOpt Options Used", value=f"Early Whammy: {self.chopt.opts.whammy}%\nSqueeze: {self.chopt.opts.squeeze}%\nSong Speed: {self.chopt.opts.speed}%\nShow Path: {self.chopt.opts.output_path}", inline=False)
+=======
+			embed.add_field(name="CHOpt Path For", value=f"{self.chart['name']} - {self.chart['artist']} - {self.chart['album']} - {self.chart['charter']}", inline=False)
+		embed.add_field(name="CHOpt Options Used", value=f"Early Whammy: {self.chopt.opts['whammy']}%\nSqueeze: {self.chopt.opts['squeeze']}%\nSong Speed: {self.chopt.opts['speed']}%\nShow Path: {self.chopt.opts['output_path']}", inline=False)
+		embed.add_field(name="Path shown", value=f"**{self.outputPath}**", inline=False)
+>>>>>>> 5694511e575c15e903f424485b441c0b51f22e32
 		embed.add_field(name="Image Link", value=f"[Link to Image]({self.chopt.url})", inline=False)
 		return embed
 

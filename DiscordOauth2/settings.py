@@ -18,7 +18,6 @@ from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 BASE_URL = os.getenv("BASE_URL")
 ALLOWED_HOSTS = [ BASE_URL ]
 CSRF_TRUSTED_ORIGINS=[f"https://{BASE_URL}"]
