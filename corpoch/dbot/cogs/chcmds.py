@@ -332,7 +332,6 @@ class Path():
 
 	def genCHOptResultEmbed(self) -> discord.Embed:
 		embed = self.genEmbedBase()
-		embed.set_image(url=self.chopt.url)
 		if isinstance(self.chart, Chart):
 			embed.add_field(name="CHOpt Path For", value=f"{self.chart.name} - {self.chart.artist} - {self.chart.album} - {self.chart.charter} - {self.chart.instrument}", inline=False)
 		else:

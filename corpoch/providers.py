@@ -307,18 +307,10 @@ class EncoreClient:
 		return f"{self._encore['dl']}{chart['md5']}{('_novideo','')[not chart['hasVideoBackground']]}.sng"
 
 	def download_from_chart(self, chart: dict) -> str:
-		response = None
-		with ThreadPoolExecutor(max_workers=1) as executor:
-			fc = {executor.submit(self._session.get , self.url(chart)) : self.url(chart)}
-			for future in as_completed(fc):
-				url = fc[future]
-				response = future.result()
-				print(f'{url} is {len(response.content)} bytes')
-
-		return response.content
+		return self._session.get(self.url(chart)).content
 
 	def download_from_url(self, url: str) -> str:
-		return self._session.get(url, timeout = 3).content
+		return self._session.get(url).content
 
 	def get_md5_from_chart(self, chart) -> str:
 		return SNGHandler(self.download_from_chart(chart)).md5
@@ -372,15 +364,6 @@ class CHOpt:
 		with open(f"{self._tmp}/song.ini", 'wb') as f:
 			f.write(sngini)
 
-		return self._tmp
-
-	def _call_chopt(self):
-		choptCall = f"{self._chopt} -s {self.opts.speed} --ew {self.opts.whammy} --sqz {self.opts.squeeze} -f {self._tmp}/notes.chart -i {self.opts.instrument[0]} -d {self.opts.difficulty[0]} --lazy {self.opts.lazy} --delay {self.opts.delay} -o {self._out_png}"
-		try:
-			subprocess.run(choptCall, check=True, shell=True, stdout=subprocess.DEVNULL)
-		except Exception as e:
-			print(f"CHOpt call failed with exception: {e}")
-
 	def save_for_upload(self):
 		self.img.save(f"{self._output}/{self.img_name}", "PNG")
 
@@ -393,19 +376,14 @@ class CHOpt:
 			content = self._encore.download_from_chart(chart)
 			chartName = chart['name']
 
-		with ThreadPoolExecutor(max_workers=2) as executor:
-			fp = {executor.submit(SNGHandler, content): chartName}
-			for future in as_completed(fp):
-				sng = future.result()
-			fp = {executor.submit(self._prep_chart, sng.chart, sng.songini) :  chartName}
-			for future in as_completed(fp):
-				ret = future.result()
-
-			self._out_png = f"{self._output}/{self._file_id}.png"
-			fp = {executor.submit(self._call_chopt) : chartName}
-			for future in as_completed(fp):
-				chartFile = future.result()
-
+		sng = SNGHandler(content)
+		self._prep_chart(sng.chart, sng.songini)
+		self._out_png = f"{self._output}/{self._file_id}.png"
+		choptCall = f"{self._chopt} -s {self.opts.speed} --ew {self.opts.whammy} --sqz {self.opts.squeeze} -f {self._tmp}/notes.chart -i {self.opts.instrument[0]} -d {self.opts.difficulty[0]} --lazy {self.opts.lazy} --delay {self.opts.delay} -o {self._out_png}"
+		try:
+			subprocess.run(choptCall, check=True, shell=True, stdout=subprocess.DEVNULL)
+		except Exception as e:
+			print(f"CHOpt call failed with exception: {e}")
 		print(f"CHOPT: Output PNG: {self._out_png}")
 		self.url = f"{self._url}/{self._file_id}.png"
 		try:
