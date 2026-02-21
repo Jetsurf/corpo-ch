@@ -8,7 +8,6 @@ mysqlclient
 celery
 django-multiselectfield
 django-fernet-encrypted-fields
-django-encrypted-json-fields
 django-admin-sortable2
 aiohttp
 redis
