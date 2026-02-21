@@ -7,7 +7,7 @@ python-decouple
 mysqlclient
 celery
 django-multiselectfield
-django-encrypted-json-fields
+django-fernet-encrypted-fields
 django-admin-sortable2
 aiohttp
 redis
@@ -18,3 +18,8 @@ requests-cache
 pydantic
 django-celery-results
 python-decouple
+daphne
+gspread
+mido
+pendulum
+pytz

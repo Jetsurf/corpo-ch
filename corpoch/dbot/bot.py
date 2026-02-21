@@ -1,4 +1,4 @@
-import sys, os, discord, asyncio, time, json, logging, aiohttp, logging
+import sys, os, discord, asyncio, time, json, logging, aiohttp, logging, time
 from discord.ext import commands, tasks
 
 #Django
@@ -19,39 +19,21 @@ logger = logging.getLogger(__name__)
 
 class CorpoDbot(commands.Bot):
 	def __init__(self):
+		sys.stdout.reconfigure(line_buffering = True)
+		sys.stderr.reconfigure(line_buffering = True)
+		print("--- Pre-startup ---")
 		django.setup()
 		intents = discord.Intents.default()
 		intents.members = True
 		self.client = super().__init__(intents=intents, chunk_guilds_at_startup=False)
 		self.session = aiohttp.ClientSession(loop=self.loop)
-		self.redis = self.loop.run_until_complete(aioredis.from_url(os.getenv("CELERY_BROKER_URL"), encoding="utf-8", decode_responses=True))
-		print(f"redis pool started {os.getenv("CELERY_BROKER_URL")}")
-		self.message_connection = Connection(os.getenv("CELERY_BROKER_URL"))
-		queuename = "corpoch.dbot"
-		queue_keys = [f"{queuename}",
-              f"{queuename}\x06\x161",
-              f"{queuename}\x06\x162",
-              f"{queuename}\x06\x163",
-              f"{queuename}\x06\x164",
-              f"{queuename}\x06\x165",
-              f"{queuename}\x06\x166",
-              f"{queuename}\x06\x167",
-              f"{queuename}\x06\x168",
-              f"{queuename}\x06\x169"]
-		queues = []
-		for que in queue_keys:
-			queues.append(Queue(que))
-		self.message_consumer = Consumer(self.message_connection, queues, callbacks=[self.on_queue_message])#, channel=self.chan)
+		self.redis = self.loop.run_until_complete(aioredis.from_url(settings.CELERY_BROKER_URL, encoding="utf-8", decode_responses=True))
+		self.message_connection = Connection(settings.CELERY_BROKER_URL)
+		self.message_consumer = Consumer(self.message_connection, [Queue("corpoch.dbot")], callbacks=[self.on_queue_message])#, channel=self.chan)
 		self.tasks = []
-		# cogs - this needs to move to a settings section
-		cogList = [
-			'chcmds',
-			#'tourneycmds',
-			'qualifiercmds',
-			'ownercmds'
-		]
+		print(f"redis pool started {settings.CELERY_BROKER_URL}")
 
-		for cog in cogList:
+		for cog in settings.COGS_ENABLED:
 			self.load_extension(f'corpoch.dbot.cogs.{cog}')
 			print(f'Cog loaded: {cog}')
 
@@ -59,11 +41,17 @@ class CorpoDbot(commands.Bot):
 		self.proofCalls = None
 
 	def run(self):
-		self.startUpLogging()
 		print(f"--- Starting up at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} ---")
 		print('Logging into discord')
-		super().run(os.getenv("BOT_TOKEN"), reconnect=True)
+		try:
+			super().run(settings.BOT_TOKEN, reconnect=True)
+		except discord.PrivilegedIntentsRequired as e:
+			print("Unable to login to discord - missing discord.intentes.members privledge - Sleeping then exiting")
+			print(f"    Please visit https://support-dev.discord.com/hc/en-us/articles/6207308062871-What-are-Privileged-Intents")
+			time.sleep(5)
+			sys.exit(1)
 		print(f"--- Shutting down at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} ---")
+		sys.exit(0)
 
 	def on_queue_message(self, body, message):
 		task = message.headers["task"].replace("corpoch.dbot.tasks.", '')
@@ -81,10 +69,6 @@ class CorpoDbot(commands.Bot):
 		except Exception as e:
 			logger.error(f"Interaction Failed {e}", stack_info=True)
 		django.db.close_old_connections()
-
-	def startUpLogging(self):
-		sys.stdout.reconfigure(line_buffering = True)
-		sys.stderr.reconfigure(line_buffering = True)
 
 	async def retrieveOwners(self):
 		print("Retrieving bot owners...")
@@ -112,7 +96,6 @@ class CorpoDbot(commands.Bot):
 				message_avail = False
 		if not bot_tasks.run_tasks.is_running():
 			bot_tasks.run_tasks.start(self)
-
 
 	async def close(self):
 		self.poll_queue.stop()

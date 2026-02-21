@@ -7,7 +7,8 @@ from django.db import models
 
 from corpoch import __user_agent__
 from corpoch import settings 
-from corpoch.models import GSheetAPI, Chart, Tournament, TournamentMatchCompleted, TournamentMatchOngoing, Qualifier, QualifierSubmission
+from corpoch.models import GSheetAPI, Chart, Tournament, TournamentMatchCompleted, TournamentMatchOngoing, Qualifier, QualifierSubmission, CH_DIFFICULTIES, CH_INSTRUMENTS
+from corpoch.utils.hydra.hydra.hyutil import analyze_chart_bytes_chart, analyze_chart_bytes_mid
 
 class SNGHandler:
 	def __init__(self, submission: Union[str,bytes], playlist: str=None):
@@ -56,6 +57,13 @@ class SNGHandler:
 			filename = row[0]
 			if "notes.chart" in filename or "notes.mid" in filename:
 				return row[1]
+
+	@property
+	def is_chart_format(self) -> bool:
+		for row in self._files:
+			if "notes.chart" in row[0]:
+				return True
+		return False
 
 	@property
 	def md5(self) -> str:
@@ -260,19 +268,25 @@ class EncoreClient:
 			blake3 = None
 
 		for i in query:
-			d[i] = { 'value' : query[i], 'exact' : self.exact, 'exclude' : False }
-
+			if i == "instrument" or i == "difficulty":
+				d[i] =  query[i]
+			else:
+				d[i] = { 'value' : query[i], 'exact' : self.exact, 'exclude' : False }
+		if d['instrument'] == 'drums':#Drum results don't return right w/o this
+			d['drumsReviewed'] = False
 		resp = self._session.post(self._encore['adv'], data = json.dumps(d))
-		#remove dupelicate chart entries from search
+		#print(f"DEBUG: resp: {resp} text: {resp.text}\nQuery{d}")
+		#print(f"Query: {d}")
 		theJson = resp.json()['data']
+		#print(json.dumps(theJson, indent=4))
+		#remove dupelicate chart entries from search
 		for i, chart1 in enumerate(theJson):
 			for j, chart2 in enumerate(theJson):
 				if chart1['ordering'] == chart2['ordering'] and i != j:
 					del theJson[j]
 
-		#print(json.dumps(theJson, indent=4))
 		retData = []
-		atts = ['name','artist','md5','charter','album','hasVideoBackground']
+		atts = ['name', 'artist','md5','charter','album','hasVideoBackground', 'icon']
 		for i, v in enumerate(theJson):
 			if i > self.limit:
 				break
@@ -303,16 +317,24 @@ class EncoreClient:
 		return SNGHandler(self.download_from_url(url)).md5
 
 class CHOpt:
+	class Opts:
+		whammy: int = 0
+		squeeze: int = 0
+		speed: int = 100
+		lazy: int = 0
+		delay: int = 0
+		instrument: CH_INSTRUMENTS = CH_INSTRUMENTS[0]
+		difficulty: CH_DIFFICULTIES = CH_DIFFICULTIES[0]
+
 	def __init__(self):
-		self._path = os.getenv("CHOPT_PATH")
+		self._path = settings.CHOPT_PATH
 		self._chopt = f"{self._path}/CHOpt.exe" if platform.system() == 'Windows' else f"{self._path}/CHOpt"
 		self._scratch = f"{self._path}/scratch"
-		self._output = os.getenv("CHOPT_OUTPUT")
-		self._url = os.getenv("CHOPT_URL")
-		self._upload_dir = f"{os.getenv("MEDIA_ROOT")}chopt"
+		self._output = settings.CHOPT_OUTPUT
+		self._url = settings.CHOPT_URL
 		self._encore = EncoreClient()
 		self._tmp = ""
-		self.opts = { 'whammy' : 0, 'squeeze' : 0, 'speed' : 100, 'output_path' : True }
+		self.opts = self.Opts()
 		self.url = ""
 		self.img = None
 		self.img_path = ""
@@ -344,23 +366,25 @@ class CHOpt:
 		return self._tmp
 
 	def save_for_upload(self):
-		self.img.save(f"{self._upload_dir}/{self.img_name}", "PNG")
+		self.img.save(f"{self._output}/{self.img_name}", "PNG")
 
 	def gen_path(self, chart) -> str:
 		if isinstance(chart, Chart):
 			content = self._encore.download_from_url(chart.url)
+			instrument = chart.instrument
 		elif isinstance(chart, dict):
 			content = self._encore.download_from_chart(chart)
+			instrument = self.opts.instrument[0]
 		else:
-			print("gen_path called incorrectly, chart not type Chart or encore chart dict")
-			return None
+			raise TypeError("CHOPT: gen_path called incorrectly, chart not type Chart or encore chart dict")
 
 		sng = SNGHandler(content)
 		chartFile = self._prep_chart(sng.chart, sng.songini)
 		
 		outPng = f"{self._output}/{self._file_id}.png"
 		print(f"CHOPT: Output PNG: {outPng}")
-		choptCall = f"{self._chopt} -s {self.opts['speed']} --ew {self.opts['whammy']} --sqz {self.opts['squeeze']} -f {self._tmp}/notes.chart -i guitar -d expert {'' if self.opts['output_path'] else '-b'} -o {outPng}"
+		self.opts.instrument[0]
+		choptCall = f"{self._chopt} -s {self.opts.speed} --ew {self.opts.whammy} --sqz {self.opts.squeeze} -f {self._tmp}/notes.chart -i {instrument} -d {self.opts.difficulty[0]} --lazy {self.opts.lazy} --delay {self.opts.delay} -o {outPng}"
 		try:
 			subprocess.run(choptCall, check=True, shell=True, stdout=subprocess.DEVNULL)
 		except Exception as e:
@@ -373,11 +397,39 @@ class CHOpt:
 		self.img_name = f"{self._file_id}.png"
 		return self.url
 
+class Hydra:
+	class Opts:
+		bass2x: bool = True
+		pro: bool = True
+		depth_mode: typing.Literal["scores", "points"] = "scores"
+		depth: int = 4
+		difficulty: CH_DIFFICULTIES = CH_DIFFICULTIES[0]
+
+	def __init__(self):
+		self.opts = self.Opts()
+		self._encore = EncoreClient()
+
+	def gen_path(self, chart: typing.Union[dict, Chart]):
+		if isinstance(chart, Chart):
+			content = self._encore.download_from_url(chart.url)
+		elif isinstance(chart, dict):
+			content = self._encore.download_from_chart(chart)
+		sng = SNGHandler(content)
+		self._chart = sng
+		if self._chart.is_chart_format:
+			output = analyze_chart_bytes_chart(self._chart.chart, self.opts.difficulty, self.opts.pro, self.opts.bass2x, self.opts.depth_mode, self.opts.depth)
+		else:
+			output = analyze_chart_bytes_mid(self._chart.chart, self.opts.difficulty, self.opts.pro, self.opts.bass2x, self.opts.depth_mode, self.opts.depth)
+
+		self.output = [(p.pathstring(), p.totalscore()) for p in output.all_paths()]
+		return self.output
+
+
 class CHStegTool:
 	def __init__(self):
-		self._path = os.getenv("CHSTEG_PATH")
+		self._path = settings.CHSTEG_PATH
 		self._steg = f"{self._path}/ch_steg_reader.exe" if platform.system() == "Windows" else f"{self._path}/ch_steg_reader"
-		self._media_root = os.getenv("MEDIA_ROOT")
+		self._media_root = settings.MEDIA_ROOT
 		self._scratch = f"{self._path}/scratch"
 		if not os.path.isdir(self._scratch):
 			os.makedirs(self._scratch)
@@ -417,8 +469,8 @@ class CHStegTool:
 	def _sanitize_steg(self, steg: dict):
 		steg = json.loads(steg.stdout.decode("utf-8"))
 		steg['charter_name'] = re.sub(r"(?:<[^>]*>)", "", steg['charter_name'])
-		#for ply in steg['players']:
-			#ply['profile_name'] = re.sub(r"(?:<[^>]*>)", "", ply['profile_name']) - might not be the best idea
+		for ply in steg['players']:
+			ply['profile_name'] = re.sub(r"(?:<[^>]*>)", "", ply['profile_name'])
 		return steg
 
 	def _call_steg(self):
@@ -448,8 +500,8 @@ class CHStegTool:
 		embed = discord.Embed(colour=0x3FFF33)
 		embed.title = title
 		if 'players' in self.output:
-			chartStr = f"Chart Name: {self.output["song_name"]}" + f" ({self.output["playback_speed"]}%)\n" if self.output["playback_speed"] != 100 else '\n'
-			chartStr += f"Run Time: <t:{int(round(datetime.strptime(self.output["score_timestamp"], '%Y-%m-%dT%H:%M:%S.%fZ').timestamp()))}:f>\n"
+			chartStr = f"Chart Name: {self.output['song_name']}" + f" ({self.output['playback_speed']}%)\n" if self.output["playback_speed"] != 100 else '\n'
+			chartStr += f"Run Time: <t:{int(round(datetime.strptime(self.output['score_timestamp'], '%Y-%m-%dT%H:%M:%S.%fZ').timestamp()))}:f>\n"
 			chartStr += f"Game Version: {self.output['game_version']}"
 			embed.add_field(name="Submission Stats", value=chartStr, inline=False)
 			embed.set_footer(text=f"Chart md5 {self.output['checksum']}")
@@ -461,8 +513,8 @@ class CHStegTool:
 			plyStr = ""
 			plyStr += f"Player Name: {player["profile_name"]}\n"
 			plyStr += f"Score: {player["score"]}\n"
-			plyStr += f"Notes Hit: {player["notes_hit"]}/{player["total_notes"]} - {(player["notes_hit"]/player["total_notes"]) * 100:.2f}% {' - 👑' if player['is_fc'] else ''}\n"
-			plyStr += f"Overstrums: {player["excess_hits"]}\n"
+			plyStr += f"Notes Hit: {player["notes_hit"]}/{player["total_notes"]} - {(player["notes_hit"]/player["total_notes"]) * 100:.2f}% {' - 👑' if player['is_fc'] else f'(-{player["notes_missed"]})'}\n"
+			plyStr += f"Overstrums: (+){player["excess_hits"]}\n"
 			plyStr += f"Ghosts: {player["frets_ghosted"]}\n"
 			plyStr += f"SP Phrases: {player["sp_phrases_earned"]}/{player["sp_phrases_total"]}\n"
 			embed.add_field(name=f"Player {i+1}", value=plyStr, inline=False)
@@ -470,22 +522,18 @@ class CHStegTool:
 		return embed
 
 class GSheets():
-	def __init__(self, submission: typing.Union[TournamentMatchOngoing, TournamentMatchCompleted, Qualifier]=None):	
+	def __init__(self):	
 		self._format_border = {'textFormat': {'bold': False}, "horizontalAlignment": "CENTER", 'borders': {'right': {'style' : 'SOLID'}, 'left': {'style' : 'SOLID' }}}
-		#TODO: Make a django-admin task to resend the match data to the airtable (or any sheet)
-		self._submission = submission
-		if not self._submission:
-			raise ValueError("Submission must be set for Gsheets provider!")
+		self._format_header = {'textFormat': {'bold': True}, "horizontalAlignment": "CENTER", 'borders': { 'bottom': { 'style' : 'SOLID' }, 'left': { 'style' : 'SOLID' }, 'right': { 'style' : 'SOLID' }}}
 
-	#Needed as if the GSheetApi objects call is in the normal init, app load fails for dbot due to DB access before django is ready
-	#Needs to be broken up for async/sync access
-	def init(self):
+	def login(self):
 		gs = GSheetAPI.objects.get()
 		self._gc = gspread.service_account_from_dict(gs.api_key)
-		#Setup object types
 		if not self._gc:
-			print("Gsheels API: API Key invalid/failed to login")
-			return
+			raise RuntimeError("Gsheels API: API Key invalid/failed to login")
+
+	def set_submission(self, submission: typing.Union[TournamentMatchOngoing, TournamentMatchCompleted, Qualifier]):
+		self._submission = submission
 		if isinstance(self._submission, QualifierSubmission):
 			self._tourney = self._submission.qualifier.tournament
 			self._bracket = self._submission.qualifier.bracket
@@ -503,32 +551,51 @@ class GSheets():
 			self._sheet = self._gc.open_by_url(self._url)
 		except Exception as e:
 			print(f"Error opening GSheet {self._url} failed with exception {e}")
-			return
-
+			raise e
 		#Load relevant workspace in sheet
 		if isinstance(self._submission, QualifierSubmission):
 			try:
 				ws = self._sheet.worksheet((f"{self._submission.qualifier} - Data"))
 			except gspread.exceptions.WorksheetNotFound:
-				print(f"Creating worksheet in sheet {self._url}")
-				ws = self._sheet.add_worksheet(title=f"{self._submission.qualifier} - Data", rows=1, cols=12)
-				ws.update([["Discord Name", "Clone Hero Name", "Score", "Notes Missed", "Notes Hit", "Overstrums", "Ghosts", "Phrases Earned", "Submission Timestamp", "Screenshot Timestamp", "Image URL", "Game Version" ]], "A1:L1")
-				ws.format("A1:L1", {'textFormat': {'bold': True}, "horizontalAlignment": "CENTER", 'borders': { 'bottom': { 'style' : 'SOLID' }, 'left': { 'style' : 'SOLID' }, 'right': { 'style' : 'SOLID' }}})
-		elif isinstance(self._submission, TournamentMatchOngoing) or isinstance(self._submission, TournamentMatchCompleted):
-			pass #Not ready
+				ws = self.setup_qualifier_sheet()
+		elif isinstance(self._submission, TournamentMatchOngoing):
+			try:
+				ws = self._sheet.worksheet((f"{self._submission.tourney.short_name} - Live Data"))
+			except gspread.exceptions.WorksheetNotFound:
+				ws = self.setup_ongoing_sheet()
+		elif isinstance(self._submission, TournamentMatchCompleted):
+			try:
+				ws = self._sheet.worksheet((f"{self._submission.tourney.short_name} - Completed Data"))
+			except gspread.exceptions.WorksheetNotFound:
+				ws = self.setup_completed_sheet()
 
 		self._ws = ws
 
-	def update_row(self) -> bool:
+	def setup_qualifier_sheet(self) -> gspread.Worksheet:
+		print(f"Creating qualifier {self._submission.qualifier} worksheet in sheet {self._url}")
+		ws = self._sheet.add_worksheet(title=f"{self._submission.qualifier} - Data", rows=1, cols=12)
+		ws.update([["Discord Name", "Clone Hero Name", "Score", "Notes Missed", "Notes Hit", "Overstrums", "Ghosts", "Phrases Earned", "Submission Timestamp", "Screenshot Timestamp", "Image URL", "Game Version" ]], "A1:L1")
+		ws.format("A1:L1", self._format_header)
+		return ws
+
+	def setup_ongoing_sheet(self) -> bool:
 		pass
 
-	def add_row(self) -> bool:
+	def set_completed_sheet(self) -> bool:
+		pass
+
+	def submit_completed(self) -> bool:
+		pass
+
+	def submit_ongoing(self) -> bool:
 		pass
 
 	def submit_qualifier(self):
 		self._ws.append_row(self.qualifier_line)
 		self._submission.submitted = True
 		self._submission.save()
+
+	#worksheet.update([['=SUM(A1:A4)']], 'A5', raw=False)
 
 	@property
 	def qualifier_line(self):
@@ -540,123 +607,18 @@ class GSheets():
 		ghosts = self._submission.steg['frets_ghosted']
 		phrases = self._submission.steg['sp_phrases_earned']
 		submissionTimestamp = str(self._submission.submit_time.strftime("%Y-%m-%d %H:%M:%S") + "-UTC")
-		screenshotTimestamp = f"{datetime.strptime(self._submission.steg['score_timestamp'], '%Y-%m-%dT%H:%M:%S.%fZ').strftime("%Y-%m-%d %H:%M:%S")}-UTC"
-		imgUrl = f"https://{os.getenv('BASE_URL')}{self._submission.screenshot.url}"
+		screenshotTimestamp = f"{datetime.strptime(self._submission.steg['score_timestamp'], '%Y-%m-%dT%H:%M:%S.%fZ').strftime('%Y-%m-%d %H:%M:%S')}-UTC"
+		imgUrl = f"https://{settings.BASE_URL}{self._submission.screenshot.url}"
 		gameVer = self._submission.qualifier.tournament.config.version
 		return [self._submission.player.name, chName, score, missed, hit, excess, ghosts, phrases, submissionTimestamp, screenshotTimestamp, imgUrl, gameVer]
 
-	async def submitLiveMatch(self, match) -> bool: #To collapse this and submit match complete/qualifier into one generic "send_row" and "update_row"
-		if "disable_gsheets" in self.tourneyConf and self.tourneyConf['disable_gsheets']:
-			return True
+	@property
+	def ongoing_line(self):
+		pass
 
-		brackets = await self.sql.getTourneyBrackets(match['tourneyid'])
-		bracket = brackets[self.tourneyConf['name']]
-		matchJson = match['matchjson']
-		ply1 = matchJson['highSeed']
-		ply2 = matchJson['lowSeed']
-		#Dirty hard-coded indexes for now to get this working - this is going to need to be changed
-		ply1Pts = ply1['points'] if 'points' in ply1 else 0
-		ply2Pts = ply2['points'] if 'points' in ply1 else 0
-		matchList = [match['matchuuid'], ply1['name'], ply1Pts, ply1['ban'][0], ply1['ban'][1], ply2['name'], ply2Pts, ply2['ban'][0], ply2['ban'][1], matchJson['setlist'], matchJson['winner'] ]
-		for song in matchJson['rounds']:
-			matchList.append(song['pick'])
-			matchList.append(self.fixSongName(song['song'], bracket))
-
-		if 'tb' in matchJson:
-			matchList.append(self.fixSongName(matchJson['tb']['song'], bracket))
-		else:
-			matchList.append("")
-
-		for song in matchJson['rounds']:
-			matchList.append(song['winner'])
-
-		if 'tb' in matchJson:
-			matchList.append(matchJson['tb']['winner'])
-		else:
-			matchList.append("")
-
-		if match['sheetrow'] is None:
-			print("Adding new row to sheet...")
-			self.lmws.append_row(matchList)
-			numRows = len(self.lmws.get_all_values())
-		
-			self.lmws.format(f"A{numRows}:AE{numRows}", self.frmtBorder)
-			match['sheetrow'] = numRows
-			await self.sql.replaceRefToolMatch(match['matchuuid'], match['tourneyid'], match['finished'], matchJson, match['sheetrow'], match['postid'])
-		else:
-			self.lmws.update([matchList], f"A{match['sheetrow']}:AE{match['sheetrow']}")
-
-	async def submitMatchResults(self, match, tourney) -> bool:
-		if "disable_gsheets" in self.tourneyConf and self.tourneyConf['disable_gsheets']:
-			return True
-
-		print(f"Submitting {match['matchuuid']} to airtable")
-		brackets = await self.sql.getTourneyBrackets(match['tourneyid'])
-		bracket = brackets[self.tourneyConf['name']]
-		matchJson = match['matchjson']
-		ply1 = matchJson['highSeed']
-		ply2 = matchJson['lowSeed']
-		matchName = f"{ply1['name']} vs {ply2['name']}"
-
-		for song in matchJson['rounds']:
-			ply1List = []
-			ply2List = []
-			ply1Fnd = {}
-			ply2Fnd = {}
-
-			if song['index'] == 1:
-				ply1List.append(matchName)
-				ply2List.append("")
-			else:
-				ply1List.append("")
-				ply2List.append("")
-
-			ply1List.append(self.fixSongName(song['song'], bracket))
-			ply2List.append(self.fixSongName(song['song'], bracket))
-
-			stegData = song['steg_data']
-			for ply in stegData['players']:
-				if ply1['name'] == ply['profile_name']:
-						ply1Fnd = ply
-						continue
-				if ply2['name'] == ply['profile_name']:
-						ply2Fnd = ply
-						continue
-
-			ply1List.append(ply1Fnd['profile_name'])
-			ply2List.append(ply2Fnd['profile_name'])
-			ply1List.append(ply1Fnd['score'])
-			ply2List.append(ply2Fnd['score'])
-			ply1List.append(ply1Fnd['notes_missed'])
-			ply2List.append(ply2Fnd['notes_missed'])
-			ply1List.append(ply1Fnd['overstrums'])
-			ply2List.append(ply2Fnd['overstrums'])
-			ply1List.append(ply1Fnd['notes_hit'])
-			ply2List.append(ply2Fnd['notes_hit'])
-			ply1List.append(ply1Fnd['frets_ghosted'])
-			ply2List.append(ply2Fnd['frets_ghosted'])
-			ply1List.append(f"{datetime.strptime(stegData['score_timestamp'], '%Y-%m-%dT%H:%M:%S.%fZ').strftime("%Y-%m-%d %H:%M:%S")}-UTC")
-			ply2List.append("")
-			ply1List.append(stegData['image_url'])
-			ply2List.append("")
-			try:
-				self.sws.append_row(ply1List)
-				numRows = len(self.sws.get_all_values())
-				self.sws.format(f"A{numRows}:L{numRows}", self.frmtBorder)
-				self.sws.append_row(ply2List)
-				numRows = len(self.sws.get_all_values())
-				self.sws.format(f"A{numRows}:L{numRows}", self.frmtBorder)
-			except Exception as e:
-				print(f"Exception in gspread: {e}")
-				return False
-
-	async def submitQualifier(self, user, qualifierData: dict) -> bool:
-		if "disable_gsheets" in self.tourneyConf and self.tourneyConf['disable_gsheets']:
-			return True
-
-
-
-		return True
+	@property
+	def complete_line(self):
+		pass
 
 
 #Keeping for future OCR use/reference
