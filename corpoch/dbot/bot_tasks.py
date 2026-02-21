@@ -4,6 +4,8 @@ import logging
 import warnings
 import discord
 from datetime import timedelta
+from unicodedata import normalize, category
+from re import sub
 
 from discord import Embed, File, AppEmoji
 from discord.ext import tasks
@@ -46,7 +48,8 @@ async def add_bot_emoji(bot, name):
 		if len(name) < 2:
 			name += "_"
 		try:
-			emoji = await bot.create_emoji(name=name, image=f.read())
+			squashed_name = sub("[^\\w]", "_", "".join(c for c in normalize('NFD', name) if category(c) != 'Mn'))
+			emoji = await bot.create_emoji(name=squashed_name, image=f.read())
 		except discord.errors.HTTPException:
 			print(f"Icon {name} has a dupe?")
 			return

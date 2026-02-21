@@ -3,6 +3,7 @@ import discord, os, sys, json, shutil
 from discord.ext import commands
 from discord.ui import *
 from discord.enums import ComponentType, InputTextStyle
+from asgiref.sync import sync_to_async
 
 from corpoch.providers import CHOpt, EncoreClient, CHStegTool, Hydra
 from corpoch.models import Tournament, TournamentBracket, Chart, CH_INSTRUMENTS, CH_DIFFICULTIES
@@ -11,35 +12,49 @@ from corpoch.dbot.models import CHEmoji
 class CHOptModal(discord.ui.DesignerModal):
 	def __init__(self, path, *args, **kwargs):
 		self.path = path
-		args += (discord.ui.Label("Early Whammy %", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, placeholder='0-100')),)
-		args += (discord.ui.Label("Squeeze %", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, placeholder='0-100')),)
-		args += (discord.ui.Label("Song Speed (10-1000)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value=100)),)
-		args += (discord.ui.Label("Show Path in Image", discord.ui.Select(max_values=1, options=[discord.SelectOption(label='True', value='True', default=True), discord.SelectOption(label="False", value='False')], required=True)),)
-		super().__init__(discord.ui.TextDisplay("CHOpt Options"), *args, **kwargs)
+		args += (discord.ui.Label("Early Whammy % (0-100)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value='0')),)
+		args += (discord.ui.Label("Squeeze % (0-100)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value='0')),)
+		args += (discord.ui.Label("Song Speed (0-1000)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value=100)),)
+		args += (discord.ui.Label("Lazy Whammy (ms 0-10000)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value='0')),)
+		args += (discord.ui.Label("Whammy Delay (ms 0-10000)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value='0')),)
+		super().__init__(*args, **kwargs)
+		self.title = "CHOpt Options"
 
 	async def callback(self, interaction: discord.Interaction):
-		if not self.children[1].item.value.isdigit() and not int(self.children[1].item.value) >= 0 and not int(self.children[1].item.value <= 100):
+		if not self.children[1].item.value.isdigit() and not int(self.children[0].item.value) >= 0 and not int(self.children[0].item.value <= 100):
 			await interaction.response.send_message("Invalid whammy value, please use a number between 0 and 100", ephemeral=True)
 			self.stop()
 			return
 		else:
-			self.path.chopt.opts.whammy = int(self.children[1].item.value)
+			self.path.chopt.opts.whammy = int(self.children[0].item.value)
 
-		if not self.children[2].item.value.isdigit() and not int(self.children[2].item.value) >= 0 and not int(self.children[2].item.value <= 100):
+		if not self.children[1].item.value.isdigit() and not int(self.children[1].item.value) >= 0 and not int(self.children[1].item.value <= 100):
 			await interaction.response.send_message("Invalid squeeze value, please use a number between 0 and 100", ephemeral=True)
 			self.stop()
 			return
 		else:
-			self.path.chopt.opts.squeeze = int(self.children[2].item.value)
+			self.path.chopt.opts.squeeze = int(self.children[1].item.value)
 
-		if not self.children[3].item.value.isdigit() and not int(self.children[3].item.value) >= 10 and not int(self.children[3].item.value <= 1000):
+		if not self.children[2].item.value.isdigit() and not int(self.children[2].item.value) >= 10 and not int(self.children[2].item.value <= 1000):
 			await interaction.response.send_message("Invalid speed value, please use a number between 10 and 250", ephemeral=True)
 			self.stop()
 			return
 		else:
-			self.path.chopt.opts.speed = int(self.children[3].item.value)
+			self.path.chopt.opts.speed = int(self.children[2].item.value)
 
-		self.path.chopt.opts.output_path = True if self.children[4].item.value in "True" else False
+		if not self.children[3].item.value.isdigit() and not int(self.children[4].item.value) >= 0 and not int(self.children[43].item.value <= 10000):
+			await interaction.response.send_message("Invalid lazy whammy value, please use a number between 0 and 10000", ephemeral=True)
+			self.stop()
+			return
+		else:
+			self.path.chopt.opts.lazy = int(self.children[4].item.value)
+
+		if not self.children[4].item.value.isdigit() and not int(self.children[4].item.value) >= 10 and not int(self.children[4].item.value <= 10000):
+			await interaction.response.send_message("Invalid whammy delay value, please use a number between 0 and 10000", ephemeral=True)
+			self.stop()
+			return
+		else:
+			self.path.chopt.opts.delay = int(self.children[4].item.value)
 
 		await interaction.response.defer(invisible=True)
 		self.stop()
@@ -92,6 +107,7 @@ class EncoreModal(discord.ui.DesignerModal):
 			for inst in CH_INSTRUMENTS:
 				if inst[0] == self.children[4].item.values[0]:
 					self.path.instrument = inst
+					self.path.chopt.opts.instrument = inst
 					break
 
 		await interaction.response.defer(invisible=True)
@@ -109,24 +125,38 @@ class TournamentSelect(discord.ui.Select):
 		active = None
 		opts = []
 		async for tourney in Tournament.objects.all():
-			self.retOpts[tourney.name] = tourney
-			if len(tourney.brackets) == 0:
+			lenB = len([b async for b in tourney.brackets.select_related()])
+			hasSetlist = False
+			if lenB == 0:
 				continue
-			if tourney.guild == self.path.ctx.guild.id and tourney.active:
-				opts.append(discord.SelectOption(label=tourney.name, description=tourney.short_name, default=True))
+			if lenB > 0:
+				async for bracket in tourney.brackets.select_related():
+					lenC = len([b async for b in bracket.setlist.select_related()])
+					if lenC > 0:
+						hasSetlist = True
+						break
+
+			if not hasSetlist:
+				continue
+						
+			self.retOpts[tourney.name] = tourney
+			if not self.path.tournament and tourney.guild == self.path.ctx.guild.id and tourney.active:
+				opts.append(discord.SelectOption(label=tourney.name, description=tourney.short_name))
+				active = tourney
+			elif self.path.tournament == tourney:
+				opts.append(discord.SelectOption(label=tourney.name, description=tourney.short_name))
 				active = tourney
 			else:
 				opts.append(discord.SelectOption(label=tourney.name, description=tourney.short_name))
 		
 		if active:
-			super().__init__(placeholder=active.short_name, options=opts, custom_id="tourney_sel")
-		elif self.path.tournament:
-			super().__init__(placeholder=self.path.tournament.short_name,  options=opts, custom_id="tourney_sel")
+			super().__init__(placeholder=str(active), options=opts, custom_id="tourney_sel")
 		else:
 			super().__init__(placeholder="Select a tournament", options=opts, custom_id="tourney_sel")
 
 	async def callback(self, interaction: discord.Interaction):
 		self.path.tournament = self.retOpts[self.values[0]]
+		print(f"Tourney: {self.path.tournament}")
 		await interaction.response.defer(ephemeral=True)
 		await self.path.show()
 
@@ -137,7 +167,7 @@ class BracketSelect(discord.ui.Select):
 
 	async def init(self):
 		opts = []
-		async for bracket in TournamentBracket.objects.select_related().all().filter:
+		async for bracket in self.path.tournament.brackets.select_related():
 			self.retOpts[str(bracket)] = bracket
 			opts.append(discord.SelectOption(label=str(bracket)))
 
@@ -148,7 +178,7 @@ class BracketSelect(discord.ui.Select):
 
 	async def callback(self, interaction: discord.Interaction):
 		self.path.bracket = self.retOpts[self.values[0]]
-		self.path.charts = [ chart async for chart in self.path.bracket.setlist.all() ]
+		self.path.charts = [ chart async for chart in self.path.bracket.setlist.select_related().all() ]
 		await interaction.response.defer(ephemeral=True)
 		await self.path.show()
 
@@ -162,28 +192,34 @@ class ChartSelect(discord.ui.Select):
 		for chart in self.path.charts:
 			if isinstance(chart, Chart):
 				self.retOpts[chart.md5] = chart
-				opts.append(discord.SelectOption(label=chart.name, emoji=chart.icon, value=chart.md5, description=f"{chart.artist} - {chart.album} - {chart.charter}", default=True if self.path.chart == chart else False))
-			else:#dict
-				icon = await CHEmoji.objects.select_related().aget(icon_id=chart['icon'])
+				icon = await sync_to_async(lambda: chart.icon)()
+				try:
+					icon = await CHEmoji.objects.select_related().aget(icon_id=chart.icon)
+				except CHEmoji.DoesNotExist:
+					icon = await CHEmoji.objects.select_related().aget(icon_id='ch')
 				emoji = await self.path.bot.fetch_emoji(icon.id)
-				if not emoji:
-					icon = await CHEmoji.objects.select_related().aget(icon_id="ch")#Failback to 
-					emoji = await self.path.bot.fetch_emoji(icon.id)
+				opts.append(discord.SelectOption(label=chart.name, emoji=emoji, value=chart.md5, description=f"{chart.artist} - {chart.album} - {chart.charter}", default=True if self.path.chart == chart else False))
+			else:#dict
+				try:
+					icon = await CHEmoji.objects.select_related().aget(icon_id=chart['icon'])
+				except CHEmoji.DoesNotExist:
+					icon = await CHEmoji.objects.select_related().aget(icon_id='ch')
+
+				emoji = await self.path.bot.fetch_emoji(icon.id)
 				opts.append(discord.SelectOption(label=chart['name'], emoji=emoji if emoji else None, value=chart['md5'], description=f"{chart['artist']} - {chart['album']} - {chart['charter']}"))
 				self.retOpts[chart['md5']] = chart
 
 		if self.path.chart:
-			if isinstance(chart, Chart):
-				super().__init__(placeholder=chart.name, options=opts, max_values=1, custom_id="chart_sel")
+			if isinstance(self.path.chart, Chart):
+				super().__init__(placeholder=self.path.chart.name, options=opts, max_values=1, custom_id="chart_sel")
 			else:
-				super().__init__(placeholder=chart['name'], options=opts, max_values=1, custom_id="chart_sel")
+				super().__init__(placeholder=self.path.chart['name'], options=opts, max_values=1, custom_id="chart_sel")
 		else:
 			super().__init__(placeholder="Select a chart", options=opts, max_values=1, custom_id="chart_sel")
 
 	async def callback(self, interaction: discord.Interaction):
 		self.path.chart = self.retOpts[self.values[0]]
-		if isinstance(self.path.chart, Chart):
-			self.path.instrument = self.path.chart.instrument[0]
+
 		await interaction.response.defer(ephemeral=True)
 		await self.path.show()
 
@@ -212,18 +248,21 @@ class Path():
 	async def showResult(self, interaction):
 		if self.instrument[0] == 'drums':
 			self.hydra.gen_path(self.chart)
+			if not self.hydra.output:
+				await interaction.followup.send("Path generation died on Hydra call.", ephemeral=True)
+				await self.hide()		
 		else:
 			self.chopt.gen_path(self.chart)
 			self.chopt.save_for_upload()
-		if not self.chopt.url:
-			await interaction.followup.send("Path generation died on CHOpt call.", ephemeral=True)
-			await self.hide()
+			if not self.chopt.url:
+				await interaction.followup.send("Path generation died on CHOpt call.", ephemeral=True)
+				await self.hide()
+		
+		if self.instrument[0] == "drums":
+			await interaction.followup.send(embed=self.genHydraResultEmbed())
 		else:
-			if self.chart.instrument == "drums":
-				await interaction.folloup.send(embed=self.genHydraResultEmbed())
-			else:
-				await interaction.followup.send(embed=self.genCHOptResultEmbed(), ephemeral=True)
-			await self.hide()
+			await interaction.followup.send(embed=self.genCHOptResultEmbed(), ephemeral=True)
+		await self.hide()
 
 	async def doSearch(self, inQuery):
 		self.searchData = self.chUtils.encoreSearch(inQuery)
@@ -255,12 +294,13 @@ class Path():
 		embed.set_author(name=f"Generated by:{self.ctx.user.display_name}", icon_url=self.ctx.user.avatar.url)
 		embed.title = "/ch path run result"
 		embed.set_author(name=self.ctx.user.display_name, icon_url=self.ctx.user.avatar.url)
+		return embed
 
 	def addEmbedToolField(self, embed: discord.Embed):
 		if self.instrument[0] == 'drums':
 			embed.add_field(name="Hydra Options Used", value=f"Kick/Bass 2x: {self.hydra.opts.bass2x}\nPro Drums: {self.hydra.opts.pro}\nDepth Mode: {self.hydra.opts.depth_mode}\nDepth Value: {self.hydra.opts.depth}", inline=False)
 		else:
-			embed.add_field(name="CHOpt Options Used", value=f"Early Whammy: {self.chopt.opts.whammy}%\nSqueeze: {self.chopt.opts.squeeze}%\nSong Speed: {self.chopt.opts.speed}%\nShow Path: {self.chopt.opts.output_path}", inline=False)
+			embed.add_field(name="CHOpt Options Used", value=f"Early Whammy: {self.chopt.opts.whammy}%\nSqueeze: {self.chopt.opts.squeeze}%\nSong Speed: {self.chopt.opts.speed}%\nLazy Whammy: {self.chopt.opts.lazy}ms\nWhammy Delay: {self.chopt.opts.delay}ms", inline=False)
 
 	def genHydraResultEmbed(self) -> discord.Embed:
 		embed = self.genEmbedBase()
@@ -268,7 +308,10 @@ class Path():
 			embed.add_field(name="Hydra Path For", value=f"{self.chart.name} - {self.chart.artist} - {self.chart.album} - {self.chart.charter} - {self.chart.instrument}", inline=False)
 		else:
 			embed.add_field(name="Hydra Path For", value=f"{self.chart["name"]} - {self.chart["artist"]} - {self.chart["album"]} - {self.chart["charter"]} - {self.instrument[1]}", inline=False)
-		embed.add_field(name="Path", value=self.hydra.output, inline=False)
+		pathStr = ""
+		for p in self.hydra.output:
+			pathStr += f"{p[0]}		{p[1]}\n"
+		embed.add_field(name="Path", value=pathStr, inline=False)
 		self.addEmbedToolField(embed)
 		return embed
 
@@ -298,8 +341,11 @@ class PathView(discord.ui.View):
 			self.add_item(sel)
 		if hasattr(self.path, 'bracket'):
 			sel = BracketSelect(self.path)
-			await sel.init()
-			self.add_item(sel)
+			print(f"init: {self.path.tournament}")
+			if self.path.tournament != None:
+				print("Firing bsel")
+				await sel.init()
+				self.add_item(sel)
 		if len(self.path.charts) > 0:
 			sel = ChartSelect(self.path)
 			await sel.init()
@@ -328,10 +374,10 @@ class PathView(discord.ui.View):
 	@discord.ui.button(label="Tourney Search", style=discord.ButtonStyle.secondary, custom_id="tourney")
 	async def tourneyBtn(self, button, interaction: discord.Interaction):
 		await self.clear()
-		try:
-			self.path.tournament = await Tournament.objects.aget(guild=self.path.ctx.guild.id, active=True)	
-		except Tournament.DoesNotExist:
-			self.path.tournament = None
+		#try:
+		#	self.path.tournament = await Tournament.objects.aget(guild=self.path.ctx.guild.id, active=True)	
+		#except Tournament.DoesNotExist:
+		self.path.tournament = None
 		self.path.bracket = None
 		self.charts = []
 		await interaction.response.defer(invisible=True)
