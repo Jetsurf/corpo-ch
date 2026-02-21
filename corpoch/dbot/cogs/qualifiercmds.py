@@ -43,7 +43,7 @@ class ScreenshotModal(discord.ui.DesignerModal):
 
 	async def callback(self, interaction: discord.Interaction):
 		self.screen = self.children[1].item.values[0]
-		await interaction.respond("Processing, wait for embed to update", ephemeral=True, delete_after=5)
+		await interaction.respond("Processing, wait for embed to update", ephemeral=True, delete_after=10)
 
 class QualiPlayerSel(discord.ui.Select):
 	def __init__(self, quali):
@@ -155,7 +155,7 @@ class DiscordQualifierView(discord.ui.View):
 		await steg.getStegInfo(modal.screen)
 		if not steg.output:
 			print(f"QUALIFIER: {self.ctx.user.display_name} upload not valid CH screenshot")
-			await interaction.followup.send("Screenshot is not a valid in-game screenshot. Please use a screenshot taken with the select button on the results screen or from using auto-screenshots!", ephemeral=True, delete_after=5)
+			await interaction.followup.send("Screenshot is not a valid in-game screenshot. Please use a screenshot taken with the select button on the results screen or from using auto-screenshots!", ephemeral=True, delete_after=10)
 		plySteg = []
 		for i, ply in enumerate(steg.output['players']):
 			try:
@@ -177,16 +177,16 @@ class DiscordQualifierView(discord.ui.View):
 			playedChart = await self.qualifier.charts.aget(md5=steg.output['checksum'])
 		except Chart.DoesNotExist:
 			print(f"QUALIFIER: {self.qualifier}: {self.ctx.user.display_name} uploaded screenshot with checksum {steg.output['checksum']} that did not match any charts")
-			await interaction.followup.send("Screenshot is not for the qualifier chart.", ephemeral=True, delete_after=5)
+			await interaction.followup.send("Screenshot is not for the qualifier chart.", ephemeral=True, delete_after=10)
 			await self.show()
 			return
 
 		if steg.output['game_version'] != self.tourney.config.version:
 			print(f"QUALIFIER: {self.qualifier}: {self.ctx.user.display_name} screenshot version {steg.output['game_version']} does not match tourney version {self.tourney.config.version}")
-			await interaction.followup.send(f"Qualifier is not Clone Hero version {self.tourney.config.version}", ephemeral=True, delete_after=5)
+			await interaction.followup.send(f"Qualifier is not Clone Hero version {self.tourney.config.version}", ephemeral=True, delete_after=10)
 		elif steg.output['playback_speed'] != playedChart.speed:
 			print(f"QUALIFIER: {self.qualifier}: {self.ctx.user.display_name} screenshot speed {steg.output['playback_speed']}% does not match speed of qualifier: {playedChart.speed}%")
-			await interaction.followup.send(f"Uploaded screenshot speed ({steg.output['playback_speed']}%) does not match speed of qualifier: {playedChart.speed}%", ephemeral=True, delete_after=5)
+			await interaction.followup.send(f"Uploaded screenshot speed ({steg.output['playback_speed']}%) does not match speed of qualifier: {playedChart.speed}%", ephemeral=True, delete_after=10)
 		else:
 			print(f"QUALIFIER: {self.ctx.user.display_name} screenshot {steg.img_path} accepted")
 			self.steg = steg

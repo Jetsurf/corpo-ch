@@ -372,7 +372,6 @@ class CHOpt:
 		if isinstance(chart, Chart):
 			content = self._encore.download_from_url(chart.url)
 			instrument = chart.instrument
-			print(f"Chart inst {instrument}")
 		elif isinstance(chart, dict):
 			content = self._encore.download_from_chart(chart)
 			instrument = self.opts.instrument[0]

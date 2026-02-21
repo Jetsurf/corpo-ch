@@ -21,35 +21,35 @@ class CHOptModal(discord.ui.DesignerModal):
 		self.title = "CHOpt Options"
 
 	async def callback(self, interaction: discord.Interaction):
-		if not self.children[1].item.value.isdigit() and not int(self.children[0].item.value) >= 0 and not int(self.children[0].item.value <= 100):
+		if not self.children[1].item.value.isdigit() and not int(self.children[0].item.value) >= 0 or not int(self.children[0].item.value) <= 100:
 			await interaction.response.send_message("Invalid whammy value, please use a number between 0 and 100", ephemeral=True)
 			self.stop()
 			return
 		else:
 			self.path.chopt.opts.whammy = int(self.children[0].item.value)
 
-		if not self.children[1].item.value.isdigit() and not int(self.children[1].item.value) >= 0 and not int(self.children[1].item.value <= 100):
+		if not self.children[1].item.value.isdigit() and not int(self.children[1].item.value) >= 0 or not int(self.children[1].item.value) <= 100:
 			await interaction.response.send_message("Invalid squeeze value, please use a number between 0 and 100", ephemeral=True)
 			self.stop()
 			return
 		else:
 			self.path.chopt.opts.squeeze = int(self.children[1].item.value)
 
-		if not self.children[2].item.value.isdigit() and not int(self.children[2].item.value) >= 10 and not int(self.children[2].item.value <= 1000):
+		if not self.children[2].item.value.isdigit() and not int(self.children[2].item.value) >= 10 or not int(self.children[2].item.value) <= 1000:
 			await interaction.response.send_message("Invalid speed value, please use a number between 10 and 250", ephemeral=True)
 			self.stop()
 			return
 		else:
 			self.path.chopt.opts.speed = int(self.children[2].item.value)
 
-		if not self.children[3].item.value.isdigit() and not int(self.children[4].item.value) >= 0 and not int(self.children[43].item.value <= 10000):
+		if not self.children[3].item.value.isdigit() and not int(self.children[3].item.value) >= 0 or not int(self.children[3].item.value) <= 10000:
 			await interaction.response.send_message("Invalid lazy whammy value, please use a number between 0 and 10000", ephemeral=True)
 			self.stop()
 			return
 		else:
-			self.path.chopt.opts.lazy = int(self.children[4].item.value)
+			self.path.chopt.opts.lazy = int(self.children[3].item.value)
 
-		if not self.children[4].item.value.isdigit() and not int(self.children[4].item.value) >= 10 and not int(self.children[4].item.value <= 10000):
+		if not self.children[4].item.value.isdigit() and not int(self.children[4].item.value) >= 10 or not int(self.children[4].item.value) <= 10000:
 			await interaction.response.send_message("Invalid whammy delay value, please use a number between 0 and 10000", ephemeral=True)
 			self.stop()
 			return
@@ -65,19 +65,33 @@ class HydraModal(discord.ui.DesignerModal):
 		args += (discord.ui.Label("Bass/Kick 2x Pedal", discord.ui.Select(max_values=1, options=[discord.SelectOption(label='True', value='True', default=True), discord.SelectOption(label="False", value='False')], required=True)),)
 		args += (discord.ui.Label("Pro Drums", discord.ui.Select(max_values=1, options=[discord.SelectOption(label='True', value='True', default=True), discord.SelectOption(label="False", value='False')], required=True)),)
 		args += (discord.ui.Label("Depth Mode", discord.ui.Select(max_values=1, options=[discord.SelectOption(label='Scores', value='scores', default=True), discord.SelectOption(label="Points", value='points')], required=True)),)
-		args += (discord.ui.Label("Score Depth", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, placeholder=self.path.hydra.opts.depth)),)
+		args += (discord.ui.Label("Score Depth", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value=self.path.hydra.opts.depth)),)
 		#args += (discord.ui.Label("Difficulty", discord.ui.Select(max_values=1, options=[discord.SelectOption(label='True', value='True', default=True), discord.SelectOption(label="False", value='False')], required=True)),)
 		super().__init__(discord.ui.TextDisplay("Hydra Options"), *args, **kwargs)
 
 	async def callback(self, interaction: discord.Interaction):
 		self.path.hydra.opts.bass2x = True if self.children[1].item.values[0] in "True" else False
 		self.path.hydra.opts.pro = True if self.children[2].item.values[0] in "True" else False
-		self.path.hydra.opts.depth_mode = 'scores' if self.children[3].item.values[0] in "score" else 'points'
-		if not self.children[4].item.value.isdigit() or (int(self.children[4].item.value) < 1 or int(self.children[4].item.value) > 1000000):
-			await interaction.response.send_message("Invalid depth - must be 1-1000000", delete_after=5)
+		self.path.hydra.opts.depth_mode = 'scores' if self.children[3].item.values[0] in "scores" else 'points'
+		if self.path.hydra.opts.depth_mode == 'points':
+			await interaction.response.send_message("Points depth mode disabled for now", delete_after=10, ephemeral=True)
 			return
+		valid = True
+		if not self.children[4].item.value.isdigit():
+			valid = False
+		elif self.path.hydra.opts.depth_mode == "scores" and (int(self.children[4].item.value) < 1 or int(self.children[4].item.value) > 10):
+			valid = False
+		elif self.path.hydra.opts.depth_mode == "points" and (int(self.children[4].item.value) < 1 or int(self.children[4].item.value) > 10000000):
+			valid = False
 
-		await interaction.response.defer(invisible=True)
+		if not valid:
+			if self.path.hydra.opts.depth_mode == "scores":
+				await interaction.response.send_message("Invalid depth - must be 1-10 for Depth Mode: Score", delete_after=10, ephemeral=True)
+			else:
+				await interaction.response.send_message("Invalid depth - must be 1-10,000,000 for Depth Mode: Points", delete_after=10, ephemeral=True)
+		else:
+			self.path.hydra.opts.depth = int(self.children[4].item.value)
+			await interaction.response.defer(invisible=True)
 		self.stop()
 
 class EncoreModal(discord.ui.DesignerModal):
@@ -156,7 +170,6 @@ class TournamentSelect(discord.ui.Select):
 
 	async def callback(self, interaction: discord.Interaction):
 		self.path.tournament = self.retOpts[self.values[0]]
-		print(f"Tourney: {self.path.tournament}")
 		await interaction.response.defer(ephemeral=True)
 		await self.path.show()
 
@@ -253,7 +266,10 @@ class Path():
 				await self.hide()		
 		else:
 			self.chopt.gen_path(self.chart)
-			self.chopt.save_for_upload()
+			try:
+				self.chopt.save_for_upload()
+			except:
+				pass
 			if not self.chopt.url:
 				await interaction.followup.send("Path generation died on CHOpt call.", ephemeral=True)
 				await self.hide()
@@ -341,9 +357,7 @@ class PathView(discord.ui.View):
 			self.add_item(sel)
 		if hasattr(self.path, 'bracket'):
 			sel = BracketSelect(self.path)
-			print(f"init: {self.path.tournament}")
 			if self.path.tournament != None:
-				print("Firing bsel")
 				await sel.init()
 				self.add_item(sel)
 		if len(self.path.charts) > 0:
@@ -415,7 +429,7 @@ class CHCmds(commands.Cog):
 	async def getScreenSten(self, ctx: discord.ApplicationContext, msg: discord.Message):
 		resp = await ctx.defer(invisible=True)
 		if len(msg.attachments) < 1:
-			await ctx.respond("No screenshot attached to this post!", delete_after=5)
+			await ctx.respond("No screenshot attached to this post!", delete_after=10)
 		elif len(msg.attachments) >= 1:
 			#Only gets first screenshot if multiple are attached
 			submission = msg.attachments[0]
@@ -424,7 +438,7 @@ class CHCmds(commands.Cog):
 		stegData = await steg.getStegInfo(submission)
 
 		if stegData == None:
-			await ctx.respond("Submitted screenshot is not a valid in-game Clone Hero screenshot", delete_after=5)
+			await ctx.respond("Submitted screenshot is not a valid in-game Clone Hero screenshot", delete_after=10)
 			return
 
 		embed = steg.buildStatsEmbed("Screenshot Results")
