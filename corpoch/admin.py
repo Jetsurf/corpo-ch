@@ -38,7 +38,7 @@ class ChartAdmin(admin.ModelAdmin):
 
 	@mark_safe
 	def _icon(self, obj):
-		return f'<img src="{obj.icon.img.url}" width="{obj.icon.img.width/3}" height="{obj.icon.img.height/3}"'
+		return f'<img src="{obj.icon.img.url}" width="24" height="24"'
 
 	@admin.action(description="Run Encore import")
 	def run_encore_import(modeladmin, request, queryset):

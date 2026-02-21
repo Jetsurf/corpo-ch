@@ -250,16 +250,12 @@ class DiscordQualifierView(discord.ui.View):
 class QualifierCmds(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
-		self._views = {}
 
 		#TODO - add check to limit only one command run open at once - can cause multiple player object if ran 2x then submit through both
 
 	@commands.slash_command(name='qualifier', description='Submit a qualifier score for a tournament/bracket', integration_types={discord.IntegrationType.guild_install})
 	async def qualifierSubmitCmd(self, ctx):
-		if self._views[ctx.user]:
-			await view.stop()
 		view = DiscordQualifierView(ctx)
-		self._views[ctx.user] = view
 		await view.init()
 
 def setup(bot):

@@ -272,18 +272,19 @@ class EncoreClient:
 				d[i] =  query[i]
 			else:
 				d[i] = { 'value' : query[i], 'exact' : self.exact, 'exclude' : False }
+		if d['instrument'] == 'drums':#Drum results don't return right w/o this
+			d['drumsReviewed'] = False
 		resp = self._session.post(self._encore['adv'], data = json.dumps(d))
-
-		print(f"DEBUG: resp: {resp} text: {resp.text}\nQuery{d}")
+		#print(f"DEBUG: resp: {resp} text: {resp.text}\nQuery{d}")
+		#print(f"Query: {d}")
 		theJson = resp.json()['data']
-		#remove dupelicate chart entries from search
 		#print(json.dumps(theJson, indent=4))
+		#remove dupelicate chart entries from search
 		for i, chart1 in enumerate(theJson):
 			for j, chart2 in enumerate(theJson):
 				if chart1['ordering'] == chart2['ordering'] and i != j:
 					del theJson[j]
 
-		
 		retData = []
 		atts = ['name', 'artist','md5','charter','album','hasVideoBackground', 'icon']
 		for i, v in enumerate(theJson):
@@ -320,7 +321,8 @@ class CHOpt:
 		whammy: int = 0
 		squeeze: int = 0
 		speed: int = 100
-		output_path: bool = True
+		lazy: int = 0
+		delay: int = 0
 		instrument: CH_INSTRUMENTS = CH_INSTRUMENTS[0]
 		difficulty: CH_DIFFICULTIES = CH_DIFFICULTIES[0]
 
@@ -369,8 +371,11 @@ class CHOpt:
 	def gen_path(self, chart) -> str:
 		if isinstance(chart, Chart):
 			content = self._encore.download_from_url(chart.url)
+			instrument = chart.instrument
+			print(f"Chart inst {instrument}")
 		elif isinstance(chart, dict):
 			content = self._encore.download_from_chart(chart)
+			instrument = self.opts.instrument[0]
 		else:
 			raise TypeError("CHOPT: gen_path called incorrectly, chart not type Chart or encore chart dict")
 
@@ -379,7 +384,8 @@ class CHOpt:
 		
 		outPng = f"{self._output}/{self._file_id}.png"
 		print(f"CHOPT: Output PNG: {outPng}")
-		choptCall = f"{self._chopt} -s {self.opts.speed} --ew {self.opts.whammy} --sqz {self.opts.squeeze} -f {self._tmp}/notes.chart -i {self.opts.instrument} -d {self.opts.difficulty} {'' if self.opts.output_path else '-b'} -o {outPng}"
+		self.opts.instrument[0]
+		choptCall = f"{self._chopt} -s {self.opts.speed} --ew {self.opts.whammy} --sqz {self.opts.squeeze} -f {self._tmp}/notes.chart -i {instrument} -d {self.opts.difficulty[0]} --lazy {self.opts.lazy} --delay {self.opts.delay} -o {outPng}"
 		try:
 			subprocess.run(choptCall, check=True, shell=True, stdout=subprocess.DEVNULL)
 		except Exception as e:
@@ -416,13 +422,8 @@ class Hydra:
 		else:
 			output = analyze_chart_bytes_mid(self._chart.chart, self.opts.difficulty, self.opts.pro, self.opts.bass2x, self.opts.depth_mode, self.opts.depth)
 
-		self.output = []
-		for path in output:
-			self.output.append(path)
-			print(f"HYDRA: OUTPUT: {path}")
-
-		self.output = output
-		return output
+		self.output = [(p.pathstring(), p.totalscore()) for p in output.all_paths()]
+		return self.output
 
 
 class CHStegTool:
@@ -532,7 +533,7 @@ class GSheets():
 		if not self._gc:
 			raise RuntimeError("Gsheels API: API Key invalid/failed to login")
 
-	def set_submission(submission: typing.Union[TournamentMatchOngoing, TournamentMatchCompleted, Qualifier]):
+	def set_submission(self, submission: typing.Union[TournamentMatchOngoing, TournamentMatchCompleted, Qualifier]):
 		self._submission = submission
 		if isinstance(self._submission, QualifierSubmission):
 			self._tourney = self._submission.qualifier.tournament
@@ -547,14 +548,11 @@ class GSheets():
 			self._bracket = self._submission.group.bracket
 			self._url = self._tourney.config.gsheet
 
-		if not self._url or self._url == "":
-			self.create_sheet()
-		else:
-			try:
-				self._sheet = self._gc.open_by_url(self._url)
-			except Exception as e:
-				print(f"Error opening GSheet {self._url} failed with exception {e}")
-				raise e
+		try:
+			self._sheet = self._gc.open_by_url(self._url)
+		except Exception as e:
+			print(f"Error opening GSheet {self._url} failed with exception {e}")
+			raise e
 		#Load relevant workspace in sheet
 		if isinstance(self._submission, QualifierSubmission):
 			try:
@@ -574,18 +572,8 @@ class GSheets():
 
 		self._ws = ws
 
-	def create_sheet(self):
-		if isinstance(self._submission, QualifierSubmission):
-			print(f"Creating new qualifier sheet for {self._submission.qualifier}")
-			self._sheet = self._gc.create(f"{self._submission.qualifier} - Qualifier Sheet")
-		else:
-			print(f"Creating new match data sheet for {self._tourney}")
-		from django.contrib.auth import get_user_model
-		for usr in get_user_model().objects.all():
-			self._sheet.share(usr.email, "user", 'owner')
-
 	def setup_qualifier_sheet(self) -> gspread.Worksheet:
-		print(f"Creating qualifier {self._submission._qualifier} worksheet in sheet {self._url}")
+		print(f"Creating qualifier {self._submission.qualifier} worksheet in sheet {self._url}")
 		ws = self._sheet.add_worksheet(title=f"{self._submission.qualifier} - Data", rows=1, cols=12)
 		ws.update([["Discord Name", "Clone Hero Name", "Score", "Notes Missed", "Notes Hit", "Overstrums", "Ghosts", "Phrases Earned", "Submission Timestamp", "Screenshot Timestamp", "Image URL", "Game Version" ]], "A1:L1")
 		ws.format("A1:L1", self._format_header)

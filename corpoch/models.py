@@ -45,7 +45,7 @@ CH_DIFFICULTIES = (
 
 CHART_CATEGORIES = (
 	("hybrid", "Hybrid"),
-	("solo", "Solo"),
+	("fret", "Fret"),
 	("strum", "Strum"),
 	("sprint", "Sprint"),
 	("marathon", "Marathon"),
@@ -58,7 +58,7 @@ TIEBREAKER_RULESETS = (
 )
 
 class GSheetAPI(models.Model):
-	api_key = EncryptedJSONField(null=False, blank=True, default=dict, encoder=DjangoJSONEncoder)
+	api_key = EncryptedJSONField(null=False, blank=True, default=dict)
 	sa_name = models.CharField(verbose_name="API Service Account Name", max_length=96)
 	#ONLY ONE KEY SHOULD BE IN THIS TABLE
 
@@ -87,7 +87,7 @@ class Chart(models.Model):
 	instrument = models.CharField(verbose_name="Instrument", choices=CH_INSTRUMENTS, max_length=32, default=CH_INSTRUMENTS[0][0])
 	modifiers = MultiSelectField("Modifiers", choices=CH_MODIFIERS, default=CH_MODIFIERS[0][0])
 	speed = models.PositiveIntegerField(verbose_name="Speed", validators=[MinValueValidator(5), MaxValueValidator(1000)], default=100)
-	category = models.CharField(verbose_name="Chart Category", max_length=16, default="Hybrid")#This needs to be choices
+	category = models.CharField(verbose_name="Chart Category", choices=CHART_CATEGORIES, max_length=16, default=CHART_CATEGORIES[0][0])#This needs to be choices
 	brackets = models.ManyToManyField("TournamentBracket", related_name="setlist", verbose_name="Bracket Setlist", blank=True)
 	md5 = models.CharField(verbose_name="MD5 Hash", max_length=32, blank=True)
 	blake3 = models.CharField(verbose_name="Blake3 Hash", max_length=32, blank=True)

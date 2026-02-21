@@ -9,6 +9,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "DiscordOauth2.settings")
 from django.conf import settings
 
 BASE_URL = os.getenv("BASE_URL")
+MEDIA_ROOT = os.getenv("MEDIA_ROOT")
 
 CHOPT_PATH = os.getenv("CHOPT_PATH")
 CHOPT_OUTPUT = os.getenv("CHOPT_OUTPUT")
