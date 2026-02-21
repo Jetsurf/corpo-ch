@@ -49,6 +49,7 @@ CHART_CATEGORIES = (
 	("strum", "Strum"),
 	("sprint", "Sprint"),
 	("marathon", "Marathon"),
+	("none", "None"),
 )
 
 TIEBREAKER_RULESETS = (
