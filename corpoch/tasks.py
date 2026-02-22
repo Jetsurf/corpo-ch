@@ -1,5 +1,6 @@
 from celery import Celery, shared_task
 from celery.schedules import crontab
+from django.db import close_old_connections
 
 from corpoch.models import TournamentPlayer, QualifierSubmission, TournamentMatchOngoing, TournamentMatchCompleted
 from corpoch.providers import GSheets
@@ -7,9 +8,14 @@ app = Celery()
 
 @app.task
 def upload_qualifiers_gsheet():
+	close_old_connections()
 	qualis = QualifierSubmission.objects.all().filter(submitted=False)
-	print(f"Running gsheets upload")
+	sheet = GSheets()
+	sheet.login()
+	print(f"GSHEETS: Running gsheets upload for unsubmitted qualifiers")
 	for quali in qualis:
-		sheet = GSheets(quali)
-		sheet.init()
+		print(f"GSHEETS: Uploading ({quali}) to sheet")
+		sheet.set_submission(quali)
 		sheet.submit_qualifier()
+
+	close_old_connections()

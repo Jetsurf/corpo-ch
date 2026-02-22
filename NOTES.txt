@@ -2,9 +2,19 @@
 NOTE: I don't quite yet have the confidence to implement a lot of these yet, questionable design decisions are not intentional
 "Known" issues:
  - These async_to_sync/needing to account for dbot is still messy - move to celery tasks for both directions
- - These very likely need to break apart into their own separate django apps
+ - Tings very likely need to break apart into their own separate django apps - at a minimum separate Discord model fields from corpoch
  - Pydantic basemodel to steg model fields is a better idea/route
  - Admin views need to limit options in selectons for objects
  - User view needs to be made
  - Air table/Live match html needs to be made
+ - Discord bot views should be moved to their own folder to break the file sizes up
 
+File uploads - this should be a heck of a lot cleaner
+```
+def upload_to(instance, filename):
+    return f"uploads/{instance.user.id}/{filename}"
+
+class Profile(models.Model):
+    user = models.OneToOneField('auth.User', on_delete=models.CASCADE)
+    avatar = models.ImageField(upload_to=upload_to)
+```
