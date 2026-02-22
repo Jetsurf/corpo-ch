@@ -342,6 +342,7 @@ class CHOpt:
 		self.img = None
 		self.img_path = ""
 		self.img_name = ""
+		self._delete = True
 		self._file_id = uuid.uuid1()
 
 		#Create dirs
@@ -353,7 +354,8 @@ class CHOpt:
 	def __del__(self):
 		if self.img:
 			self.img.close()
-			os.remove(self.img_path)
+			if self._delete:
+				os.remove(self.img_path)
 		if self._tmp != "":
 			shutil.rmtree(self._tmp)
 
@@ -371,6 +373,7 @@ class CHOpt:
 
 	def save_for_upload(self):
 		self.img.save(f"{self._output}/{self.img_name}", "PNG")
+		self._delete = False
 
 	def gen_path(self, chart: typing.Union[dict, Chart]) -> str:
 		if isinstance(chart, Chart):
