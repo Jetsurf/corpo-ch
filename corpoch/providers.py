@@ -45,10 +45,14 @@ class SNGHandler:
 			self._files = results
 
 	@property
-	def songini(self) -> bytes:
+	def songini(self, sanitize=True) -> bytes:
 		for row in self._files:
 			filename = row[0]
 			if "song.ini" in filename:
+				if sanitize:
+					print(f"ROW: {row}")
+					row[1] = re.sub(b"(?:<[^>]*>)", b"", row[1])
+					print(f'SANITIZED: {row[1]}')
 				return row[1]
 
 	@property
@@ -354,13 +358,17 @@ class CHOpt:
 		if self._tmp != "":
 			shutil.rmtree(self._tmp)
 
-	def _prep_chart(self, chart, sngini):
+	def _prep_chart(self):
 		self._tmp = f"{self._scratch}/{self._file_id}"
 		os.makedirs(self._tmp)
-		with open(f"{self._tmp}/notes.chart", 'wb') as f:
-			f.write(chart)
+		if self._sng.is_chart_format:
+			with open(f"{self._tmp}/notes.chart", "wb") as f:
+				f.write(self._sng.chart)
+		else:
+			with open(f"{self._tmp}/notes.mid", "wb") as f:
+				f.write(self._sng.chart)
 		with open(f"{self._tmp}/song.ini", 'wb') as f:
-			f.write(sngini)
+			f.write(self._sng.songini)
 
 	def save_for_upload(self):
 		self.img.save(f"{self._output}/{self.img_name}", "PNG")
@@ -374,21 +382,22 @@ class CHOpt:
 			content = self._encore.download_from_chart(chart)
 			chartName = chart['name']
 
-		sng = SNGHandler(content)
-		self._prep_chart(sng.chart, sng.songini)
+		self._sng = SNGHandler(content)
+		self._prep_chart()
 		self._out_png = f"{self._output}/{self._file_id}.png"
-		choptCall = f"{self._chopt} -s {self.opts.speed} --ew {self.opts.whammy} --sqz {self.opts.squeeze} -f {self._tmp}/notes.chart -i {self.opts.instrument[0]} -d {self.opts.difficulty[0]} --lazy {self.opts.lazy} --delay {self.opts.delay} -o {self._out_png}"
+		choptCall = f"{self._chopt} -s {self.opts.speed} --ew {self.opts.whammy} --sqz {self.opts.squeeze} -f {self._tmp}/{'notes.chart' if self._sng.is_chart_format else 'notes.mid'} -i {self.opts.instrument[0]} -d {self.opts.difficulty[0]} --lazy {self.opts.lazy} --delay {self.opts.delay} -o {self._out_png}"
 		try:
 			subprocess.run(choptCall, check=True, shell=True, stdout=subprocess.DEVNULL)
 		except Exception as e:
 			print(f"CHOpt call failed with exception: {e}")
-		print(f"CHOPT: Output PNG: {self._out_png}")
-		self.url = f"{self._url}/{self._file_id}.png"
+
 		try:
 			self.img = Image.open(self._out_png)
 		except:
 			return None
 
+		print(f"CHOPT: Output PNG: {self._out_png}")
+		self.url = f"{self._url}/{self._file_id}.png"
 		self.img_path = self._out_png
 		self.img_name = f"{self._file_id}.png"
 		return self.url
