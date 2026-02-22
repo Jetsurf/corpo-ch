@@ -11,12 +11,13 @@ from corpoch.models import GSheetAPI, Chart, Tournament, TournamentMatchComplete
 from corpoch.utils.hydra.hydra.hyutil import analyze_chart_bytes_chart, analyze_chart_bytes_mid
 
 class SNGHandler:
-	def __init__(self, submission: Union[str,bytes], playlist: str=None):
+	def __init__(self, submission: Union[str,bytes], playlist: str=None, sanitize=True):
 		if not ((isinstance(submission, bytes) and submission[:6].decode('utf-8') == "SNGPKG") or 
 			(os.path.isfile(os.path.join(submission,"song.ini")) and 
 			(os.path.isfile(os.path.join(submission,"notes.chart")) or os.path.isfile(os.path.join(submission,"notes.mid"))))):
 			raise TypeError("Submission must be a directory of a single chart or the bytes of an .sng")
 		self._playlist = playlist
+		self._sanitize = sanitize
 		
 		if isinstance(submission, bytes):
 			self._files = self.get_sng_files(submission)
@@ -45,11 +46,11 @@ class SNGHandler:
 			self._files = results
 
 	@property
-	def songini(self, sanitize=True) -> bytes:
+	def songini(self) -> bytes:
 		for row in self._files:
 			filename = row[0]
 			if "song.ini" in filename:
-				if sanitize:
+				if self._sanitize:
 					row[1] = re.sub(b"(?:<[^>]*>)", b"", row[1])
 				return row[1]
 
