@@ -4,8 +4,6 @@ from typing import Union
 from random import randbytes
 from PIL import Image, ImageEnhance
 from django.db import models
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from time import perf_counter as time
 
 from corpoch import __user_agent__
 from corpoch import settings 

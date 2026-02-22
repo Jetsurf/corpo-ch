@@ -232,7 +232,7 @@ class ChartSelect(discord.ui.Select):
 	async def callback(self, interaction: discord.Interaction):
 		self.path.chart = self.retOpts[self.values[0]]
 		if isinstance(self.path.chart, Chart):
-			self.chopt.opts.instrument = self.path.chart.instrument
+			self.path.chopt.opts.instrument = self.path.chart.instrument
 		await interaction.response.defer(ephemeral=True)
 		await self.path.show()
 
