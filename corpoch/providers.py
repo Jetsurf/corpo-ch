@@ -50,9 +50,7 @@ class SNGHandler:
 			filename = row[0]
 			if "song.ini" in filename:
 				if sanitize:
-					print(f"ROW: {row}")
 					row[1] = re.sub(b"(?:<[^>]*>)", b"", row[1])
-					print(f'SANITIZED: {row[1]}')
 				return row[1]
 
 	@property
