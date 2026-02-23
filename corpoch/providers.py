@@ -421,7 +421,7 @@ class Hydra:
 		else:
 			output = analyze_chart_bytes_mid(self._chart.chart, self.opts.difficulty, self.opts.pro, self.opts.bass2x, self.opts.depth_mode, self.opts.depth)
 
-		self.output = [(p.pathstring(), p.totalscore()) for p in output.all_paths()]
+		self.output = [(p.pathstring(), p.totalscore(), p.multsqueezes) for p in output.all_paths()]
 		return self.output
 
 

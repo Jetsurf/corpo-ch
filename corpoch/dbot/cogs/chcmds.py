@@ -326,7 +326,10 @@ class Path():
 			embed.add_field(name="Hydra Path For", value=f"{self.chart["name"]} - {self.chart["artist"]} - {self.chart["album"]} - {self.chart["charter"]} - {self.instrument[1]}", inline=False)
 		pathStr = ""
 		for p in self.hydra.output:
-			pathStr += f"{p[0]}		{p[1]}\n"
+			if len(p[2]) > 0:
+				multSqueezeStr = ", ".join([f"{ms.multiplier}x" for ms in p[2]])
+				pathStr += f"{multSqueezeStr} | "
+			pathStr += f"{p[0]} | (Score: {p[1]})\n"
 		embed.add_field(name="Path", value=pathStr, inline=False)
 		self.addEmbedToolField(embed)
 		return embed
