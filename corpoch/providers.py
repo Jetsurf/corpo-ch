@@ -11,12 +11,13 @@ from corpoch.models import GSheetAPI, Chart, Tournament, TournamentMatchComplete
 from corpoch.utils.hydra.hydra.hyutil import analyze_chart_bytes_chart, analyze_chart_bytes_mid
 
 class SNGHandler:
-	def __init__(self, submission: Union[str,bytes], playlist: str=None):
+	def __init__(self, submission: Union[str,bytes], playlist: str=None, sanitize=True):
 		if not ((isinstance(submission, bytes) and submission[:6].decode('utf-8') == "SNGPKG") or 
 			(os.path.isfile(os.path.join(submission,"song.ini")) and 
 			(os.path.isfile(os.path.join(submission,"notes.chart")) or os.path.isfile(os.path.join(submission,"notes.mid"))))):
 			raise TypeError("Submission must be a directory of a single chart or the bytes of an .sng")
 		self._playlist = playlist
+		self._sanitize = sanitize
 		
 		if isinstance(submission, bytes):
 			self._files = self.get_sng_files(submission)
@@ -49,6 +50,8 @@ class SNGHandler:
 		for row in self._files:
 			filename = row[0]
 			if "song.ini" in filename:
+				if self._sanitize:
+					row[1] = re.sub(b"(?:<[^>]*>)", b"", row[1])
 				return row[1]
 
 	@property
@@ -339,6 +342,7 @@ class CHOpt:
 		self.img = None
 		self.img_path = ""
 		self.img_name = ""
+		self._delete = True
 		self._file_id = uuid.uuid1()
 
 		#Create dirs
@@ -350,50 +354,53 @@ class CHOpt:
 	def __del__(self):
 		if self.img:
 			self.img.close()
-			os.remove(self.img_path)
+			if self._delete:
+				os.remove(self.img_path)
 		if self._tmp != "":
 			shutil.rmtree(self._tmp)
 
-	def _prep_chart(self, chart, sngini):
+	def _prep_chart(self):
 		self._tmp = f"{self._scratch}/{self._file_id}"
 		os.makedirs(self._tmp)
-		with open(f"{self._tmp}/notes.chart", 'wb') as f:
-			f.write(chart)
-
+		if self._sng.is_chart_format:
+			with open(f"{self._tmp}/notes.chart", "wb") as f:
+				f.write(self._sng.chart)
+		else:
+			with open(f"{self._tmp}/notes.mid", "wb") as f:
+				f.write(self._sng.chart)
 		with open(f"{self._tmp}/song.ini", 'wb') as f:
-			f.write(sngini)
-
-		return self._tmp
+			f.write(self._sng.songini)
 
 	def save_for_upload(self):
 		self.img.save(f"{self._output}/{self.img_name}", "PNG")
+		self._delete = False
 
-	def gen_path(self, chart) -> str:
+	def gen_path(self, chart: typing.Union[dict, Chart]) -> str:
 		if isinstance(chart, Chart):
 			content = self._encore.download_from_url(chart.url)
-			instrument = chart.instrument
+			chartName = chart.name
+			self.opts.instrument = chart.instrument
 		elif isinstance(chart, dict):
 			content = self._encore.download_from_chart(chart)
-			instrument = self.opts.instrument[0]
-		else:
-			raise TypeError("CHOPT: gen_path called incorrectly, chart not type Chart or encore chart dict")
+			chartName = chart['name']
 
-		sng = SNGHandler(content)
-		chartFile = self._prep_chart(sng.chart, sng.songini)
-		
-		outPng = f"{self._output}/{self._file_id}.png"
-		print(f"CHOPT: Output PNG: {outPng}")
-		self.opts.instrument[0]
-		choptCall = f"{self._chopt} -s {self.opts.speed} --ew {self.opts.whammy} --sqz {self.opts.squeeze} -f {self._tmp}/notes.chart -i {instrument} -d {self.opts.difficulty[0]} --lazy {self.opts.lazy} --delay {self.opts.delay} -o {outPng}"
+		self._sng = SNGHandler(content)
+		self._prep_chart()
+		self._out_png = f"{self._output}/{self._file_id}.png"
+		choptCall = f"{self._chopt} -s {self.opts.speed} --ew {self.opts.whammy} --sqz {self.opts.squeeze} -f {self._tmp}/{'notes.chart' if self._sng.is_chart_format else 'notes.mid'} -i {self.opts.instrument[0]} -d {self.opts.difficulty[0]} --lazy {self.opts.lazy} --delay {self.opts.delay} -o {self._out_png}"
 		try:
 			subprocess.run(choptCall, check=True, shell=True, stdout=subprocess.DEVNULL)
 		except Exception as e:
 			print(f"CHOpt call failed with exception: {e}")
+
+		try:
+			self.img = Image.open(self._out_png)
+		except:
 			return None
 
+		print(f"CHOPT: Output PNG: {self._out_png}")
 		self.url = f"{self._url}/{self._file_id}.png"
-		self.img = Image.open(outPng)
-		self.img_path = outPng
+		self.img_path = self._out_png
 		self.img_name = f"{self._file_id}.png"
 		return self.url
 

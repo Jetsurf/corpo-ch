@@ -2,7 +2,6 @@ import os
 from dotenv import load_dotenv
 from pathlib import Path
 from celery.schedules import crontab
-from cryptography.fernet import Fernet
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "DiscordOauth2.settings")
 

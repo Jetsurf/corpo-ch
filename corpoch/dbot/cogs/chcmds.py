@@ -120,7 +120,6 @@ class EncoreModal(discord.ui.DesignerModal):
 			retData['instrument'] = self.children[4].item.values[0]
 			for inst in CH_INSTRUMENTS:
 				if inst[0] == self.children[4].item.values[0]:
-					self.path.instrument = inst
 					self.path.chopt.opts.instrument = inst
 					break
 
@@ -232,7 +231,8 @@ class ChartSelect(discord.ui.Select):
 
 	async def callback(self, interaction: discord.Interaction):
 		self.path.chart = self.retOpts[self.values[0]]
-
+		if isinstance(self.path.chart, Chart):
+			self.path.chopt.opts.instrument = self.path.chart.instrument
 		await interaction.response.defer(ephemeral=True)
 		await self.path.show()
 
@@ -242,7 +242,6 @@ class Path():
 		self.ctx = ctx
 		self.user = ctx.user
 		self.encore = EncoreClient(exact=False)
-		self.instrument = "guitar"
 		self.chopt = CHOpt()
 		self.hydra = Hydra()
 		#self.tournament = None #Here as a kindness - presence of these attrs flags touney search enabled
@@ -259,7 +258,7 @@ class Path():
 		await self.ctx.interaction.delete_original_response()
 
 	async def showResult(self, interaction):
-		if self.instrument[0] == 'drums':
+		if self.chopt.opts.instrument[0] == 'drums':
 			self.hydra.gen_path(self.chart)
 			if not self.hydra.output:
 				await interaction.followup.send("Path generation died on Hydra call.", ephemeral=True)
@@ -274,7 +273,7 @@ class Path():
 				await interaction.followup.send("Path generation died on CHOpt call.", ephemeral=True)
 				await self.hide()
 		
-		if self.instrument[0] == "drums":
+		if self.chopt.opts.instrument[0] == "drums":
 			await interaction.followup.send(embed=self.genHydraResultEmbed())
 		else:
 			await interaction.followup.send(embed=self.genCHOptResultEmbed(), ephemeral=True)
@@ -313,7 +312,7 @@ class Path():
 		return embed
 
 	def addEmbedToolField(self, embed: discord.Embed):
-		if self.instrument[0] == 'drums':
+		if self.chopt.opts.instrument[0] == 'drums':
 			embed.add_field(name="Hydra Options Used", value=f"Kick/Bass 2x: {self.hydra.opts.bass2x}\nPro Drums: {self.hydra.opts.pro}\nDepth Mode: {self.hydra.opts.depth_mode}\nDepth Value: {self.hydra.opts.depth}", inline=False)
 		else:
 			embed.add_field(name="CHOpt Options Used", value=f"Early Whammy: {self.chopt.opts.whammy}%\nSqueeze: {self.chopt.opts.squeeze}%\nSong Speed: {self.chopt.opts.speed}%\nLazy Whammy: {self.chopt.opts.lazy}ms\nWhammy Delay: {self.chopt.opts.delay}ms", inline=False)
@@ -323,7 +322,7 @@ class Path():
 		if isinstance(self.chart, Chart):
 			embed.add_field(name="Hydra Path For", value=f"{self.chart.name} - {self.chart.artist} - {self.chart.album} - {self.chart.charter} - {self.chart.instrument}", inline=False)
 		else:
-			embed.add_field(name="Hydra Path For", value=f"{self.chart["name"]} - {self.chart["artist"]} - {self.chart["album"]} - {self.chart["charter"]} - {self.instrument[1]}", inline=False)
+			embed.add_field(name="Hydra Path For", value=f"{self.chart["name"]} - {self.chart["artist"]} - {self.chart["album"]} - {self.chart["charter"]} - {self.chopt.opts.instrument[1]}", inline=False)
 		pathStr = ""
 		for p in self.hydra.output:
 			if len(p[2]) > 0:
@@ -336,11 +335,10 @@ class Path():
 
 	def genCHOptResultEmbed(self) -> discord.Embed:
 		embed = self.genEmbedBase()
-		embed.set_image(url=self.chopt.url)
 		if isinstance(self.chart, Chart):
 			embed.add_field(name="CHOpt Path For", value=f"{self.chart.name} - {self.chart.artist} - {self.chart.album} - {self.chart.charter} - {self.chart.instrument}", inline=False)
 		else:
-			embed.add_field(name="CHOpt Path For", value=f"{self.chart["name"]} - {self.chart["artist"]} - {self.chart["album"]} - {self.chart["charter"]} - {self.instrument[1]}", inline=False)
+			embed.add_field(name="CHOpt Path For", value=f"{self.chart["name"]} - {self.chart["artist"]} - {self.chart["album"]} - {self.chart["charter"]} - {self.chopt.opts.instrument[1]}", inline=False)
 		self.addEmbedToolField(embed)
 		embed.add_field(name="Image Link", value=f"[Link to Image]({self.chopt.url})", inline=False)
 		return embed
@@ -391,9 +389,7 @@ class PathView(discord.ui.View):
 	@discord.ui.button(label="Tourney Search", style=discord.ButtonStyle.secondary, custom_id="tourney")
 	async def tourneyBtn(self, button, interaction: discord.Interaction):
 		await self.clear()
-		#try:
-		#	self.path.tournament = await Tournament.objects.aget(guild=self.path.ctx.guild.id, active=True)	
-		#except Tournament.DoesNotExist:
+		#May be good to set the "default" tournament to discord guild - removed as it caused issues w/ empty setlist tournaments
 		self.path.tournament = None
 		self.path.bracket = None
 		self.charts = []
@@ -402,7 +398,7 @@ class PathView(discord.ui.View):
 
 	@discord.ui.button(label='Options', style=discord.ButtonStyle.secondary, custom_id="opts")
 	async def optsBtn(self, button, interaction: discord.Interaction):
-		if self.path.instrument[0] == 'drums':
+		if self.path.chopt.opts.instrument[0] == 'drums':
 			optsModal = HydraModal(self.path, title="Options to use for Hydra")
 		else:
 			optsModal = CHOptModal(self.path, title="Options to use for CHOpt")
