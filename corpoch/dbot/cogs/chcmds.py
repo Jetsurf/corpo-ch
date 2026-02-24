@@ -14,42 +14,42 @@ class CHOptModal(discord.ui.DesignerModal):
 		self.path = path
 		args += (discord.ui.Label("Early Whammy % (0-100)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value='0')),)
 		args += (discord.ui.Label("Squeeze % (0-100)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value='0')),)
-		args += (discord.ui.Label("Song Speed (0-1000)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value=100)),)
+		args += (discord.ui.Label("Song Speed (10-500)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value=100)),)
 		args += (discord.ui.Label("Lazy Whammy (ms 0-10000)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value='0')),)
 		args += (discord.ui.Label("Whammy Delay (ms 0-10000)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value='0')),)
 		super().__init__(*args, **kwargs)
 		self.title = "CHOpt Options"
 
 	async def callback(self, interaction: discord.Interaction):
-		if not self.children[1].item.value.isdigit() and not int(self.children[0].item.value) >= 0 or not int(self.children[0].item.value) <= 100:
+		if not self.children[1].item.value.isdigit() or not (0 <= int(self.children[0].item.value) <= 100):
 			await interaction.response.send_message("Invalid whammy value, please use a number between 0 and 100", ephemeral=True)
 			self.stop()
 			return
 		else:
 			self.path.chopt.opts.whammy = int(self.children[0].item.value)
 
-		if not self.children[1].item.value.isdigit() and not int(self.children[1].item.value) >= 0 or not int(self.children[1].item.value) <= 100:
+		if not self.children[1].item.value.isdigit() or not (0 <= int(self.children[1].item.value) <= 100):
 			await interaction.response.send_message("Invalid squeeze value, please use a number between 0 and 100", ephemeral=True)
 			self.stop()
 			return
 		else:
 			self.path.chopt.opts.squeeze = int(self.children[1].item.value)
 
-		if not self.children[2].item.value.isdigit() and not int(self.children[2].item.value) >= 10 or not int(self.children[2].item.value) <= 1000:
-			await interaction.response.send_message("Invalid speed value, please use a number between 10 and 250", ephemeral=True)
+		if not self.children[2].item.value.isdigit() or not (10 <= int(self.children[2].item.value) <= 500):
+			await interaction.response.send_message("Invalid speed value, please use a number between 10 and 500", ephemeral=True)
 			self.stop()
 			return
 		else:
 			self.path.chopt.opts.speed = int(self.children[2].item.value)
 
-		if not self.children[3].item.value.isdigit() and not int(self.children[3].item.value) >= 0 or not int(self.children[3].item.value) <= 10000:
+		if not self.children[3].item.value.isdigit() or not (0 <= int(self.children[3].item.value) <= 10000):
 			await interaction.response.send_message("Invalid lazy whammy value, please use a number between 0 and 10000", ephemeral=True)
 			self.stop()
 			return
 		else:
 			self.path.chopt.opts.lazy = int(self.children[3].item.value)
 
-		if not self.children[4].item.value.isdigit() and not int(self.children[4].item.value) >= 10 or not int(self.children[4].item.value) <= 10000:
+		if not self.children[4].item.value.isdigit() or not (0 <= int(self.children[4].item.value) <= 10000):
 			await interaction.response.send_message("Invalid whammy delay value, please use a number between 0 and 10000", ephemeral=True)
 			self.stop()
 			return
@@ -138,16 +138,11 @@ class TournamentSelect(discord.ui.Select):
 		active = None
 		opts = []
 		async for tourney in Tournament.objects.all():
-			lenB = len([b async for b in tourney.brackets.select_related()])
 			hasSetlist = False
-			if lenB == 0:
-				continue
-			if lenB > 0:
-				async for bracket in tourney.brackets.select_related():
-					lenC = len([b async for b in bracket.setlist.select_related()])
-					if lenC > 0:
-						hasSetlist = True
-						break
+			async for bracket in tourney.brackets.select_related():
+				if bracket.revealed:
+					hasSetlist = True
+					break
 
 			if not hasSetlist:
 				continue
@@ -180,8 +175,9 @@ class BracketSelect(discord.ui.Select):
 	async def init(self):
 		opts = []
 		async for bracket in self.path.tournament.brackets.select_related():
-			self.retOpts[str(bracket)] = bracket
-			opts.append(discord.SelectOption(label=str(bracket)))
+			if bracket.revealed:
+				self.retOpts[str(bracket)] = bracket
+				opts.append(discord.SelectOption(label=str(bracket)))
 
 		if self.path.bracket:
 			super().__init__(placeholder=str(self.path.bracket), options=opts, custom_id="bracket_sel")
@@ -325,7 +321,7 @@ class Path():
 			embed.add_field(name="Hydra Path For", value=f"{self.chart["name"]} - {self.chart["artist"]} - {self.chart["album"]} - {self.chart["charter"]} - {self.chopt.opts.instrument[1]}", inline=False)
 		pathStr = ""
 		for p in self.hydra.output:
-			pathStr += f"{p[0]}		{p[1]}\n"
+			pathStr += f"{p}\n"
 		embed.add_field(name="Path", value=pathStr, inline=False)
 		self.addEmbedToolField(embed)
 		return embed

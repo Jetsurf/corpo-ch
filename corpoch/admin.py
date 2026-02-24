@@ -4,7 +4,7 @@ from adminsortable2.admin import CustomInlineFormSet, SortableAdminBase, Sortabl
 
 from django.contrib import admin
 from django.contrib.contenttypes.models import ContentType
-from corpoch.models import Chart, Tournament, TournamentConfig, TournamentBracket, Qualifier, TournamentPlayer, GroupSeed, MatchRound, CHIcon
+from corpoch.models import Chart, Tournament, TournamentConfig, BracketRules, TournamentBracket, Qualifier, TournamentPlayer, GroupSeed, MatchRound, CHIcon
 from corpoch.models import TournamentMatchCompleted, TournamentMatchOngoing, BracketGroup, QualifierSubmission, CH_MODIFIERS, MatchBan, GSheetAPI
 from corpoch.providers import EncoreClient
 from django.utils.html import mark_safe
@@ -53,9 +53,14 @@ class ChartAdmin(admin.ModelAdmin):
 				print(f"Chart {chart.name} returned multiple results")
 
 			newChart = search[0]
+			try:
+				icon = CHIcon.objects.get(name=newChart['icon'])
+			except CHIcon.DoesNotExist:
+				icon = CHIcon.objects.get(name="ch")
+
 			chart.url = encore.url(newChart)
 			chart.name = newChart['name']
-			chart.icon = CHIcon.objects.get(name=newChart['icon'])
+			chart.icon = icon
 			chart.blake3 = newChart['md5'] #Encore's md5 uses blake3
 			chart.md5 = encore.get_md5_from_chart(newChart)
 			chart.album = newChart['album']
@@ -72,10 +77,15 @@ class TournamentAdmin(admin.ModelAdmin):
 	list_display = ('name', 'guild', 'active')
 	inlines = [TournamentConfigInline]
 
+class BracketRulesInline(admin.TabularInline):
+	model = BracketRules
+	extra = 0
+
 @admin.register(TournamentBracket)
 class TournamentBracketAdmin(admin.ModelAdmin):
 	list_display = ("_name", 'tournament')
 	list_filter = ['tournament']
+	inlines = [BracketRulesInline]
 
 	def _name(self, obj):
 		return f"{obj}"

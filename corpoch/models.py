@@ -44,18 +44,30 @@ CH_DIFFICULTIES = (
 )
 
 CHART_CATEGORIES = (
+	("none", "None"),
 	("hybrid", "Hybrid"),
 	("fret", "Fret"),
 	("strum", "Strum"),
 	("sprint", "Sprint"),
 	("marathon", "Marathon"),
-	("none", "None"),
 )
 
-TIEBREAKER_RULESETS = (
-	("", ""),
-	("", ""),
-	("", "")
+TB_RULESETS = (
+	("single", "Single TB"),
+	("csc", "CSC TB Rules"),
+	("banpick", "'NPDO' Ban/Pick"),
+	('refdecide', "Ref picks from unplayed"),
+)
+
+PICK_RULESETS = (
+	("loserpicks", "High Seed 1st Pick/Loser Picks"),
+	("alternate", "Alternate player picks"),
+)
+
+BAN_RULESETS = (
+	("default", "No Defer/High Seed first"),
+	("deferban", "High Seed can defer ban/picks first"),
+	("deferboth", "High Seed can defers both ban/pick"),
 )
 
 class GSheetAPI(models.Model):
@@ -84,7 +96,7 @@ class Chart(models.Model):
 	album = models.CharField(verbose_name="Album", max_length=256, blank=True)
 	charter = models.CharField(verbose_name="Charter", max_length=32, blank=True)
 	tiebreaker = models.BooleanField(verbose_name="Tiebreaker", default=False)
-	difficulty = models.CharField(verbose_name="Difficulty", choices=CH_DIFFICULTIES, max_length=16, default=CH_DIFFICULTIES[0][0], null=True)
+	difficulty = models.CharField(verbose_name="Difficulty", choices=CH_DIFFICULTIES, max_length=16, default=CH_DIFFICULTIES[0][0])
 	instrument = models.CharField(verbose_name="Instrument", choices=CH_INSTRUMENTS, max_length=32, default=CH_INSTRUMENTS[0][0])
 	modifiers = MultiSelectField("Modifiers", choices=CH_MODIFIERS, default=CH_MODIFIERS[0][0])
 	speed = models.PositiveIntegerField(verbose_name="Speed", validators=[MinValueValidator(5), MaxValueValidator(1000)], default=100)
@@ -171,18 +183,21 @@ class TournamentConfig(models.Model):
 	def __str__(self):
 		return f"{self.tournament.name} - Configuration"
 
+class BracketRules(models.Model):
+	bracket = models.OneToOneField('TournamentBracket', primary_key=True, related_name="ruleset", on_delete=models.CASCADE, verbose_name="Bracket Rules", null=False)
+	num_players = models.PositiveIntegerField(verbose_name="Players", validators=[MinValueValidator(2), MaxValueValidator(4)], default=2)
+	num_bans = models.IntegerField(verbose_name="Num Bans", validators=[MinValueValidator(1), MaxValueValidator(4)], default=1)
+	num_rounds = models.PositiveIntegerField(verbose_name="Best Of", validators=[MinValueValidator(3), MaxValueValidator(25)], default=7)
+	ban_ruleset = models.CharField(verbose_name="Match Bans Ruleset", choices=BAN_RULESETS, max_length=32, default=BAN_RULESETS[0][0])
+	pick_ruleset = models.CharField(verbose_name="'Who Picks' Ruleset", choices=PICK_RULESETS, max_length=32, default=PICK_RULESETS[0][0])
+	tb_ruleset = models.CharField(verbose_name="Tiebreaker Ruleset", choices=TB_RULESETS, max_length=32, default=TB_RULESETS[0][0])
+
 class TournamentBracket(models.Model):
 	id = models.AutoField(primary_key=True)
 	tournament = models.ForeignKey(Tournament, related_name="brackets", on_delete=models.CASCADE, verbose_name="Tournament")
-	num_players = models.PositiveIntegerField(verbose_name="Players", validators=[MinValueValidator(2), MaxValueValidator(4)], default=2)
-	num_rounds = models.PositiveIntegerField(verbose_name="Best Of", validators=[MinValueValidator(3), MaxValueValidator(25)], default=7)
-	num_bans = models.IntegerField(verbose_name="Num Bans", default=1)
-	allow_defer = models.BooleanField(verbose_name="Allow Ban Deferral", default=True)
-	defer_swap = models.BooleanField(verbose_name="Using Defer Alters First Pick", default=False)
-	last_loser_picks = models.BooleanField(verbose_name="Loser Last Round Picks", default=True)
-	tiebeaker_csc = models.BooleanField(verbose_name="Tibeaker CSC Rules", default=False)
-	score_log = models.BigIntegerField(verbose_name="Score Log Channel Discord ID", default=-1)
 	name = models.CharField(verbose_name="Bracket Name", max_length=128, default=f"New Bracket")
+	revealed = models.BooleanField("Setlist Revealed", default=False)
+	score_log = models.BigIntegerField(verbose_name="Score Log Channel Discord ID", default=-1)
 
 	class Meta:
 		verbose_name = "Bracket"
@@ -198,6 +213,11 @@ class TournamentBracket(models.Model):
 	@property
 	def short_name(self):
 		return self.name
+
+	def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
+		is_new = self.pk is None
+		super().save()
+		BracketRules.objects.create(bracket=self) if is_new or not self.ruleset else None
 
 class TournamentPlayer(models.Model): #TODO: This should be broken up a bit? Model fields for discord should move to dbot app
 	id = models.AutoField(primary_key=True)

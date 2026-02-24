@@ -2,7 +2,6 @@ from django.core.management.base import BaseCommand
 
 from corpoch.dbot import launcher
 
-
 class Command(BaseCommand):
     help = 'Run Corpoch Dbot'
 
