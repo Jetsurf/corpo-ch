@@ -4,7 +4,7 @@ import contextlib
 import logging
 import os
 import sys
-
+from django.utils import autoreload
 from .bot import CorpoDbot
 
 def run_bot():

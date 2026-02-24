@@ -55,3 +55,12 @@ async def add_bot_emoji(bot, name):
 			return
 	new = CHEmoji(id=emoji.id, icon=dbIcon)
 	await new.asave()
+
+async def reload_cog(bot, cog):
+	try:
+		print(f"Reloading cog: {cog}")
+		bot.unload_extension(cog)
+		bot.load_extension(cog)
+	except Exception as e:
+		print(f"Reloading cog: {cog} failed: {e}")
+

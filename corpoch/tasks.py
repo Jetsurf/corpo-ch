@@ -1,13 +1,25 @@
-from celery import Celery, shared_task
+from celery import Celery, shared_task, Task
 from celery.schedules import crontab
-from django.db import close_old_connections
+from django.db import close_old_connections, connection
 
 from corpoch.models import TournamentPlayer, QualifierSubmission, TournamentMatchOngoing, TournamentMatchCompleted
 from corpoch.providers import GSheets
+
 app = Celery()
 
+class ConnectionRefreshingTask(Task):
+	abstract = True
+ 
+	def before_start(self, task_id, args, kwargs):
+		self.refresh_connection()
+		super().before_start(task_id, args, kwargs)
+ 
+	def refresh_connection(self):
+		if not connection.is_usable():
+			connection.close()
+
 @app.task
-def upload_qualifiers_gsheet():
+def upload_qualifiers_gsheet(base=ConnectionRefreshingTask):
 	close_old_connections()
 	qualis = QualifierSubmission.objects.all().filter(submitted=False)
 	sheet = GSheets()

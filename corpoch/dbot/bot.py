@@ -9,6 +9,7 @@ from socket import timeout
 from django.apps import apps
 from corpoch.dbot import settings
 from django.utils import timezone
+from corpoch.dbot import autoreload
 from kombu import Connection, Consumer, Queue
 from kombu.utils.limits import TokenBucket
 from redis import asyncio as aioredis

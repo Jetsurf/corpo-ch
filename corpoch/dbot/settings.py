@@ -5,6 +5,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "DiscordOauth2.settings")
 from django.apps import apps
 from django.conf import settings
 
+DEBUG = os.getenv("DEBUG")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 CELERY_BROKER_URL = settings.CELERY_BROKER_URL
