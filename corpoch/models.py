@@ -398,9 +398,9 @@ class TournamentMatchOngoing(TournamentMatch):
 
 	def __str__(self):
 		outStr = f"{self.tournament.short_name} - {self.group.bracket.name} - Group {self.group.name}"
-		if len(self.match_players) > 2:#Not going to work 3+ players
+		if len([ply for ply in self.match_players.all()]) > 2:#Not going to work 3+ players
 			outStr += f" - {self.match_players[0].ch_name} ({self.match_players[0].seed}) vs {self.match_players[1].ch_name} ({self.match_players[0].seed})"
-		return 
+		return outStr
 
 class MatchRound(models.Model):
 	num = models.PositiveIntegerField(blank=False, null=False)
@@ -409,7 +409,9 @@ class MatchRound(models.Model):
 	picked = models.ForeignKey(TournamentPlayer, related_name="picks", verbose_name="Picked", on_delete=models.CASCADE)
 	chart = models.ForeignKey(Chart, related_name="rounds_played", verbose_name="Chart Played", null=True, blank=True, on_delete=models.SET_NULL)
 	winner = models.ForeignKey(TournamentPlayer, related_name="rounds_won", verbose_name="Winner", null=True, on_delete=models.SET_NULL)
+	#w_points = models.PositiveIntegerField(verbose_name="Players", validators=[MinValueValidator(1), MaxValueValidator(5)], default=1)
 	loser = models.ForeignKey(TournamentPlayer, related_name="rounds_lost", verbose_name="Loser", null=True, on_delete=models.SET_NULL)
+	#l_points = models.PositiveIntegerField(verbose_name="Players", validators=[MinValueValidator(1), MaxValueValidator(5)], default=0)
 	steg = models.JSONField(verbose_name="Steg Data", null=True, blank=True) #This is the players list in the steg data
 	screenshot = models.ImageField(upload_to="rounds/", verbose_name="Screenshot", null=True)
 
