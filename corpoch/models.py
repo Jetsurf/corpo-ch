@@ -130,9 +130,9 @@ class Chart(models.Model):
 	@property
 	def tournament_name(self):
 		retStr = f"{self.name}"
-		if self.name.speed != 100:
-			retStr += f" ({speed}%) "
-		if self.modifiers.short != ['NM']:
+		if self.speed != 100:
+			retStr += f" ({self.speed}%) "
+		if self.modifiers != ['NM']:
 			retStr += self.modifiers_short
 		return retStr
 
@@ -289,6 +289,7 @@ class BracketGroup(models.Model):
 		return f"{self.tournament.short_name} - {self.bracket.name} - {self.name}"
 
 class GroupSeed(models.Model):
+	id = models.AutoField(primary_key=True)
 	seed = models.PositiveIntegerField(blank=False, null=False)
 	group = models.ForeignKey(BracketGroup, related_name="seeding", verbose_name="Group Seeding", null=True, on_delete=models.CASCADE)
 	player = models.ForeignKey(TournamentPlayer, related_name="group_seeding", verbose_name="Group Seed", null=True, on_delete=models.SET_NULL)
@@ -403,6 +404,7 @@ class TournamentMatchOngoing(TournamentMatch):
 		return outStr
 
 class MatchRound(models.Model):
+	id = models.AutoField(primary_key=True)
 	num = models.PositiveIntegerField(blank=False, null=False)
 	ongoing_match = models.ForeignKey(TournamentMatchOngoing, related_name="ongoing_rounds", verbose_name="Ongoing Match ID", on_delete=models.CASCADE, null=True, blank=True)
 	completed_match = models.ForeignKey(TournamentMatchCompleted, related_name="completeds_rounds", verbose_name="Completed Match ID", on_delete=models.CASCADE, null=True, blank=True)
@@ -412,7 +414,7 @@ class MatchRound(models.Model):
 	#w_points = models.PositiveIntegerField(verbose_name="Players", validators=[MinValueValidator(1), MaxValueValidator(5)], default=1)
 	loser = models.ForeignKey(TournamentPlayer, related_name="rounds_lost", verbose_name="Loser", null=True, on_delete=models.SET_NULL)
 	#l_points = models.PositiveIntegerField(verbose_name="Players", validators=[MinValueValidator(1), MaxValueValidator(5)], default=0)
-	steg = models.JSONField(verbose_name="Steg Data", null=True, blank=True) #This is the players list in the steg data
+	steg = models.JSONField(verbose_name="Steg Data", null=True, blank=True, default=dict) #This is the players list in the steg data
 	screenshot = models.ImageField(upload_to="rounds/", verbose_name="Screenshot", null=True)
 
 	class Meta:
@@ -435,6 +437,7 @@ class MatchRound(models.Model):
 #	id = models.PositiveIntegerField(blank=False, null=False)
 
 class MatchBan(models.Model):
+	id = models.AutoField(primary_key=True)
 	num = models.PositiveIntegerField(blank=False, null=False)
 	chart = models.ForeignKey(Chart, related_name="bans", verbose_name="Chart Banned", null=True, blank=True, on_delete=models.SET_NULL)
 	player = models.ForeignKey(GroupSeed, related_name="player_bans", verbose_name="Player", null=True, blank=True, on_delete=models.SET_NULL)
