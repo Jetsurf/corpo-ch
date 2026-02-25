@@ -62,7 +62,7 @@ class SongRoundSelect(discord.ui.Select):
 		if len(self.match.rounds) == 1:
 			selStr += f"{self.match.seeding[0].player.ch_name} Picks"
 		elif self.match.bracket.ruleset.pick_ruleset == "loserpicks":
-			selStr += f"{self.match.rounds[-1].loser.ch_name} Picks"
+			selStr += f"{self.match.rounds[-2].loser.ch_name} Picks"
 		else:
 			prevPicked = self.match.rounds[-1].loser
 			picked = list(self.match.seeding).difference(self.match.rounds[-1].picked)[0]
@@ -80,8 +80,9 @@ class SongRoundSelect(discord.ui.Select):
 			charts = self.match.setlist.select_related('icon').filter(tiebreaker=True).exclude(id__in=bansDone)
 		else:
 			for rnd in self.match.rounds:
-				if rnd.chart:
-					songOptsDone.append(rnd.chart.id)
+				chart = await sync_to_async(lambda: rnd.chart)()
+				if chart:
+					songOptsDone.append(chart.id)
 			charts = self.match.setlist.select_related('icon').filter(tiebreaker=False).exclude(id__in=songOptsDone).exclude(id__in=bansDone)
 
 		opts = []
@@ -250,6 +251,8 @@ class DiscordMatch():
 			self.ref = await self.guild.fetch_member(self.matchDb.ref)
 			for seed in self.seeding:
 				self.seeding_discord.append(await self.guild.fetch_member(seed.player.user))
+			if not await self.isFinished() and (len(self.rounds) == 0 or self.rounds[-1].winner):
+				await self.add_round()
 		try:
 			self.tourney = await Tournament.objects.aget(guild=self.msg.guild.id, active=True)#Assuming single tourney for now
 		except Tournament.DoesNotExist:
@@ -277,9 +280,7 @@ class DiscordMatch():
 		#self.seeding = list(self.matchDb.group.seeding.select_related().all())
 		self.seeding = list(self.matchDb.group.seeding.select_related().filter(id__in=self.matchDb.match_players.all().only('id')))
 		self.bans = list(self.matchDb.matchban_bans.all())
-		self.rounds = list(self.matchDb.ongoing_rounds.select_related().all())
-		for rnd in self.rounds:
-			print(f"TEST ROUNGS: {rnd}")
+		self.rounds = list(self.matchDb.ongoing_rounds.select_related('chart', 'picked', 'winner', 'loser').all())
 		self.chart = self.rounds[-1].chart if len(self.rounds) > 0 else None
 
 		#load the objects
@@ -335,6 +336,31 @@ class DiscordMatch():
 		if len(self.rounds) > 0:
 			self.rounds[-1].save()
 		self.rounds.append(MatchRound(num=len(self.rounds) + 1, ongoing_match=self.matchDb, picked=picked))
+
+	@sync_to_async
+	def getScore(self) -> list:
+		wins = [0, 0] #Cleaner way?
+		for rnd in self.rounds:
+			if rnd.winner == self.seeding[0].player:
+				wins[0] += 1
+			elif rnd.winner:
+				wins[1] += 1
+		return wins
+
+	@sync_to_async
+	def isFinished(self) -> bool:
+		wins = [0, 0] #Cleaner way?
+		for rnd in self.rounds:
+			if rnd.winner == self.seeding[0]:
+				wins[0] += 1
+			elif rnd.winner:
+				wins[1] += 1
+
+		numNeeded = int(math.ceil(self.bracket.ruleset.num_rounds / 2))
+		if wins[0] > numNeeded or wins[1] > numNeeded:
+			return True
+		else:
+			return False
 
 	async def genMatchEmbed(self):
 		embed = discord.Embed(colour=0x3FFF33)
@@ -396,6 +422,9 @@ class DiscordMatchView(discord.ui.View):
 		self.plyin = discord.ui.Button(label="Allow player input", style=discord.ButtonStyle.secondary, custom_id="plyinBtn")
 		self.plyin.callback = self.plyinBtn # Future idea
 
+		self.upload = discord.ui.Button(label="Upload Screenshots", style=discord.ButtonStyle.secondary, custom_id="uploadBtn")
+		self.upload.callback = self.uploadBtn
+
 		self.submit = discord.ui.Button(label='Submit Match', style=discord.ButtonStyle.green, custom_id="submitBtn")
 		self.submit.callback = self.submitBtn
 		self.submit.disabled = True
@@ -427,8 +456,9 @@ class DiscordMatchView(discord.ui.View):
 			if len(self.match.rounds) == 0:
 				await self.match.add_round()
 
-			wins = await self.getScore()
-			winsNeeded = int(math.floor(self.match.bracket.ruleset.num_rounds / 2))
+			wins = await self.match.getScore()
+			winsNeeded = int(math.floor(self.match.bracket.ruleset.num_rounds / 2) + 1)
+			print(f"DEBUG: WINS: {wins} - NEEDED: {winsNeeded}")
 			if wins[0] < winsNeeded and wins[1] < winsNeeded:
 				sngDis = True if self.match.rounds[-1].chart else False
 				sngSel = SongRoundSelect(self.match, sngDis)
@@ -438,16 +468,6 @@ class DiscordMatchView(discord.ui.View):
 				await plySel.init()
 				self.add_item(sngSel)
 				self.add_item(plySel)
-
-	@sync_to_async
-	def getScore(self) -> list:
-		wins = [0, 0] #Cleaner way?
-		for rnd in self.match.rounds:
-			if rnd.winner == self.match.seeding[0]:
-				wins[0] += 1
-			else:
-				wins[1] += 1
-		return wins
 
 	async def interaction_check(self, interaction: discord.Interaction):
 		if interaction.user.id == self.match.ref.id:
