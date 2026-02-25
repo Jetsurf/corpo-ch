@@ -1,6 +1,6 @@
 bot.json
 gsheets-key.json
-*.png
+corpoch/utils/**/*.png
 *.err
 *.log
 

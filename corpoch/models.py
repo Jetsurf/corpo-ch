@@ -1,4 +1,4 @@
-import uuid, typing, json, pydantic
+import uuid, typing, json, pydantic, math
 from corpoch import settings
 from corpoch.validators import validate_chart_file
 
@@ -90,6 +90,10 @@ class CHIcon(models.Model):
 	def __str__(self):
 		return self.name
 
+	@property
+	def emote(self):
+		return self.discord if self.discord else None
+
 class Chart(models.Model):
 	id = models.AutoField(primary_key=True)
 	name = models.CharField(verbose_name="Chart Name", max_length=256, blank=True)
@@ -168,6 +172,12 @@ class Tournament(models.Model):
 	def active_players(self):
 		return self.players.filter(active=True)
 
+	def has_revealed_setlist(self) -> bool:
+		for bracket in self.brackets.all():
+			if bracket.revealed:
+				return True
+		return False
+
 	def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
 		is_new = self.pk is None
 		super().save()
@@ -192,17 +202,29 @@ class TournamentConfig(models.Model):
 class BracketRules(models.Model):
 	bracket = models.OneToOneField('TournamentBracket', primary_key=True, related_name="ruleset", on_delete=models.CASCADE, verbose_name="Bracket Rules", null=False)
 	num_players = models.PositiveIntegerField(verbose_name="Players", validators=[MinValueValidator(2), MaxValueValidator(4)], default=2)
-	num_bans = models.IntegerField(verbose_name="Num Bans", validators=[MinValueValidator(1), MaxValueValidator(4)], default=1)
+	num_bans = models.IntegerField(verbose_name="Bans Per-Player", validators=[MinValueValidator(1), MaxValueValidator(4)], default=1)
 	num_rounds = models.PositiveIntegerField(verbose_name="Best Of", validators=[MinValueValidator(3), MaxValueValidator(25)], default=7)
 	ban_ruleset = models.CharField(verbose_name="Match Bans Ruleset", choices=BAN_RULESETS, max_length=32, default=BAN_RULESETS[0][0])
 	pick_ruleset = models.CharField(verbose_name="'Who Picks' Ruleset", choices=PICK_RULESETS, max_length=32, default=PICK_RULESETS[0][0])
 	tb_ruleset = models.CharField(verbose_name="Tiebreaker Ruleset", choices=TB_RULESETS, max_length=32, default=TB_RULESETS[0][0])
+
+	class Meta:
+		verbose_name = "Bracket Rules"
+
+	@property
+	def wins_needed(self):
+		return int(math.ceil(self.num_rounds / 2))
+
+	@property
+	def total_bans(self) -> int:
+		return self.num_bans * self.num_players
 
 class TournamentBracket(models.Model):
 	id = models.AutoField(primary_key=True)
 	tournament = models.ForeignKey(Tournament, related_name="brackets", on_delete=models.CASCADE, verbose_name="Tournament")
 	name = models.CharField(verbose_name="Bracket Name", max_length=128, default=f"New Bracket")
 	revealed = models.BooleanField("Setlist Revealed", default=False)
+	is_active = models.BooleanField(verbose_name="Bracket Active", default=False)
 	score_log = models.BigIntegerField(verbose_name="Score Log Channel Discord ID", default=-1)
 
 	class Meta:
@@ -211,10 +233,6 @@ class TournamentBracket(models.Model):
 	
 	def __str__(self):
 		return f"{self.tournament.short_name} - {self.name}"
-
-	@property
-	def total_bans(self) -> int:
-		return self.num_bans * self.num_players
 
 	@property
 	def short_name(self):
@@ -405,8 +423,9 @@ class TournamentMatchOngoing(TournamentMatch):
 
 	def __str__(self):
 		outStr = f"{self.tournament.short_name} - {self.group.bracket.name} - Group {self.group.name}"
-		if len([ply for ply in self.match_players.all()]) > 2:#Not going to work 3+ players
-			outStr += f" - {self.match_players[0].ch_name} ({self.match_players[0].seed}) vs {self.match_players[1].ch_name} ({self.match_players[0].seed})"
+		seeds = [seed for seed in self.match_players.all()]
+		if len(seeds) > 1:#Not going to work 3+ players
+			outStr += f" - {seeds[0].player.ch_name} ({seeds[0].seed}) vs {seeds[1].player.ch_name} ({seeds[1].seed})"
 		return outStr
 
 class MatchRound(models.Model):

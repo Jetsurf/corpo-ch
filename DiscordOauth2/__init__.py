@@ -1,1 +1,0 @@
-#https://gitlab.com/allianceauth/allianceauth/-/blob/master/allianceauth/services/modules/discord/managers.py?ref_type=heads model

@@ -133,7 +133,7 @@ class BracketSelect(discord.ui.Select):
 
 	async def init(self):
 		brackets = []
-		async for bracket in self.match.tourney.brackets.all():
+		async for bracket in self.match.tourney.brackets.all().filter(is_active=True):
 			self.retOpts[bracket.name] = bracket
 			brackets.append(discord.SelectOption(label=bracket.name))
 		super().__init__(max_values=1, options=brackets, custom_id="bracket_sel")
@@ -435,7 +435,7 @@ class DiscordMatchView(discord.ui.View):
 				sel = PlayerSelect(self.match, f"player{i+1}_sel")
 				await sel.init()
 				self.add_item(sel)
-		elif len(self.match.bans) < (self.match.bracket.ruleset.num_bans * self.match.bracket.ruleset.num_players):
+		elif len(self.match.bans) < self.match.bracket.ruleset.total_bans:
 			self.add_item(self.back)
 			sel = BanSelect(self.match)
 			await sel.init()
@@ -447,9 +447,8 @@ class DiscordMatchView(discord.ui.View):
 				await self.match.add_round()
 
 			wins = await self.match.getScore()
-			winsNeeded = int(math.floor(self.match.bracket.ruleset.num_rounds / 2) + 1)
-			print(f"DEBUG: WINS: {wins} - NEEDED: {winsNeeded}")
-			if wins[0] < winsNeeded and wins[1] < winsNeeded:
+			print(f"DEBUG: WINS: {wins} - NEEDED: {self.match.bracket.ruleset.wins_needed}")
+			if wins[0] < self.match.bracket.ruleset.wins_needed  and wins[1] < self.match.bracket.ruleset.wins_needed:
 				sngDis = True if self.match.rounds[-1].chart else False
 				sngSel = SongRoundSelect(self.match, sngDis)
 				plyDis = True if not self.match.rounds[-1].chart else False
@@ -458,6 +457,12 @@ class DiscordMatchView(discord.ui.View):
 				await plySel.init()
 				self.add_item(sngSel)
 				self.add_item(plySel)
+			elif wins[0] == (self.match.bracket.ruleset.wins_needed  - 1) and wins[1] == (self.match.bracket.ruleset.wins_needed - 1):
+				pass #TB
+			elif wins[0] == self.match.bracket.ruleset.wins_needed:
+				pass #Ply 0 wins
+			elif wins[1] == self.match.bracket.ruleset.wins_needed:
+				pass #ply 1 wins
 
 	async def interaction_check(self, interaction: discord.Interaction):
 		if interaction.user.id == self.match.ref.id:
@@ -509,9 +514,8 @@ class TourneyCmds(commands.Cog):
 		self.bot = bot
 
 	tourney = discord.SlashCommandGroup('tourney','Clone Hero Tournament Commands')
-	match = tourney.create_subgroup('match', 'Tourney Match Reporting Commands')
 
-	@match.command(name='discord',description='Match reporting done within discord', integration_types={discord.IntegrationType.guild_install})
+	@tourney.command(name='match',description='Match reporting done within discord', integration_types={discord.IntegrationType.guild_install})
 	async def discordMatchCmd(self, ctx):
 		#TODO - Self Ref Match Check setup (DM user that didn't run the command to confirm?)
 		#     - Can bypass above with having a "Ref" role assigned

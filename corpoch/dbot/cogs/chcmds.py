@@ -139,15 +139,9 @@ class TournamentSelect(discord.ui.Select):
 	async def init(self):		
 		opts = []
 		async for tourney in Tournament.objects.all():
-			hasSetlist = False
-			async for bracket in tourney.brackets.select_related().filter(revealed=True):
-				if bracket.revealed:
-					hasSetlist = True
-					break
-
-			if not hasSetlist:
+			if not await sync_to_async(tourney.has_revealed_setlist)():
 				continue
-						
+					
 			self.retOpts[tourney.name] = tourney
 			if (self.path.tournament == tourney) or (not self.path.tournament and tourney.guild == self.path.ctx.guild.id and tourney.active):
 				opts.append(discord.SelectOption(label=tourney.name, description=tourney.short_name, default=True))
@@ -190,18 +184,12 @@ class ChartSelect(discord.ui.Select):
 	async def init(self):
 		opts = []
 		for chart in self.path.charts:
-			if isinstance(chart, Chart):
-				icon = await sync_to_async(lambda: chart.icon)()
-			try:
-				icon = await CHEmoji.objects.select_related().aget(icon_id=chart['icon'] if isinstance(chart, dict) else icon)
-			except CHEmoji.DoesNotExist:
-				icon = await CHEmoji.objects.select_related().aget(icon_id='ch')
-			emoji = await self.path.bot.fetch_emoji(icon.id)
+			emoji = await self.path.get_chart_emoji(chart)
 			if isinstance(chart, Chart):
 				self.retOpts[chart.md5] = chart
 				opts.append(discord.SelectOption(label=chart.tournament_name, emoji=emoji, value=chart.md5, description=f"{chart.artist} - {chart.album} - {chart.charter}", default=True if self.path.chart == chart else False))
 			else:
-				opts.append(discord.SelectOption(label=chart['name'], emoji=emoji if emoji else None, value=chart['md5'], description=f"{chart['artist']} - {chart['album']} - {chart['charter']}", default=True if self.path.chart == chart else False))
+				opts.append(discord.SelectOption(label=chart['name'], emoji=emoji, value=chart['md5'], description=f"{chart['artist']} - {chart['album']} - {chart['charter']}", default=True if self.path.chart == chart else False))
 				self.retOpts[chart['md5']] = chart
 
 		super().__init__(placeholder="Select a chart", options=opts, max_values=1, custom_id="chart_sel")
@@ -235,13 +223,17 @@ class Path():
 	async def hide(self):
 		await self.ctx.interaction.delete_original_response()
 
-	async def showResult(self, interaction):
+	async def get_chart_emoji(self, chart):
+		if isinstance(chart, Chart):
+			icon = await sync_to_async(lambda: chart.icon)()
 		try:
-			icon = await CHEmoji.objects.select_related().aget(icon_id=self.chart['icon'] if isinstance(self.chart, dict) else self.chart.icon)
+			icon = await CHEmoji.objects.select_related().aget(icon_id=chart['icon'] if isinstance(chart, dict) else icon)
 		except CHEmoji.DoesNotExist:
 			icon = await CHEmoji.objects.select_related().aget(icon_id='ch')
-		self.emote = await self.bot.fetch_emoji(icon.id)
+		return await self.bot.fetch_emoji(icon.id)
 
+	async def showResult(self, interaction):
+		self.emoji = await self.get_chart_emote(self.chart)
 		if self.chopt.opts.instrument[0] == 'drums':
 			self.hydra.gen_path(self.chart)
 			if not self.hydra.output:
@@ -356,7 +348,7 @@ class PathView(discord.ui.View):
 
 	@discord.ui.button(label="Cancel", style=discord.ButtonStyle.red, custom_id="cancel")
 	async def cancelBtn(self, button, interaction: discord.Interaction):
-		await interaction.response.edit_message(content="Closing", embed=None, view=None, delete_after=1)
+		await interaction.response.edit_message(content="Closing", embed=None, ephemeral=True, view=None, delete_after=1)
 		self.stop()
 
 	@discord.ui.button(label="Search", style=discord.ButtonStyle.secondary)
