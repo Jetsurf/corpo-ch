@@ -22,7 +22,7 @@ class CHOptModal(discord.ui.DesignerModal):
 		self.title = "CHOpt Options"
 
 	async def callback(self, interaction: discord.Interaction):
-		if not self.children[1].item.value.isdigit() or not (0 <= int(self.children[0].item.value) <= 100):
+		if not self.children[0].item.value.isdigit() or not (0 <= int(self.children[0].item.value) <= 100):
 			await interaction.response.send_message("Invalid whammy value, please use a number between 0 and 100", ephemeral=True)
 			self.stop()
 			return
@@ -137,11 +137,10 @@ class TournamentSelect(discord.ui.Select):
 		self.retOpts = {}
 		#TODO - Move this to a discord autocomplete text field - I *think* that can allow for only options that exist, but sidestep the 24 limit here
 	async def init(self):		
-		active = None
 		opts = []
 		async for tourney in Tournament.objects.all():
 			hasSetlist = False
-			async for bracket in tourney.brackets.select_related():
+			async for bracket in tourney.brackets.select_related().filter(revealed=True):
 				if bracket.revealed:
 					hasSetlist = True
 					break
@@ -150,19 +149,13 @@ class TournamentSelect(discord.ui.Select):
 				continue
 						
 			self.retOpts[tourney.name] = tourney
-			if not self.path.tournament and tourney.guild == self.path.ctx.guild.id and tourney.active:
-				opts.append(discord.SelectOption(label=tourney.name, description=tourney.short_name))
-				active = tourney
-			elif self.path.tournament == tourney:
-				opts.append(discord.SelectOption(label=tourney.name, description=tourney.short_name))
-				active = tourney
+			if (self.path.tournament == tourney) or (not self.path.tournament and tourney.guild == self.path.ctx.guild.id and tourney.active):
+				opts.append(discord.SelectOption(label=tourney.name, description=tourney.short_name, default=True))
+				self.path.tournament = tourney
 			else:
 				opts.append(discord.SelectOption(label=tourney.name, description=tourney.short_name))
 		
-		if active:
-			super().__init__(placeholder=str(active), options=opts, custom_id="tourney_sel")
-		else:
-			super().__init__(placeholder="Select a tournament", options=opts, custom_id="tourney_sel")
+		super().__init__(placeholder="Select a tournament", options=opts, custom_id="tourney_sel")
 
 	async def callback(self, interaction: discord.Interaction):
 		self.path.tournament = self.retOpts[self.values[0]]
@@ -179,12 +172,9 @@ class BracketSelect(discord.ui.Select):
 		async for bracket in self.path.tournament.brackets.select_related():
 			if bracket.revealed:
 				self.retOpts[str(bracket)] = bracket
-				opts.append(discord.SelectOption(label=str(bracket)))
+				opts.append(discord.SelectOption(label=str(bracket), default=True if self.path.bracket else False))
 
-		if self.path.bracket:
-			super().__init__(placeholder=str(self.path.bracket), options=opts, custom_id="bracket_sel")
-		else:
-			super().__init__(placeholder="Select a bracket", options=opts, custom_id="bracket_sel")
+		super().__init__(placeholder="Select a bracket", options=opts, custom_id="bracket_sel")
 
 	async def callback(self, interaction: discord.Interaction):
 		self.path.bracket = self.retOpts[self.values[0]]
@@ -210,17 +200,11 @@ class ChartSelect(discord.ui.Select):
 			if isinstance(chart, Chart):
 				self.retOpts[chart.md5] = chart
 				opts.append(discord.SelectOption(label=chart.tournament_name, emoji=emoji, value=chart.md5, description=f"{chart.artist} - {chart.album} - {chart.charter}", default=True if self.path.chart == chart else False))
-			else:#dict
-				emoji = await self.path.bot.fetch_emoji(icon.id)
-				opts.append(discord.SelectOption(label=chart['name'], emoji=emoji if emoji else None, value=chart['md5'], description=f"{chart['artist']} - {chart['album']} - {chart['charter']}"))
-				self.retOpts[chart['md5']] = chart
-		if self.path.chart:
-			if isinstance(self.path.chart, Chart):
-				super().__init__(placeholder=self.path.chart.name, options=opts, max_values=1, custom_id="chart_sel")
 			else:
-				super().__init__(placeholder=self.path.chart['name'], options=opts, max_values=1, custom_id="chart_sel")
-		else:
-			super().__init__(placeholder="Select a chart", options=opts, max_values=1, custom_id="chart_sel")
+				opts.append(discord.SelectOption(label=chart['name'], emoji=emoji if emoji else None, value=chart['md5'], description=f"{chart['artist']} - {chart['album']} - {chart['charter']}", default=True if self.path.chart == chart else False))
+				self.retOpts[chart['md5']] = chart
+
+		super().__init__(placeholder="Select a chart", options=opts, max_values=1, custom_id="chart_sel")
 
 	async def callback(self, interaction: discord.Interaction):
 		self.path.chart = self.retOpts[self.values[0]]
@@ -317,12 +301,15 @@ class Path():
 		else:
 			embed.add_field(name="CHOpt Options Used", value=f"Early Whammy: {self.chopt.opts.whammy}%\nSqueeze: {self.chopt.opts.squeeze}%\nSong Speed: {self.chopt.opts.speed}%\nLazy Whammy: {self.chopt.opts.lazy}ms\nWhammy Delay: {self.chopt.opts.delay}ms", inline=False)
 
+	def formatChart(self) -> str:
+		if isinstance(self.chart, Chart):
+			return f"{self.emote.mention} {self.chart.tournament_name}\n\nArtist: {self.chart.artist}\nAlbum: {self.chart.album}\nCharter: {self.chart.charter}\nInstrument: {self.chart.instrument}"
+		else:
+			return f"{self.emote.mention} {self.chart["name"]}\n\nArtist: {self.chart["artist"]}\nAlbum: {self.chart["album"]}\nCharter: {self.chart["charter"]}\nInstrument {self.chopt.opts.instrument}"		
+
 	def genHydraResultEmbed(self) -> discord.Embed:
 		embed = self.genEmbedBase()
-		if isinstance(self.chart, Chart):
-			embed.add_field(name="Hydra Path For", value=f"{self.emote.mention} {self.chart.tournament_name}\nArtist: {self.chart.artist}\nAlbum: {self.chart.album}\nCharter: {self.chart.charter}\nInstrument: {self.chart.instrument}", inline=False)
-		else:
-			embed.add_field(name="Hydra Path For", value=f"{self.emote.mention} {self.chart["name"]}\nArtist: {self.chart["artist"]}\nAlbum: {self.chart["album"]}\nCharter: {self.chart["charter"]}\nInstrument {self.chopt.opts.instrument}", inline=False)
+		embed.add_field(name="Hydra Path For", value=self.formatChart(), inline=False)
 		pathStr = ""
 		for p in self.hydra.output:
 			pathStr += f"{p}\n"
@@ -332,10 +319,7 @@ class Path():
 
 	def genCHOptResultEmbed(self) -> discord.Embed:
 		embed = self.genEmbedBase()
-		if isinstance(self.chart, Chart):
-			embed.add_field(name="CHOpt Path For", value=f"{self.emote.mention} {self.chart.tournament_name}\nArtist: {self.chart.artist}\nAlbum: {self.chart.album}\nCharter: {self.chart.charter}\nInstrument: {self.chart.instrument}", inline=False)
-		else:
-			embed.add_field(name="CHOpt Path For", value=f"{self.emote.mention} {self.chart["name"]}\nArtist: {self.chart["artist"]}\nAlbum: {self.chart["album"]}\nCharter: {self.chart["charter"]}\nInstrument: {self.chopt.opts.instrument}", inline=False)
+		embed.add_field(name="CHOpt Path For", value=self.formatChart(), inline=False)
 		self.addEmbedToolField(embed)
 		embed.add_field(name="Image Link", value=f"[Link to Image]({self.chopt.url})", inline=False)
 		return embed
