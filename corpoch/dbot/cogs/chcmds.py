@@ -51,12 +51,12 @@ class CHOptModal(discord.ui.DesignerModal):
 			self.path.chopt.opts.delay = int(self.children[3].item.value)
 
 		if len(self.children) == 5:
-			if not self.children[2].item.value.isdigit() or not (10 <= int(self.children[2].item.value) <= 500):
+			if not self.children[4].item.value.isdigit() or not (10 <= int(self.children[4].item.value) <= 500):
 				await interaction.response.send_message("Invalid speed value, please use a number between 10 and 500", ephemeral=True)
 				self.stop()
 				return
 			else:
-				self.path.chopt.opts.speed = int(self.children[2].item.value)
+				self.path.chopt.opts.speed = int(self.children[4].item.value)
 
 		await interaction.response.defer(invisible=True)
 		self.stop()
