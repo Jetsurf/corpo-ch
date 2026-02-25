@@ -14,7 +14,8 @@ class CHOptModal(discord.ui.DesignerModal):
 		self.path = path
 		args += (discord.ui.Label("Early Whammy % (0-100)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value='0')),)
 		args += (discord.ui.Label("Squeeze % (0-100)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value='0')),)
-		args += (discord.ui.Label("Song Speed (10-500)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value=100)),)
+		if not isinstance(self.path.chart, Chart):
+			args += (discord.ui.Label("Song Speed (10-500)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value=100)),)
 		args += (discord.ui.Label("Lazy Whammy (ms 0-10000)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value='0')),)
 		args += (discord.ui.Label("Whammy Delay (ms 0-10000)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value='0')),)
 		super().__init__(*args, **kwargs)
@@ -206,7 +207,7 @@ class ChartSelect(discord.ui.Select):
 				except CHEmoji.DoesNotExist:
 					icon = await CHEmoji.objects.select_related().aget(icon_id='ch')
 				emoji = await self.path.bot.fetch_emoji(icon.id)
-				opts.append(discord.SelectOption(label=chart.name, emoji=emoji, value=chart.md5, description=f"{chart.artist} - {chart.album} - {chart.charter}", default=True if self.path.chart == chart else False))
+				opts.append(discord.SelectOption(label=chart.tournament_name, emoji=emoji, value=chart.md5, description=f"{chart.artist} - {chart.album} - {chart.charter}", default=True if self.path.chart == chart else False))
 			else:#dict
 				try:
 					icon = await CHEmoji.objects.select_related().aget(icon_id=chart['icon'])
@@ -229,6 +230,7 @@ class ChartSelect(discord.ui.Select):
 		self.path.chart = self.retOpts[self.values[0]]
 		if isinstance(self.path.chart, Chart):
 			self.path.chopt.opts.instrument = self.path.chart.instrument
+			self.path.chopt.opts.speed = self.path.chart.speed
 		await interaction.response.defer(ephemeral=True)
 		await self.path.show()
 

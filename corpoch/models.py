@@ -142,9 +142,13 @@ class Chart(models.Model):
 		return self.name
 
 	def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
+		from corpoch.providers import SNGHandler
 		self.blake3 = self.blake3.upper() #Force these always upper
 		self.icon = CHIcon.objects.get(name="ch") if self.icon == None else self.icon
 		self.md5 = self.md5.upper() #Steg is output as always upper
+		if self.sngfile.name.lower().endswith(".zip"):
+			zip_file = SNGHandler(self.sngfile.open(mode='rb'))
+			self.sngfile.save(f"{zip_file.outputChartName}.sng",zip_file.build_sng())
 		super().save()
 
 class Tournament(models.Model):

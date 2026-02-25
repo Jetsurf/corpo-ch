@@ -76,7 +76,7 @@ class SongRoundSelect(discord.ui.Select):
 			bansDone.append(ban.chart.id)
 
 		songOptsDone = []
-		if len(self.match.rounds) > self.match.bracket.ruleset.num_rounds / 2:
+		if len(self.match.rounds) > self.match.bracket.ruleset.num_rounds:
 			charts = self.match.setlist.select_related('icon').filter(tiebreaker=True).exclude(id__in=bansDone)
 		else:
 			for rnd in self.match.rounds:
@@ -93,7 +93,7 @@ class SongRoundSelect(discord.ui.Select):
 			except CHEmoji.DoesNotExist:
 				icon = await CHEmoji.objects.select_related().aget(icon_id='ch')
 			emoji = await self.match.bot.fetch_emoji(icon.id)
-			opts.append(discord.SelectOption(label=str(chart), description=f"{chart.artist} - {chart.charter}", emoji=emoji))
+			opts.append(discord.SelectOption(label=chart.tournament_name, value=str(chart),description=f"{chart.artist} - {chart.charter}", emoji=emoji))
 		super().__init__(placeholder=selStr, max_values=1, options=opts, custom_id="roundsong_sel", disabled=self.dis)
 
 	async def callback(self, interaction: discord.Integration):
