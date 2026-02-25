@@ -1,4 +1,5 @@
 import typing, requests_cache, json, io, hashlib, re, gspread, asyncio, discord, os, uuid, platform, subprocess, pytesseract, shutil
+from zipfile import ZipFile
 from datetime import datetime
 from typing import Union
 from random import randbytes
@@ -6,25 +7,50 @@ from PIL import Image, ImageEnhance
 from django.db import models
 
 from corpoch import __user_agent__
-from corpoch import settings 
+from corpoch import settings
 from corpoch.models import GSheetAPI, Chart, Tournament, TournamentMatchCompleted, TournamentMatchOngoing, Qualifier, QualifierSubmission, CH_DIFFICULTIES, CH_INSTRUMENTS
 from corpoch.utils.hydra.hydra.hyutil import analyze_chart_bytes_chart, analyze_chart_bytes_mid
 
 class SNGHandler:
 	def __init__(self, submission: Union[str,bytes], playlist: str=None, sanitize=True):
-		if not ((isinstance(submission, bytes) and submission[:6].decode('utf-8') == "SNGPKG") or 
-			(os.path.isfile(os.path.join(submission,"song.ini")) and 
+		if not ((isinstance(submission, bytes) and (submission[:6].decode('utf-8') == "SNGPKG") or submission[:4] == b"\x50\x4B\x03\x04") or
+			(os.path.isfile(os.path.join(submission,"song.ini")) and
 			(os.path.isfile(os.path.join(submission,"notes.chart")) or os.path.isfile(os.path.join(submission,"notes.mid"))))):
 			raise TypeError("Submission must be a directory of a single chart or the bytes of an .sng")
 		self._playlist = playlist
 		self._sanitize = sanitize
-		
+
 		if isinstance(submission, bytes):
 			self._files = self.get_sng_files(submission)
 		else:
+			if isinstance(submission, bytes) and submission[:4] == b"\x50\x4B\x03\x04":
+				iszip = True
+				with ZipFile(io.BytesIO(submission), 'r') as zip_file:
+					all_files = zip_file.namelist()
+
+					containing_paths = []
+					for file_path in all_files:
+						if file_path.lower().endswith('song.ini'):
+							if file_path == 'song.ini':
+								dir_path = ""
+							else:
+								dir_path = file_path.rsplit('/',1)[0]
+							containing_paths.append(dir_path)
+
+					target_dir = min(containing_paths,key=len)
+					if target_dir == "":
+						files = [f.lower() for f in all_files if "/" not in f and f != ""]
+						file_paths = [f for f in all_files if "/" not in f and f != ""]
+					else:
+						files = [f.lower().split('/')[-1] for f in all_files if f.startswith(target_dir + "/") and "/" not in f.split(target_dir+"/")[1] and f.split('/')[-1] != "" ]
+						file_paths = [f for f in all_files if f.startswith(target_dir + "/") and "/" not in f.split(target_dir+"/")[1] and f.split('/')[-1] != "" ]
+
+			else:
+				iszip = False
+				files = os.listdir(submission)
+
 			results = []
-			files = os.listdir(submission)
-			
+
 			valid_picture_names = ("album.","background.","highway.")
 			valid_picture_extensions = ("png","jpg","jpeg")
 			valid_music_names = ("guitar.","bass.","rhythm.","vocals.","vocals_1.","vocals_2.","drums.","drums_1.","drums_2.","drums_3.","drums_4.","keys.","song.","crowd.","preview.")
@@ -33,17 +59,54 @@ class SNGHandler:
 			valid_video_extensions = ("mp4","avi","webm","vp8","ogv","mpeg")
 			valid_notes = ["notes.chart","notes.mid"]
 			valid_songini = "song.ini"
-			
+
 			for file in files:
 				if ((file.lower().startswith(valid_picture_names) and file.lower().endswith(valid_picture_extensions)) or
 					(file.lower().startswith(valid_music_names) and file.lower().endswith(valid_music_extensions)) or
 					(file.lower().startswith(valid_video_names) and file.lower().endswith(valid_video_extensions)) or
 					(file.lower() in valid_notes) or
 					(file.lower() == valid_songini)):
-					with open(os.path.join(submission,file), 'rb') as f:
-						file_bytes = f.read()
-						results.append([file.lower(), file_bytes])
+					if iszip:
+						with ZipFile(io.BytesIO(submission), 'r') as zip_file:
+							file_bytes = zip_file.read(file_paths[index])
+							results.append([file, file_bytes])
+					else:
+						with open(os.path.join(submission,file), 'rb') as f:
+							file_bytes = f.read()
+							results.append([file.lower(), file_bytes])
 			self._files = results
+
+	@property
+	def outputChartName(self):
+		for row in self._files:
+			if "song.ini" in row[0]:
+				for line in row[1].decode('utf-8'):
+					subd_line = re.sub("(?:<[^>]*>)", "", line)
+					if line.startswith("name"):
+						name = subd_line.split('=', 1)[1]
+					if line.startswith("artist"):
+						artist = subd_line.split('=', 1)[1]
+					if line.startswith("charter"):
+						charter = subd_line.split('=', 1)[1]
+		newFile = f"{artist} - {name} ({charter})"
+		newFile = newFile.replace("/",  u'\uFF0F') #／
+		newFile = newFile.replace("\\", u'\u29F5') #⧵
+		newFile = newFile.replace(":",  u'\uA789') #꞉
+		newFile = newFile.replace("<",  u'\u276E') #❮
+		newFile = newFile.replace(">",  u'\u276F') #❯
+		newFile = newFile.replace("\"", u'\u0027') #'
+		newFile = newFile.replace("?",  u'\uFF1F') #？
+		newFile = newFile.replace("*",  u'\u204E') #⁎
+		newFile = newFile.replace("|",  u'\u23D0') #⏐
+		newFile = newFile.strip()
+
+		encoding = 'utf-8'
+		bytes_data = newFile.encode(encoding)
+		sliced_bytes = bytes_data[:255]
+		newFile = sliced_bytes.decode(encoding, errors='ignore')
+		newFile = newFile.rstrip()
+
+		return newFile
 
 	@property
 	def songini(self) -> bytes:

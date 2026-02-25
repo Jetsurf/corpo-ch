@@ -1,5 +1,6 @@
 import uuid, typing, json, pydantic
 from corpoch import settings
+from corpoch.validators import validate_chart_file
 
 from multiselectfield import MultiSelectField
 from django.contrib import admin
@@ -106,6 +107,7 @@ class Chart(models.Model):
 	blake3 = models.CharField(verbose_name="Blake3 Hash", max_length=32, blank=True)
 	url = models.URLField(verbose_name="Chart URL", blank=True)
 	icon = models.ForeignKey(CHIcon, related_name="charts", verbose_name="CH Icon", null=True, blank=True, on_delete=models.SET_NULL)
+	sngfile = models.FileField(upload_to="sngfiles/", validators=[validate_chart_file], verbose_name="SNG File", null=True, blank=True)
 
 	class Meta:
 		verbose_name = "Chart"
