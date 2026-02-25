@@ -201,24 +201,19 @@ class ChartSelect(discord.ui.Select):
 		opts = []
 		for chart in self.path.charts:
 			if isinstance(chart, Chart):
-				self.retOpts[chart.md5] = chart
 				icon = await sync_to_async(lambda: chart.icon)()
-				try:
-					icon = await CHEmoji.objects.select_related().aget(icon_id=chart.icon)
-				except CHEmoji.DoesNotExist:
-					icon = await CHEmoji.objects.select_related().aget(icon_id='ch')
-				emoji = await self.path.bot.fetch_emoji(icon.id)
+			try:
+				icon = await CHEmoji.objects.select_related().aget(icon_id=chart['icon'] if isinstance(chart, dict) else icon)
+			except CHEmoji.DoesNotExist:
+				icon = await CHEmoji.objects.select_related().aget(icon_id='ch')
+			emoji = await self.path.bot.fetch_emoji(icon.id)
+			if isinstance(chart, Chart):
+				self.retOpts[chart.md5] = chart
 				opts.append(discord.SelectOption(label=chart.tournament_name, emoji=emoji, value=chart.md5, description=f"{chart.artist} - {chart.album} - {chart.charter}", default=True if self.path.chart == chart else False))
 			else:#dict
-				try:
-					icon = await CHEmoji.objects.select_related().aget(icon_id=chart['icon'])
-				except CHEmoji.DoesNotExist:
-					icon = await CHEmoji.objects.select_related().aget(icon_id='ch')
-
 				emoji = await self.path.bot.fetch_emoji(icon.id)
 				opts.append(discord.SelectOption(label=chart['name'], emoji=emoji if emoji else None, value=chart['md5'], description=f"{chart['artist']} - {chart['album']} - {chart['charter']}"))
 				self.retOpts[chart['md5']] = chart
-
 		if self.path.chart:
 			if isinstance(self.path.chart, Chart):
 				super().__init__(placeholder=self.path.chart.name, options=opts, max_values=1, custom_id="chart_sel")
@@ -257,6 +252,12 @@ class Path():
 		await self.ctx.interaction.delete_original_response()
 
 	async def showResult(self, interaction):
+		try:
+			icon = await CHEmoji.objects.select_related().aget(icon_id=self.chart['icon'] if isinstance(self.chart, dict) else self.chart.icon)
+		except CHEmoji.DoesNotExist:
+			icon = await CHEmoji.objects.select_related().aget(icon_id='ch')
+		self.emote = await self.bot.fetch_emoji(icon.id)
+
 		if self.chopt.opts.instrument[0] == 'drums':
 			self.hydra.gen_path(self.chart)
 			if not self.hydra.output:
@@ -319,9 +320,9 @@ class Path():
 	def genHydraResultEmbed(self) -> discord.Embed:
 		embed = self.genEmbedBase()
 		if isinstance(self.chart, Chart):
-			embed.add_field(name="Hydra Path For", value=f"{self.chart.name} - {self.chart.artist} - {self.chart.album} - {self.chart.charter} - {self.chart.instrument}", inline=False)
+			embed.add_field(name="Hydra Path For", value=f"{self.emote.mention} {self.chart.tournament_name}\nArtist: {self.chart.artist}\nAlbum: {self.chart.album}\nCharter: {self.chart.charter}\nInstrument: {self.chart.instrument}", inline=False)
 		else:
-			embed.add_field(name="Hydra Path For", value=f"{self.chart["name"]} - {self.chart["artist"]} - {self.chart["album"]} - {self.chart["charter"]} - {self.chopt.opts.instrument[1]}", inline=False)
+			embed.add_field(name="Hydra Path For", value=f"{self.emote.mention} {self.chart["name"]}\nArtist: {self.chart["artist"]}\nAlbum: {self.chart["album"]}\nCharter: {self.chart["charter"]}\nInstrument {self.chopt.opts.instrument}", inline=False)
 		pathStr = ""
 		for p in self.hydra.output:
 			pathStr += f"{p}\n"
@@ -332,9 +333,9 @@ class Path():
 	def genCHOptResultEmbed(self) -> discord.Embed:
 		embed = self.genEmbedBase()
 		if isinstance(self.chart, Chart):
-			embed.add_field(name="CHOpt Path For", value=f"{self.chart.name} - {self.chart.artist} - {self.chart.album} - {self.chart.charter} - {self.chart.instrument}", inline=False)
+			embed.add_field(name="CHOpt Path For", value=f"{self.emote.mention} {self.chart.tournament_name}\nArtist: {self.chart.artist}\nAlbum: {self.chart.album}\nCharter: {self.chart.charter}\nInstrument: {self.chart.instrument}", inline=False)
 		else:
-			embed.add_field(name="CHOpt Path For", value=f"{self.chart["name"]} - {self.chart["artist"]} - {self.chart["album"]} - {self.chart["charter"]} - {self.chopt.opts.instrument[1]}", inline=False)
+			embed.add_field(name="CHOpt Path For", value=f"{self.emote.mention} {self.chart["name"]}\nArtist: {self.chart["artist"]}\nAlbum: {self.chart["album"]}\nCharter: {self.chart["charter"]}\nInstrument: {self.chopt.opts.instrument}", inline=False)
 		self.addEmbedToolField(embed)
 		embed.add_field(name="Image Link", value=f"[Link to Image]({self.chopt.url})", inline=False)
 		return embed

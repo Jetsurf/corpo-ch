@@ -278,20 +278,10 @@ class DiscordMatch():
 		self.setlist = self.matchDb.bracket.setlist
 		self.match_players = self.matchDb.match_players
 		#self.seeding = list(self.matchDb.group.seeding.select_related().all())
-		self.seeding = list(self.matchDb.group.seeding.select_related().filter(id__in=self.matchDb.match_players.all().only('id')))
-		self.bans = list(self.matchDb.matchban_bans.all())
+		self.seeding = list(self.matchDb.group.seeding.select_related('group', 'player').filter(id__in=self.matchDb.match_players.all().only('id')))
+		self.bans = list(self.matchDb.matchban_bans.select_related('chart', 'player').all())
 		self.rounds = list(self.matchDb.ongoing_rounds.select_related('chart', 'picked', 'winner', 'loser').all())
 		self.chart = self.rounds[-1].chart if len(self.rounds) > 0 else None
-
-		#load the objects
-		for ban in self.bans:
-			tmp = ban.chart
-		for seed in self.seeding:
-			tmp = seed.player
-		for chart in self.setlist.all():
-			tmp = chart
-		for rnd in self.rounds:
-			tmep = rnd
 
 		print(f"Reattached to on-going match {self.matchDb}")
 		
