@@ -56,7 +56,7 @@ class ChartAdmin(admin.ModelAdmin):
 			try:
 				icon = CHIcon.objects.get(name=newChart['icon'])
 			except CHIcon.DoesNotExist:
-				icon = CHIcon.objects.get(name="ch")
+				icon = CHIcon.objects.get(name="ch_default_icon")
 
 			chart.url = encore.url(newChart)
 			chart.name = newChart['name']

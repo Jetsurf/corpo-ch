@@ -11,7 +11,7 @@ class Command(BaseCommand):
 
 	def handle(self, *args, **options):
 		root_dir = Path(__file__).parent
-		ch_default_icon_path = f"{root_dir}/corpoch/static/ch_default_icon.png"
+		ch_default_icon_path = f"./corpoch/static/ch_default_icon.png"
 		if not os.path.isfile(ch_default_icon_path):
 			print(f"Error: File at {ch_default_icon_path} was not found.")
 		else:
@@ -24,10 +24,8 @@ class Command(BaseCommand):
 			if not icon:
 				print(f"Creating corpoch icon ch_default_icon")
 				icon = CHIcon(name="ch_default_icon")
-				with open(ch_default_icon_path, 'r') as file:
-					icon.img.save("ch_default_icon.png", file)
-					icon.save()
-
+				icon.img.save("ch_default_icon.png", open(ch_default_icon_path, 'rb'))
+				icon.save()
 			try:
 				emoji = CHEmoji.objects.get(icon=icon)
 			except CHEmoji.DoesNotExist:
@@ -35,7 +33,7 @@ class Command(BaseCommand):
 
 			if not emoji:
 				print(f"Queueing bot task to create emoji ch_default_icon")
-				corpoch.dbot.tasks.add_bot_emoji("ch_default_emoji")
+				corpoch.dbot.tasks.add_bot_emoji("ch_default_icon")
 
 		response = requests.get('https://gitlab.com/api/v4/projects/25065576/repository/archive.tar.gz?path=public/icons')
 
