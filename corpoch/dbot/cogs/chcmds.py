@@ -14,10 +14,10 @@ class CHOptModal(discord.ui.DesignerModal):
 		self.path = path
 		args += (discord.ui.Label("Early Whammy % (0-100)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value='0')),)
 		args += (discord.ui.Label("Squeeze % (0-100)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value='0')),)
-		if not isinstance(self.path.chart, Chart):
-			args += (discord.ui.Label("Song Speed (10-500)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value=100)),)
 		args += (discord.ui.Label("Lazy Whammy (ms 0-10000)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value='0')),)
 		args += (discord.ui.Label("Whammy Delay (ms 0-10000)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value='0')),)
+		if not isinstance(self.path.chart, Chart):
+			args += (discord.ui.Label("Song Speed (10-500)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value=100)),)
 		super().__init__(*args, **kwargs)
 		self.title = "CHOpt Options"
 
@@ -36,26 +36,27 @@ class CHOptModal(discord.ui.DesignerModal):
 		else:
 			self.path.chopt.opts.squeeze = int(self.children[1].item.value)
 
-		if not self.children[2].item.value.isdigit() or not (10 <= int(self.children[2].item.value) <= 500):
-			await interaction.response.send_message("Invalid speed value, please use a number between 10 and 500", ephemeral=True)
-			self.stop()
-			return
-		else:
-			self.path.chopt.opts.speed = int(self.children[2].item.value)
-
-		if not self.children[3].item.value.isdigit() or not (0 <= int(self.children[3].item.value) <= 10000):
+		if not self.children[2].item.value.isdigit() or not (0 <= int(self.children[2].item.value) <= 10000):
 			await interaction.response.send_message("Invalid lazy whammy value, please use a number between 0 and 10000", ephemeral=True)
 			self.stop()
 			return
 		else:
 			self.path.chopt.opts.lazy = int(self.children[3].item.value)
 
-		if not self.children[4].item.value.isdigit() or not (0 <= int(self.children[4].item.value) <= 10000):
+		if not self.children[3].item.value.isdigit() or not (0 <= int(self.children[3].item.value) <= 10000):
 			await interaction.response.send_message("Invalid whammy delay value, please use a number between 0 and 10000", ephemeral=True)
 			self.stop()
 			return
 		else:
-			self.path.chopt.opts.delay = int(self.children[4].item.value)
+			self.path.chopt.opts.delay = int(self.children[3].item.value)
+
+		if len(self.children) == 5:
+			if not self.children[2].item.value.isdigit() or not (10 <= int(self.children[2].item.value) <= 500):
+				await interaction.response.send_message("Invalid speed value, please use a number between 10 and 500", ephemeral=True)
+				self.stop()
+				return
+			else:
+				self.path.chopt.opts.speed = int(self.children[2].item.value)
 
 		await interaction.response.defer(invisible=True)
 		self.stop()
