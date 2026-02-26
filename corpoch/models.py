@@ -1,7 +1,8 @@
 import uuid, typing, json, pydantic, math
-from corpoch import settings
-from corpoch.validators import validate_chart_file
 
+from datetime import datetime
+from django.db import models
+from django_pydantic_field import SchemaField
 from multiselectfield import MultiSelectField
 from django.contrib import admin
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -9,15 +10,25 @@ from encrypted_fields.fields import EncryptedJSONField
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.exceptions import ValidationError
 from django.utils import timezone
-from django.db import models
 
+from corpoch import settings
+from corpoch.validators import validate_chart_file
+
+#These need to move to their own file but time
 CH_MODIFIERS = (
-	("NM", "NoModifiers"),
+	("NM", "No Modifiers"),
+	("AH", "All Hopos"),
+	("AS", "All Strums"),
+	("AT", "All Taps"),
+	("AO", "All Opens"),
+	("BM", "Brutal Mode"),
+	("DD", "Deadly Dynamics"),
 	("DN", "Double Notes"),
 	("DS", "Dropless Sustains"),
-	("AS", "All Strums"),
+	("PM", "Precision Mode"),
 	("NS", "Note Shuffle"),
-	("BM", "Brutal Mode"),
+	("DK", "Double Kick"),
+	("NK", "No Kick"),
 )
 
 CH_VERSIONS = (
@@ -428,6 +439,47 @@ class TournamentMatchOngoing(TournamentMatch):
 			outStr += f" - {seeds[0].player.ch_name} ({seeds[0].seed}) vs {seeds[1].player.ch_name} ({seeds[1].seed})"
 		return outStr
 
+class StegScreenshotPlayer(pydantic.BaseModel):
+	accent_notes_hit : int = 0
+	accent_notes_total : int = 0
+	audio_calibration : float = 0
+	base_score : int = 0
+	controller_type : str
+	difficulty : str = "Expert"
+	frets_ghosted : int = 0
+	gamepad_mode : bool = False
+	ghost_notes_hit : int = 0
+	ghost_notes_total : int = 0
+	instrument : str = "Guitar"
+	is_bot : bool = False
+	is_fc : bool = False
+	lefty_flip : bool = False
+	max_streak : int = 0
+	modifiers :  list = ['NoModifiers']
+	no_fail : bool = False
+	notes_hit : int = 0
+	profile_name : str = "Some Player"
+	remote_network_player : bool = False
+	score : int = 0 
+	solo_bonus_total : int = 0
+	sp_phrases_earned : int = 0
+	sp_phrases_total : int = 0
+	total_notes : int = 0
+	versus_winner : bool = False
+	video_calibration : float = 0
+	excess_hits : int = 0
+	notes_missed : int = 0
+	score_timestamp: datetime = datetime.now()
+
+class StegScreenshot(pydantic.BaseModel):
+	players : list[StegScreenshotPlayer]
+
+def steg_upload_dir(self, filename):
+	if self.ongoing_match:
+		return f"matches/{str(self.ongoing_match.group).replace(' ', '')}/{self.ongoing_match.id}/{filename}"
+	else:
+		return f"matches/{str(self.completed_match.group).replace(' ', '')}/{self.completed_match.id}/{filename}"
+
 class MatchRound(models.Model):
 	id = models.AutoField(primary_key=True)
 	num = models.PositiveIntegerField(blank=False, null=False)
@@ -439,8 +491,8 @@ class MatchRound(models.Model):
 	#w_points = models.PositiveIntegerField(verbose_name="Players", validators=[MinValueValidator(1), MaxValueValidator(5)], default=1)
 	loser = models.ForeignKey(TournamentPlayer, related_name="rounds_lost", verbose_name="Loser", null=True, on_delete=models.SET_NULL)
 	#l_points = models.PositiveIntegerField(verbose_name="Players", validators=[MinValueValidator(1), MaxValueValidator(5)], default=0)
-	steg = models.JSONField(verbose_name="Steg Data", null=True, blank=True, default=dict) #This is the players list in the steg data
-	screenshot = models.ImageField(upload_to="rounds/", verbose_name="Screenshot", null=True)
+	steg = SchemaField(StegScreenshot, verbose_name="Steg Data", null=True, blank=True) #This is the players list in the steg data
+	screenshot = models.ImageField(upload_to=steg_upload_dir, verbose_name="Screenshot", null=True)
 
 	class Meta:
 		verbose_name = "Group Match Round"
@@ -456,6 +508,15 @@ class MatchRound(models.Model):
 		if self.winner:
 			outStr += f" - {self.winner.ch_name} wins"
 		return outStr
+
+	def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
+		if self.screenshot:
+			from corpoch.providers import CHStegTool
+			tool = CHStegTool()
+			playerSteg = tool.getStegInfoSync(self.screenshot)
+			print(f"STEG SAVE: {playerSteg}")
+			self.steg = playerSteg
+		super().save()
 
 #Potential class for a "Series" of tournaments - just needs to be a list of tournaments for ogranization
 #class TournamentSeries(models.Model):

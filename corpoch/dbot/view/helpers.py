@@ -1,5 +1,6 @@
 from corpoch.models import Chart
 from corpoch.dbot.models import CHEmoji
+from asgiref.sync import sync_to_async
 
 async def get_chart_emoji(bot, chart):
 	if isinstance(chart, Chart):

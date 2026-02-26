@@ -113,7 +113,6 @@ class PlayerRoundSelect(discord.ui.Select):
 		else:
 			self.round.loser = self.match.seeding[0].player
 		self.round.winner = winner.player
-		print(f"DEBUG: WINNER: {self.round.winner.ch_name} LOSER: {self.round.loser.ch_name}")
 		await self.match.add_round()
 		await self.match.showTool(interaction)
 
@@ -219,9 +218,8 @@ class DiscordMatchView(discord.ui.View):
 		self.match = match
 		self.ref = match.ref
 
-		cancel = discord.ui.Button(label="Cancel", style=discord.ButtonStyle.red, custom_id="cancelBtn")
-		cancel.callback = self.cancelBtn
-		self.add_item(cancel)
+		self.cancel = discord.ui.Button(label="Cancel", style=discord.ButtonStyle.red, custom_id="cancelBtn")
+		self.cancel.callback = self.cancelBtn
 
 		self.back = discord.ui.Button(label="Back", style=discord.ButtonStyle.secondary, custom_id="backBtn")
 		self.back.callback = self.backBtn
@@ -238,7 +236,10 @@ class DiscordMatchView(discord.ui.View):
 
 	async def init(self):
 		if self.match.matchDb and self.match.matchDb.finished:
-			self.add_item(self.submit)
+			self.add_item(self.upload)
+		else:
+			self.add_item(self.cancel)
+
 		elif not self.match.bracket:
 			sel = BracketSelect(self.match)
 			await sel.init()

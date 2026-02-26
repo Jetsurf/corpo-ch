@@ -136,6 +136,9 @@ class DiscordMatch():
 	def isFinished(self) -> bool:
 		return self._is_finished
 
+	async def genScreenEmbed(self):
+		
+
 	async def genMatchEmbed(self):
 		embed = discord.Embed(colour=0x3FFF33)
 		embed.set_author(name=f"Ref: {self.ref.display_name}", icon_url=self.ref.avatar.url)

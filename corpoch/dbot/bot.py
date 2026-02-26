@@ -111,6 +111,8 @@ class CorpoDbot(commands.Bot):
 		from corpoch.dbot.cogs.tourneycmds import DiscordMatch
 		from corpoch.models import TournamentMatchOngoing
 		async for match in TournamentMatchOngoing.objects.exclude(channel=None):
+			if not match.message:
+				continue
 			print(f"Got ongoing match {match.id}")
 			view = DiscordMatch(self._bot, uuid=match.id)
 			await view.init()

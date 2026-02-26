@@ -15,8 +15,9 @@ django-celery-beat
 pytesseract
 pillow
 requests-cache
-pydantic
+django-pydantic-field
 django-celery-results
+django-jsonform
 python-decouple
 daphne
 gspread
