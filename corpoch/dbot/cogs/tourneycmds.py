@@ -137,7 +137,7 @@ class DiscordMatch():
 		return self._is_finished
 
 	async def genScreenEmbed(self):
-		
+		pass
 
 	async def genMatchEmbed(self):
 		embed = discord.Embed(colour=0x3FFF33)
