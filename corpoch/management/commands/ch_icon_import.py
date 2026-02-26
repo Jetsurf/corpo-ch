@@ -26,6 +26,7 @@ class Command(BaseCommand):
 				icon = CHIcon(name="ch_default_icon")
 				icon.img.save("ch_default_icon.png", open(ch_default_icon_path, 'rb'))
 				icon.save()
+
 			try:
 				emoji = CHEmoji.objects.get(icon=icon)
 			except CHEmoji.DoesNotExist:
@@ -36,7 +37,6 @@ class Command(BaseCommand):
 				corpoch.dbot.tasks.add_bot_emoji("ch_default_icon")
 
 		response = requests.get('https://gitlab.com/api/v4/projects/25065576/repository/archive.tar.gz?path=public/icons')
-
 		tar = tarfile.open(fileobj=io.BytesIO(response.content), mode='r:gz')
 		members=tar.getmembers()
 		for member in members:
