@@ -2,10 +2,12 @@ import json
 
 from adminsortable2.admin import CustomInlineFormSet, SortableAdminBase, SortableStackedInline, SortableAdminMixin
 
+from django_pydantic_field import fields
+from django_jsonform.widgets import JSONFormWidget
 from django.contrib import admin
 from django.contrib.contenttypes.models import ContentType
 from corpoch.models import Chart, Tournament, TournamentConfig, BracketRules, TournamentBracket, Qualifier, TournamentPlayer, GroupSeed, MatchRound, CHIcon
-from corpoch.models import TournamentMatchCompleted, TournamentMatchOngoing, BracketGroup, QualifierSubmission, CH_MODIFIERS, MatchBan, GSheetAPI
+from corpoch.models import TournamentMatchCompleted, TournamentMatchOngoing, BracketGroup, QualifierSubmission, CH_MODIFIERS, MatchBan, GSheetAPI, StegScreenshot
 from corpoch.providers import EncoreClient
 from django.utils.html import mark_safe
 import corpoch.dbot.tasks
@@ -139,7 +141,7 @@ class BracketGroupAdmin(SortableAdminBase, admin.ModelAdmin):
 class QualifierSubmission(admin.ModelAdmin):
 	list_display = ('id', 'qualifier', 'player_ch_name')
 	list_filter = ["qualifier", "player"]
-	actions = ['set_unsubmitted', 'resubmit_gsheets']
+	actions = ['set_unsubmitted']
 	def tournament(self, obj):
 		return obj.qualifier.tournament.short_name
 
@@ -152,16 +154,17 @@ class QualifierSubmission(admin.ModelAdmin):
 			quali.submitted = False
 			quali.save()
 
-	@admin.action(description="Mark Qualifiers GS Unsubmitted")
-	def resubmit_gsheets(modeladmin, request, queryset):
-		for quali in queryset:
-			quali = False
-			quali.save()
+class StegScreenshotInline(SortableStackedInline):
+	model = StegScreenshot
+	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
+	extra = 1
 
 class RoundsOngoingInline(SortableStackedInline):
 	model = MatchRound
+	inlines = [StegScreenshotInline]
+	#formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
 	exclude = ['completed_match']
-	extra = 1
+	extra = 0
 
 class RoundsCompletedInline(SortableStackedInline):
 	model = MatchRound
@@ -171,7 +174,7 @@ class RoundsCompletedInline(SortableStackedInline):
 class BansOngoingInline(SortableStackedInline):
 	model = MatchBan
 	exclude = ['completed_match']
-	extra = 1
+	extra = 0
 
 class BansCompletedInline(SortableStackedInline):
 	model = MatchBan

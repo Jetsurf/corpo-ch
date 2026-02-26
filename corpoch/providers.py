@@ -509,9 +509,10 @@ class CHStegTool:
 		self.img_name = ""
 		self.output = None
 		self.img = None
+		self.delete = True
 
 	def __del__(self):
-		if self.img:
+		if self.delete and self.img:
 			os.remove(self.img_path)
 
 	def _get_over_strums(self):
@@ -524,9 +525,9 @@ class CHStegTool:
 		for i, player in enumerate(self.output['players']):
 			## TODO: THIS NEEDS TO BE FIXED FOR ACTUAL ROUND DATA INFO
 			if len(osCnt) == len(self.output['players']):
-				player['excess_hits'] = osCnt[i]
+				player['excess_hits'] = int(osCnt[i])
 			else:
-				player['excess_hits'] = '-'
+				player['excess_hits'] = -1
 
 	#TODO: Needs sync providers for django or changed to celery tasks
 
@@ -546,21 +547,28 @@ class CHStegTool:
 
 	def _call_steg(self):
 		stegCall = f"{self._steg} --json {self.img_path}"
-		try:
-			proc = subprocess.run(stegCall.split(), stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-			err = proc.stderr.decode('utf-8')
-			if proc.returncode == 0 or proc.returncode == '0':
-				self.output = self._sanitize_steg(proc)
-				if self.output['game_version'] in "v1.0.0.4080-final":
-					self._get_over_strums()
-				for i, player in enumerate(self.output['players']):
-					player["notes_missed"] = player["total_notes"] - player['notes_hit']
-			elif err == 'Error: InvalidScreenshotData\n':
-				print(f"STEG: Error - invalid no steg data found in image {self.img_name}")
-				self.output = None
-		except Exception as e:
-			print(f"STEG: Call failed: {e}")
+		#try:
+		proc = subprocess.run(stegCall.split(), stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+		err = proc.stderr.decode('utf-8')
+		if proc.returncode == 0 or proc.returncode == '0':
+			self.output = self._sanitize_steg(proc)
+			if self.output['game_version'] in "v1.0.0.4080-final":
+				self._get_over_strums()
+			for i, player in enumerate(self.output['players']):
+				player["notes_missed"] = player["total_notes"] - player['notes_hit']
+		elif err == 'Error: InvalidScreenshotData\n':
+			print(f"STEG: Error - invalid no steg data found in image {self.img_name}")
 			self.output = None
+		#except Exception as e:
+		#	print(f"STEG: Call failed: {e}")
+		#	self.output = None
+
+	def getStegInfoSync(self, image) -> dict:
+		self.img_name = image
+		self.img_path = f"{settings.MEDIA_ROOT}{image}"
+		self.delete = False
+		self._call_steg()
+		return self.output
 
 	async def getStegInfo(self, image: discord.Attachment) -> dict:
 		await self._prep_image(image)

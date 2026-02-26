@@ -1,5 +1,4 @@
 import requests, tarfile, io, re, time, os
-from pathlib import Path
 from django.core.management.base import BaseCommand
 from corpoch.models import CHIcon, Chart
 from corpoch.dbot.models import CHEmoji
@@ -10,7 +9,6 @@ class Command(BaseCommand):
 	help = 'Load CH Icons'
 
 	def handle(self, *args, **options):
-		root_dir = Path(__file__).parent
 		ch_default_icon_path = f"./corpoch/static/ch_default_icon.png"
 		if not os.path.isfile(ch_default_icon_path):
 			print(f"Error: File at {ch_default_icon_path} was not found.")
