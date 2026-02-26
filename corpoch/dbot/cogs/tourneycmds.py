@@ -36,7 +36,7 @@ class BanSelect(discord.ui.Select):
 			try:
 				icon = await CHEmoji.objects.select_related().aget(icon_id=chart.icon)
 			except CHEmoji.DoesNotExist:
-				icon = await CHEmoji.objects.select_related().aget(icon_id='ch')
+				icon = await CHEmoji.objects.select_related().aget(icon_id='ch_default_icon')
 			emoji = await self.match.bot.fetch_emoji(icon.id)
 			self.retOpts[chart.name] = chart
 			opts.append(discord.SelectOption(label=str(chart), description=f"{chart.artist} - {chart.charter}", emoji=emoji))
@@ -91,7 +91,7 @@ class SongRoundSelect(discord.ui.Select):
 			try:
 				icon = await CHEmoji.objects.select_related().aget(icon_id=chart.icon)
 			except CHEmoji.DoesNotExist:
-				icon = await CHEmoji.objects.select_related().aget(icon_id='ch')
+				icon = await CHEmoji.objects.select_related().aget(icon_id='ch_default_icon')
 			emoji = await self.match.bot.fetch_emoji(icon.id)
 			opts.append(discord.SelectOption(label=chart.tournament_name, value=str(chart),description=f"{chart.artist} - {chart.charter}", emoji=emoji))
 		super().__init__(placeholder=selStr, max_values=1, options=opts, custom_id="roundsong_sel", disabled=self.dis)

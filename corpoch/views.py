@@ -2,6 +2,7 @@ from django.shortcuts import render
 from django.http import HttpRequest
 from django.shortcuts import redirect
 from corpoch.discord_oauth.DiscordOAuth import *
+from .models import TournamentMatchOngoing
 
 def null(request: HttpRequest):
   return redirect("home")
@@ -46,3 +47,7 @@ def user(request: HttpRequest):
     return redirect("/".join([i for i in url]))
 
   return render(request, "user.html", context=context)
+
+def livematches(request: HttpRequest):
+  matches = TournamentMatchOngoing.objects.all()
+  return render(request, "livematches.html", {'matches': matches})

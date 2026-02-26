@@ -1,0 +1,47 @@
+* {
+	font-family: 'Varela';
+}
+
+html, body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+	background-color: #31005b;
+}
+
+main {
+    flex: 1;
+}
+
+.livematches {
+    width: 100% - 3rem;
+    margin: 3rem;
+}
+
+.match {
+	color: white;
+    width: 100%;
+}
+
+.match h1 {
+	color: white;
+    text-align: center;
+}
+
+.match table {
+    width: 100%;
+    table-layout: auto;
+    border-collapse: collapse;
+}
+
+.match th, td {
+    border: 3px solid black;
+    padding: 8px;
+    text-align: left;
+    vertical-align: top;
+}
