@@ -6,7 +6,7 @@ from asgiref.sync import sync_to_async
 
 from corpoch.models import Tournament, Chart, TournamentMatchOngoing, MatchRound, TournamentBracket, BracketGroup, TournamentPlayer, TournamentMatchCompleted, GroupSeed, MatchRound, MatchBan
 from corpoch.dbot.models import CHEmoji
-from corpoch.dbot.view.reftool import DiscordMatchView
+from corpoch.dbot.view.reftool import DiscordMatchView, FinishedMatchView
 
 #This class is being written with the assumption of official tournament matches - exhibition can be made to extend this with custom logging/rules
 class DiscordMatch():
@@ -47,9 +47,30 @@ class DiscordMatch():
 		else:
 			await self.showTool(self.msg)
 
+	@sync_to_async
+	def complete_match(self):
+		finishedMatch = TournamentMatchCompleted(id=self.matchDb.id)
+		finishedMatch.group = self.matchDb.group
+		finishedMatch.match_players.set(self.seeding)
+		finishedMatch.winner = self.rounds[-1].winner
+		finishedMatch.loser = self.rounds[-1].loser
+		#finishedMatch.match_players.set self.matchDb.match_players
+		finishedMatch.save()
+		for ban in self.bans:
+			ban.completed_match = finishedMatch
+			ban.ongoing_match = None
+			ban.save()
+		for rnd in self.rounds:
+			rnd.completed_match = finishedMatch
+			rnd.ongoing_match = None
+			rnd.save()
+		self.matchDb.delete()
+		finishedMatch.save()
+		return finishedMatch
+
 	async def finishMatch(self, interaction):
-		#Save match results to DB
-		await interaction.edit(embeds=[self.genMatchEmbed()], content=None, view=None)		
+		match = await self.complete_match()
+		await interaction.edit(embeds=[await self.genMatchEmbed()], content=None, view=FinishedMatchView(match))		
 
 	@sync_to_async
 	def load_match(self):
@@ -63,7 +84,6 @@ class DiscordMatch():
 		self.bracket.tournament.config = self.bracket.tournament.config
 		self.setlist = self.matchDb.bracket.setlist
 		self.match_players = self.matchDb.match_players
-		#self.seeding = list(self.matchDb.group.seeding.select_related().all())
 		self.seeding = list(self.matchDb.group.seeding.select_related('group', 'player').filter(id__in=self.matchDb.match_players.all().only('id')))
 		self.bans = list(self.matchDb.ongoing_bans.select_related('chart', 'player').all())
 		self.rounds = list(self.matchDb.ongoing_rounds.select_related('chart', 'picked', 'winner', 'loser').all())
@@ -75,13 +95,13 @@ class DiscordMatch():
 	def save_match(self):
 		if self.group:
 			self.matchDb.group = self.group
-			plyList = []
 			self.matchDb.match_players.set(self.seeding)
 			self.matchDb.message = self.msg.id if self.msg else None
 			self.matchDb.channel = self.channel.id
 			self.matchDb.ref = self.ref.id
-			#self.matchDb.bans = self.bans
 			self.matchDb.save()
+			self.bracket.tournament = self.bracket.tournament
+			self.bracket.tournament.config = self.bracket.tournament.config
 
 	async def showTool(self, interaction):
 		if isinstance(interaction, discord.Message):
@@ -196,6 +216,8 @@ class DiscordMatch():
 					outStr += f" - {rnd.winner.ch_name} wins!"
 				outStr+= "\n"
 
+			if self.matchDb.finished:
+				outStr += f"\n**{self.rounds[-1].winner} WINS!**"
 			embed.add_field(name="Rounds", value=outStr, inline=False)
 		if self.matchDb:
 			embed.set_footer(text=f"Match ID: {self.matchDb.id}")

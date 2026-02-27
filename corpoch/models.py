@@ -354,9 +354,11 @@ class TournamentMatchCompleted(TournamentMatch):
 		return self.completed_rounds.all()
 
 	def __str__(self):
-		ply1 = self.match_players[0]
-		ply2 = self.match_players[1]
-		return f"{self.tournament.short_name} - {self.group.bracket.name} - Group {self.group.name} - {ply1.ch_name} vs {ply2.ch_name} "
+		outStr = f"{self.tournament.short_name} - {self.group.bracket.name} - Group {self.group.name}"
+		seeds = [seed for seed in self.match_players.all()]
+		if len(seeds) > 1:#Not going to work 3+ players
+			outStr += f" - {seeds[0].player.ch_name} ({seeds[0].seed}) vs {seeds[1].player.ch_name} ({seeds[1].seed})"
+		return outStr
 
 class TournamentMatchOngoing(TournamentMatch): 
 	finished = models.BooleanField(verbose_name="Finished", default=False) #Flag to match in-progress as complete, start triggers to move to completed
@@ -484,7 +486,7 @@ class QualifierSubmission(models.Model):
 	submit_time = models.DateTimeField(verbose_name="Submission Time", auto_now_add=True)
 	screenshot = models.ImageField(upload_to=quali_upload_dir, verbose_name="Screenshot", null=True)
 	qualifier = models.ForeignKey(Qualifier, related_name='submissions', verbose_name="Tournament Qualifier", on_delete=models.CASCADE)
-	steg = SchemaField(StegScreenshot, verbose_name="Steg Data", null=True, blank=True) #This is the players list in the steg data
+	steg = SchemaField(StegScreenshot, verbose_name="Steg Data", null=True, blank=True)
 	submitted = models.BooleanField(verbose_name="Uploaded to GSheet", default=False)
 
 	class Meta:

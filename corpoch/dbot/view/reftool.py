@@ -4,6 +4,7 @@ from discord.ui import *
 from discord.enums import ComponentType, InputTextStyle
 from asgiref.sync import sync_to_async
 
+from corpoch.dbot import settings
 from corpoch.providers import CHStegTool
 from corpoch.types import StegScreenshot
 from corpoch.models import Tournament, Chart, TournamentMatchOngoing, MatchRound, TournamentBracket, BracketGroup, TournamentPlayer, TournamentMatchCompleted, GroupSeed, MatchRound, MatchBan
@@ -23,26 +24,28 @@ class MatchScreenModal(discord.ui.DesignerModal):
 		for screen in self.screens:
 			tool = CHStegTool()
 			try:
-				steg = StegScreenshot.parse_raw(json.dumps(await tool.getStegInfo(screen)))
+				steg = await tool.getStegInfo(screen)
 				playedChart = await self.match.setlist.aget(md5=steg.checksum)
 			except Exception as e:
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot upload failed {screen.filename} to parse: {e}")
 				continue
 			if playedChart.speed != steg.playback_speed:
-				await interaction.followup.send(f"Screenshot {screen.filename} does not match playback speed {steg.playback_speed} for {playedChart.tournament_name}")
-				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} does not match playback speed {steg.playback_speed} for {playedChart.tournament_name}", ephemeral=True, delete_after=10)
+				await interaction.followup.send(f"Screenshot {screen.filename} does not match playback speed {steg.playback_speed} for {playedChart.tournament_name}", ephemeral=True, delete_after=10)
+				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} does not match playback speed {steg.playback_speed} for {playedChart.tournament_name}")
 				continue
 			elif steg.game_version != self.match.bracket.tournament.config.version:
-				await interaction.followup.send(f"Screenshot {screen.filename} game version {steg.game_version} does not match tournament {self.match.tournament.config.version}")
-				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} game version {steg.game_version} does not match tournament {self.match.tournament.config.version}", ephemeral=True, delete_after=10)
+				await interaction.followup.send(f"Screenshot {screen.filename} game version {steg.game_version} does not match tournament {self.match.tournament.config.version}", ephemeral=True, delete_after=10)
+				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} game version {steg.game_version} does not match tournament {self.match.tournament.config.version}")
 				continue
 			try:
 				rnd = await self.match.matchDb.rounds.aget(chart=playedChart)
 			except MatchRound.DoesNotExist:
 				continue
+			print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} accepted")
 			await sync_to_async(rnd.screenshot.save)(screen.filename, open(tool.img_path, 'rb'))
 			rnd.steg = steg
 			await rnd.asave()
+		self.stop()
 
 class BanSelect(discord.ui.Select):
 	def __init__(self, match):
@@ -237,6 +240,16 @@ class PlayerSelect(discord.ui.Select):
 		self.match.seeding_discord.append(await self.match.guild.fetch_member(seed.player.user))
 		await self.match.showTool(interaction)
 
+class FinishedMatchView(discord.ui.DesignerView):
+	def __init__(self, match):
+		self.match = match
+		super().__init__(timeout=0)
+
+	async def init(self):
+		gallery = discord.ui.MediaGallery()
+		async for rnd in self.match.rounds.select_related():
+			self.add_item(f"https://{settings.BASE_URL}{MEDIA_ROOT}{rnd.screenshot}")
+
 class DiscordMatchView(discord.ui.View):
 	def __init__(self, match):
 		super().__init__(timeout = None)
@@ -351,6 +364,11 @@ class DiscordMatchView(discord.ui.View):
 		modal = MatchScreenModal(self.match)
 		await interaction.response.send_modal(modal)
 		await modal.wait()
+		for rnd in self.match.rounds:
+			if not rnd.steg:
+				await self.match.showTool(interaction)
+				return
+		await self.match.finishMatch(interaction)
 
 	async def submitBtn(self, interaction: discord.Interaction):
 		self.match.matchDb.finished = True
