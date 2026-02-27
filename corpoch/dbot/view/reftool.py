@@ -1,4 +1,4 @@
-import discord, uuid
+import discord, uuid, json
 from discord.ext import commands
 from discord.ui import *
 from discord.enums import ComponentType, InputTextStyle
@@ -20,11 +20,11 @@ class MatchScreenModal(discord.ui.DesignerModal):
 	async def callback(self, interaction: discord.Interaction):
 		await interaction.respond("Processing, wait for embed to update", ephemeral=True, delete_after=10)
 		self.screens = self.children[1].item.values
-		for screen in screens:
+		for screen in self.screens:
 			tool = CHStegTool()
 			try:
-				steg = StegScreenshot(await tool.getStegInfo(screen))
-				playedChart = await self.match.setlist.aget(md5=steg['checksum'])
+				steg = StegScreenshot.parse_raw(json.dumps(await tool.getStegInfo(screen)))
+				playedChart = await self.match.setlist.aget(md5=steg.checksum)
 			except Exception as e:
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot upload failed {screen.filename} to parse: {e}")
 				continue
@@ -32,15 +32,15 @@ class MatchScreenModal(discord.ui.DesignerModal):
 				await interaction.followup.send(f"Screenshot {screen.filename} does not match playback speed {steg.playback_speed} for {playedChart.tournament_name}")
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} does not match playback speed {steg.playback_speed} for {playedChart.tournament_name}", ephemeral=True, delete_after=10)
 				continue
-			elif steg.game_version != self.match.tournament.config.version:
+			elif steg.game_version != self.match.bracket.tournament.config.version:
 				await interaction.followup.send(f"Screenshot {screen.filename} game version {steg.game_version} does not match tournament {self.match.tournament.config.version}")
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} game version {steg.game_version} does not match tournament {self.match.tournament.config.version}", ephemeral=True, delete_after=10)
 				continue
 			try:
-				rnd = await self.match.rounds.aget(chart=playedChart)
+				rnd = await self.match.matchDb.rounds.aget(chart=playedChart)
 			except MatchRound.DoesNotExist:
 				continue
-			await sync_to_async(rnd.screenshot.save)(screen.filename, open(steg.img, 'rb'))
+			await sync_to_async(rnd.screenshot.save)(screen.filename, open(tool.img_path, 'rb'))
 			rnd.steg = steg
 			await rnd.asave()
 
@@ -265,7 +265,7 @@ class DiscordMatchView(discord.ui.View):
 		else:
 			self.add_item(self.cancel)
 
-		elif not self.match.bracket:
+		if not self.match.bracket:
 			sel = BracketSelect(self.match)
 			await sel.init()
 			self.add_item(sel)
@@ -285,7 +285,7 @@ class DiscordMatchView(discord.ui.View):
 			sel = BanSelect(self.match)
 			await sel.init()
 			self.add_item(sel)
-		else:
+		elif not self.match.matchDb.finished:
 			self.add_item(self.back)
 			self.add_item(self.submit)
 			if len(self.match.rounds) == 0:
@@ -308,11 +308,11 @@ class DiscordMatchView(discord.ui.View):
 				self.submit.disabled = False
 
 	async def interaction_check(self, interaction: discord.Interaction):
-		if self.match.matchDb.finished:
-			async for seed in self.matchDb.match_players.select_related('player'):
-				if seed.player.user == interaction.ctx.user.id:
+		if isinstance(self.match.matchDb, TournamentMatchOngoing) and self.match.matchDb.finished:
+			async for seed in self.match.matchDb.match_players.select_related('player'):
+				if seed.player.user == interaction.user.id:
 					return True
-		elif not self.match.matchDb.finished and interaction.user.id == self.match.ref.id:
+		if interaction.user.id == self.match.ref.id:
 			return True
 		else:
 			await interaction.response.send_message("You are not the ref for this match", ephemeral=True, delete_after=10)
@@ -353,6 +353,6 @@ class DiscordMatchView(discord.ui.View):
 		await modal.wait()
 
 	async def submitBtn(self, interaction: discord.Interaction):
-		self.matchDb.finished = True
-		await self.matchDb.save()
-		await self.match.showTool()
+		self.match.matchDb.finished = True
+		await self.match.matchDb.asave()
+		await self.match.showTool(interaction)

@@ -59,11 +59,13 @@ class DiscordMatch():
 		self.group = self.matchDb.group
 		self.bracket = self.matchDb.group.bracket
 		self.bracket.ruleset = self.bracket.ruleset
+		self.bracket.tournament = self.bracket.tournament
+		self.bracket.tournament.config = self.bracket.tournament.config
 		self.setlist = self.matchDb.bracket.setlist
 		self.match_players = self.matchDb.match_players
 		#self.seeding = list(self.matchDb.group.seeding.select_related().all())
 		self.seeding = list(self.matchDb.group.seeding.select_related('group', 'player').filter(id__in=self.matchDb.match_players.all().only('id')))
-		self.bans = list(self.matchDb.matchban_bans.select_related('chart', 'player').all())
+		self.bans = list(self.matchDb.ongoing_bans.select_related('chart', 'player').all())
 		self.rounds = list(self.matchDb.ongoing_rounds.select_related('chart', 'picked', 'winner', 'loser').all())
 		self.chart = self.rounds[-1].chart if len(self.rounds) > 0 else None
 
@@ -78,7 +80,7 @@ class DiscordMatch():
 			self.matchDb.message = self.msg.id if self.msg else None
 			self.matchDb.channel = self.channel.id
 			self.matchDb.ref = self.ref.id
-			self.matchDb.bans = self.bans
+			#self.matchDb.bans = self.bans
 			self.matchDb.save()
 
 	async def showTool(self, interaction):
@@ -90,7 +92,10 @@ class DiscordMatch():
 		await self.save_match()
 		view = DiscordMatchView(self)
 		await view.init()
-		embed = [await self.genMatchEmbed(), self.genScreenEmbed() if self.matchDb.finished else None]
+		embeds = [await self.genMatchEmbed()]
+		if self.matchDb and self.matchDb.finished:
+			embeds.append(await self.genScreenEmbed())
+
 		await interaction.edit(embeds=embeds, content=None, view=view)
 
 	@property
@@ -126,7 +131,7 @@ class DiscordMatch():
 
 		if len(self.rounds) > 0:
 			self.rounds[-1].save()
-		elif not self._is_finished:
+		if not self._is_finished:
 			self.rounds.append(MatchRound(num=len(self.rounds) + 1, ongoing_match=self.matchDb, picked=picked))
 
 	@sync_to_async
@@ -144,7 +149,7 @@ class DiscordMatch():
 		noneStr = ""
 		validStr = ""
 		for rnd in self.rounds:
-			if rnd.steg:
+			if rnd.screenshot:
 				validStr += f"{rnd.chart.name}\n"
 			else:
 				noneStr += f"{rnd.chart.name}\n"
