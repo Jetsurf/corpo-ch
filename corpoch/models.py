@@ -354,9 +354,11 @@ class TournamentMatchCompleted(TournamentMatch):
 		return self.completed_rounds.all()
 
 	def __str__(self):
-		ply1 = self.match_players[0]
-		ply2 = self.match_players[1]
-		return f"{self.tournament.short_name} - {self.group.bracket.name} - Group {self.group.name} - {ply1.ch_name} vs {ply2.ch_name} "
+		outStr = f"{self.tournament.short_name} - {self.group.bracket.name} - Group {self.group.name}"
+		seeds = [seed for seed in self.match_players.all()]
+		if len(seeds) > 1:#Not going to work 3+ players
+			outStr += f" - {seeds[0].player.ch_name} ({seeds[0].seed}) vs {seeds[1].player.ch_name} ({seeds[1].seed})"
+		return outStr
 
 class TournamentMatchOngoing(TournamentMatch): 
 	finished = models.BooleanField(verbose_name="Finished", default=False) #Flag to match in-progress as complete, start triggers to move to completed
@@ -445,12 +447,10 @@ class MatchRound(models.Model):
 		return outStr
 
 	def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
-		if self.screenshot:
+		if self.screenshot and not self.steg:
 			from corpoch.providers import CHStegTool
 			tool = CHStegTool()
-			playerSteg = tool.getStegInfoSync(self.screenshot)
-			print(f"STEG SAVE: {playerSteg}")
-			self.steg = playerSteg
+			self.steg = tool.getStegInfoSync(self.screenshot)
 		super().save()
 
 #Potential class for a "Series" of tournaments - just needs to be a list of tournaments for ogranization
@@ -477,13 +477,16 @@ class MatchBan(models.Model):
 	def get_player_ch_name(self):
 		return str(self.player.ch_name)
 
+def quali_upload_dir(self, filename):
+	return f"qualifiers/{str(self.qualifier).replace(' ', '')}/{filename}"
+
 class QualifierSubmission(models.Model):
 	id = models.CharField(primary_key=True, verbose_name="Qualifier ID", max_length=40, default=uuid.uuid1)
 	player = models.ForeignKey(TournamentPlayer, related_name="qualifiers", verbose_name="Submittor", on_delete=models.CASCADE)
 	submit_time = models.DateTimeField(verbose_name="Submission Time", auto_now_add=True)
-	screenshot = models.ImageField(upload_to="qualifiers/", verbose_name="Screenshot", null=True)
+	screenshot = models.ImageField(upload_to=quali_upload_dir, verbose_name="Screenshot", null=True)
 	qualifier = models.ForeignKey(Qualifier, related_name='submissions', verbose_name="Tournament Qualifier", on_delete=models.CASCADE)
-	steg = models.JSONField(verbose_name="Steg Data", default=dict, blank=True) #This is the steg output in it's entirety
+	steg = SchemaField(StegScreenshot, verbose_name="Steg Data", null=True, blank=True)
 	submitted = models.BooleanField(verbose_name="Uploaded to GSheet", default=False)
 
 	class Meta:
@@ -492,3 +495,10 @@ class QualifierSubmission(models.Model):
 
 	def __str__(self):
 		return f"{self.player.ch_name} - {self.qualifier.tournament.name} {self.qualifier.bracket.name if self.qualifier.bracket else ''} Qualifier"
+
+	def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
+		if self.screenshot and not self.steg:
+			from corpoch.providers import CHStegTool
+			tool = CHStegTool()
+			self.steg = tool.getStegInfoSync(self.screenshot)
+		super().save()

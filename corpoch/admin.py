@@ -142,6 +142,7 @@ class QualifierSubmission(admin.ModelAdmin):
 	list_display = ('id', 'qualifier', 'player_ch_name')
 	list_filter = ["qualifier", "player"]
 	actions = ['set_unsubmitted']
+
 	def tournament(self, obj):
 		return obj.qualifier.tournament.short_name
 
@@ -164,22 +165,22 @@ class RoundsOngoingInline(SortableStackedInline):
 	inlines = [StegScreenshotInline]
 	#formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
 	exclude = ['completed_match']
-	extra = 0
+	extra = 1
 
 class RoundsCompletedInline(SortableStackedInline):
 	model = MatchRound
 	exclude = ['ongoing_match']
-	extra = 1
+	extra = 0
 
 class BansOngoingInline(SortableStackedInline):
 	model = MatchBan
 	exclude = ['completed_match']
-	extra = 0
+	extra = 1
 
 class BansCompletedInline(SortableStackedInline):
 	model = MatchBan
 	exclude = ['ongoing_match']
-	extra = 1
+	extra = 0
 
 @admin.register(TournamentMatchCompleted)
 class TournamentMatchCompletedAdmin(SortableAdminBase, admin.ModelAdmin):
