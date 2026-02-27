@@ -4,6 +4,8 @@ from discord.ui import *
 from discord.enums import ComponentType, InputTextStyle
 from asgiref.sync import sync_to_async
 
+from corpoch.providers import CHStegTool
+from corpoch.types import StegScreenshot
 from corpoch.models import Tournament, Chart, TournamentMatchOngoing, MatchRound, TournamentBracket, BracketGroup, TournamentPlayer, TournamentMatchCompleted, GroupSeed, MatchRound, MatchBan
 from corpoch.dbot.models import CHEmoji
 from corpoch.dbot.view.helpers import get_chart_emoji
@@ -11,13 +13,36 @@ from corpoch.dbot.view.helpers import get_chart_emoji
 class MatchScreenModal(discord.ui.DesignerModal):
 	def __init__(self, match):
 		self.match = match
-		self.screen = None
+		self.screens = None
 		file = discord.ui.Label("Match Screenshot Submission", discord.ui.FileUpload(max_values=len(self.match.rounds), required=True))
 		super().__init__(discord.ui.TextDisplay("Screenshots"), file, title="Qualifier Screenshot")
 
 	async def callback(self, interaction: discord.Interaction):
-		self.screens = self.children[1].item.values
 		await interaction.respond("Processing, wait for embed to update", ephemeral=True, delete_after=10)
+		self.screens = self.children[1].item.values
+		for screen in screens:
+			tool = CHStegTool()
+			try:
+				steg = StegScreenshot(await tool.getStegInfo(screen))
+				playedChart = await self.match.setlist.aget(md5=steg['checksum'])
+			except Exception as e:
+				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot upload failed {screen.filename} to parse: {e}")
+				continue
+			if playedChart.speed != steg.playback_speed:
+				await interaction.followup.send(f"Screenshot {screen.filename} does not match playback speed {steg.playback_speed} for {playedChart.tournament_name}")
+				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} does not match playback speed {steg.playback_speed} for {playedChart.tournament_name}", ephemeral=True, delete_after=10)
+				continue
+			elif steg.game_version != self.match.tournament.config.version:
+				await interaction.followup.send(f"Screenshot {screen.filename} game version {steg.game_version} does not match tournament {self.match.tournament.config.version}")
+				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} game version {steg.game_version} does not match tournament {self.match.tournament.config.version}", ephemeral=True, delete_after=10)
+				continue
+			try:
+				rnd = await self.match.rounds.aget(chart=playedChart)
+			except MatchRound.DoesNotExist:
+				continue
+			await sync_to_async(rnd.screenshot.save)(screen.filename, open(steg.img, 'rb'))
+			rnd.steg = steg
+			await rnd.asave()
 
 class BanSelect(discord.ui.Select):
 	def __init__(self, match):

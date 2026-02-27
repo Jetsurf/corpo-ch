@@ -90,7 +90,8 @@ class DiscordMatch():
 		await self.save_match()
 		view = DiscordMatchView(self)
 		await view.init()
-		await interaction.edit(embeds=[await self.genMatchEmbed()], content=None, view=view)
+		embed = [await self.genMatchEmbed(), self.genScreenEmbed() if self.matchDb.finished else None]
+		await interaction.edit(embeds=embeds, content=None, view=view)
 
 	@property
 	def _score(self) -> list:
@@ -137,7 +138,19 @@ class DiscordMatch():
 		return self._is_finished
 
 	async def genScreenEmbed(self):
-		
+		embed = discord.Embed(colour=0xFFFF66)
+		embed.title = "Upload screenshots"
+		embed.add_field(name="Directions", value="Players/Refs for this match - click upload screenshots and submit. List will update as valid ones are found.", inline=False)
+		noneStr = ""
+		validStr = ""
+		for rnd in self.rounds:
+			if rnd.steg:
+				validStr += f"{rnd.chart.name}\n"
+			else:
+				noneStr += f"{rnd.chart.name}\n"
+		embed.add_field(name="Valid Screenshots Submitted", value=validStr, inline=False)
+		embed.add_field(name="Screenshots Missing", value=noneStr, inline=False)
+		return embed
 
 	async def genMatchEmbed(self):
 		embed = discord.Embed(colour=0x3FFF33)
