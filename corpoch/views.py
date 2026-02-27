@@ -49,5 +49,8 @@ def user(request: HttpRequest):
   return render(request, "user.html", context=context)
 
 def livematches(request: HttpRequest):
+  return render(request, "livematches.html")
+
+def update_livematches(request: HttpRequest):
   matches = TournamentMatchOngoing.objects.all()
-  return render(request, "livematches.html", {'matches': matches})
+  return render(request, 'partials/livematchesdata.html', {'matches': matches})
