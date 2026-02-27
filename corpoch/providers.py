@@ -10,6 +10,7 @@ from corpoch import __user_agent__
 from corpoch import settings
 from corpoch.models import GSheetAPI, Chart, Tournament, TournamentMatchCompleted, TournamentMatchOngoing, Qualifier, QualifierSubmission, CH_DIFFICULTIES, CH_INSTRUMENTS
 from corpoch.utils.hydra.hydra.hyutil import analyze_chart_bytes_chart, analyze_chart_bytes_mid
+from corpoch.types import StegScreenshot
 
 class SNGHandler:
 	def __init__(self, submission: Union[str,bytes], playlist: str=None, sanitize=True):
@@ -522,12 +523,12 @@ class CHStegTool:
 		outStr = pytesseract.image_to_string(osImg)
 		osCnt = re.findall("(?<=Overstrums )([Oo0-9]+)", outStr)
 		#Sanity check OS's before adding
-		for i, player in enumerate(self.output['players']):
+		for i, player in enumerate(self.output.players):
 			## TODO: THIS NEEDS TO BE FIXED FOR ACTUAL ROUND DATA INFO
-			if len(osCnt) == len(self.output['players']):
-				player['excess_hits'] = int(osCnt[i])
+			if len(osCnt) == len(self.output.players):
+				player.excess_hits = int(osCnt[i])
 			else:
-				player['excess_hits'] = -1
+				player.excess_hits = -1
 
 	#TODO: Needs sync providers for django or changed to celery tasks
 
@@ -539,10 +540,10 @@ class CHStegTool:
 		self.img = Image.open(self.img_path)
 
 	def _sanitize_steg(self, steg: dict):
-		steg = json.loads(steg.stdout.decode("utf-8"))
-		steg['charter_name'] = re.sub(r"(?:<[^>]*>)", "", steg['charter_name'])
-		for ply in steg['players']:
-			ply['profile_name'] = re.sub(r"(?:<[^>]*>)", "", ply['profile_name'])
+		steg = StegScreenshot.parse_raw(steg.stdout.decode("utf-8"))
+		steg.charter_name = re.sub(r"(?:<[^>]*>)", "", steg.charter_name)
+		for ply in steg.players:
+			ply.profile_name = re.sub(r"(?:<[^>]*>)", "", ply.profile_name)
 		return steg
 
 	def _call_steg(self):
@@ -552,10 +553,10 @@ class CHStegTool:
 		err = proc.stderr.decode('utf-8')
 		if proc.returncode == 0 or proc.returncode == '0':
 			self.output = self._sanitize_steg(proc)
-			if self.output['game_version'] in "v1.0.0.4080-final":
+			if self.output.game_version in "v1.0.0.4080-final":
 				self._get_over_strums()
-			for i, player in enumerate(self.output['players']):
-				player["notes_missed"] = player["total_notes"] - player['notes_hit']
+			for i, player in enumerate(self.output.players):
+				player.notes_missed = player.total_notes - player.notes_hit
 		elif err == 'Error: InvalidScreenshotData\n':
 			print(f"STEG: Error - invalid no steg data found in image {self.img_name}")
 			self.output = None
