@@ -1,0 +1,97 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Live Matches{% endblock %}</title>
+    <link rel="shortcut icon" type="image/png" href="{% static 'mainapp/favicon.ico' %}">
+    {% block style %}
+    <link rel="stylesheet" href="{% static 'mainapp/bootstrap/css/bootstrap.min.css' %}">
+	<link href="{% static 'mainapp/css/Varela.css' %}" rel='stylesheet'>
+	<link href="{% static 'mainapp/fontawesome-free-5.15.3-web/css/all.min.css'%}" rel="stylesheet" type="text/css">
+    {% endblock %}
+
+</head>
+<link rel="stylesheet" type="text/css" href="{% static 'mainapp/css/livematches.css' %}">
+{% block content %}
+<main>
+    <div class="livematches">
+        {% for match in matches %}
+            <div class="match">
+                <h1>{{match.high_seed.player_ch_name}} vs {{match.low_seed.player_ch_name}}</h1>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Player 1</th>
+                            <th>Player 2</th>
+                            <th>Score</th>
+                            <th>Player 1 Bans</th>
+                            <th>Player 2 Bans</th>
+                            <th>Who Picked</th>
+                            <th>Song Picked</th>
+                            <th>Won</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>{{match.high_seed.player_ch_name}}</td>
+                            <td>{{match.low_seed.player_ch_name}}</td>
+                            <td>{{match.score}}</td>
+                            <td>
+                                {% for ban in match.high_seed_bans %}
+                                    {{ban}}
+                                    <br>
+                                {% empty %}
+                                    No Bans
+                                {% endfor %}
+                            </td>
+                            <td>
+                                {% for ban in match.low_seed_bans %}
+                                    {{ban}}
+                                    <br>
+                                {% empty %}
+                                    No Bans
+                                {% endfor %}
+                            </td>
+                            <td>
+                                {% for round in match.rounds %}
+                                    {{round.picked}}
+                                    <br>
+                                {% empty %}
+                                    No Picks
+                                {% endfor %}
+                            </td>
+                            <td>
+                                {% for round in match.rounds %}
+                                    {{round.chart.name}}
+                                    <br>
+                                {% empty %}
+                                    No Picks
+                                {% endfor %}
+                            </td>
+                            <td>
+                                {% for round in match.rounds %}
+                                    {{round.winner.ch_name}}
+                                    <br>
+                                {% empty %}
+                                    No Wins
+                                {% endfor %}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                {{match.id}}
+                <br>
+            </div>
+            <br>
+        {% empty %}
+            No Live Matches
+        {% endfor %}
+    </div>
+</main>
+{% endblock %}
+</body>
+</html>

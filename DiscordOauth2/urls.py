@@ -24,7 +24,8 @@ urlpatterns = [
     path('', views.null),
     path('auth',views.auth),
     path('auth/user', views.user, name="user"),
-    path('home', views.home, name="home")
+    path('home', views.home, name="home"),
+    path('livematches/', views.livematches, name="livematches")
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

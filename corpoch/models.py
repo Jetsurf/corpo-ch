@@ -298,11 +298,11 @@ class TournamentMatch(models.Model):#This class is assumed to be an "official" m
 
 	@property
 	def high_seed(self):
-		return self.match_players[0]
+		return self.match_players.all()[0]
 
 	@property
 	def low_seed(self):
-		return self.match_players[1]
+		return self.match_players.all()[1]
 
 	@property
 	def tournament(self):
@@ -344,6 +344,14 @@ class TournamentMatchCompleted(TournamentMatch):
 	class Meta:
 		verbose_name = "Completed Match"
 		verbose_name_plural = "Matches Completed"
+		
+	@property
+	def bans(self):
+		return self.completed_bans.all()
+		
+	@property
+	def rounds(self):
+		return self.completed_rounds.all()
 
 	def __str__(self):
 		ply1 = self.match_players[0]
@@ -359,6 +367,35 @@ class TournamentMatchOngoing(TournamentMatch):
 	class Meta:
 		verbose_name = "Ongoing Match"
 		verbose_name_plural = "Ongoing Matches"
+		
+	@property
+	def bans(self):
+		return self.ongoing_bans.all()
+	
+	@property
+	def high_seed_bans(self):
+		return [ban for ban in self.bans if ban.player.player_id == self.high_seed.player_id]
+	
+	@property
+	def low_seed_bans(self):
+		return [ban for ban in self.bans if ban.player.player_id == self.low_seed.player_id]
+
+	@property
+	def rounds(self):
+		return self.ongoing_rounds.all()
+	
+	@property
+	def score(self):
+		score1 = 0
+		score2 = 0
+
+		for round in self.rounds:
+			if round.winner_id == self.high_seed.player_id:
+				score1 += 1
+			else:
+				score2 += 1
+
+		return f"{score1} - {score2}"
 
 	def complete_match(self):
 		pass
@@ -382,7 +419,7 @@ class MatchRound(models.Model):
 	id = models.AutoField(primary_key=True)
 	num = models.PositiveIntegerField(blank=False, null=False)
 	ongoing_match = models.ForeignKey(TournamentMatchOngoing, related_name="ongoing_rounds", verbose_name="Ongoing Match ID", on_delete=models.CASCADE, null=True, blank=True)
-	completed_match = models.ForeignKey(TournamentMatchCompleted, related_name="completeds_rounds", verbose_name="Completed Match ID", on_delete=models.CASCADE, null=True, blank=True)
+	completed_match = models.ForeignKey(TournamentMatchCompleted, related_name="completed_rounds", verbose_name="Completed Match ID", on_delete=models.CASCADE, null=True, blank=True)
 	picked = models.ForeignKey(TournamentPlayer, related_name="picks", verbose_name="Picked", on_delete=models.CASCADE)
 	chart = models.ForeignKey(Chart, related_name="rounds_played", verbose_name="Chart Played", null=True, blank=True, on_delete=models.SET_NULL)
 	winner = models.ForeignKey(TournamentPlayer, related_name="rounds_won", verbose_name="Winner", null=True, on_delete=models.SET_NULL)
@@ -425,8 +462,8 @@ class MatchBan(models.Model):
 	num = models.PositiveIntegerField(blank=False, null=False)
 	chart = models.ForeignKey(Chart, related_name="bans", verbose_name="Chart Banned", null=True, blank=True, on_delete=models.SET_NULL)
 	player = models.ForeignKey(GroupSeed, related_name="player_bans", verbose_name="Player", null=True, blank=True, on_delete=models.SET_NULL)
-	ongoing_match = models.ForeignKey(TournamentMatchOngoing, related_name="%(class)s_bans", verbose_name="Ongoing Match ID", on_delete=models.CASCADE, null=True, blank=True)
-	completed_match = models.ForeignKey(TournamentMatchCompleted, related_name="%(class)s_bans", verbose_name="Completed Match ID", on_delete=models.CASCADE, null=True, blank=True)
+	ongoing_match = models.ForeignKey(TournamentMatchOngoing, related_name="ongoing_bans", verbose_name="Ongoing Match ID", on_delete=models.CASCADE, null=True, blank=True)
+	completed_match = models.ForeignKey(TournamentMatchCompleted, related_name="completed_bans", verbose_name="Completed Match ID", on_delete=models.CASCADE, null=True, blank=True)
 
 	class Meta:
 		verbose_name = "Match Ban"
