@@ -209,7 +209,7 @@ class TournamentPlayer(models.Model): #TODO: This should be broken up a bit? Mod
 		return self.tournament.brackets.objects.select_related('player').filter(players__id=self.id)
 
 	def check_ch_name(self, testname):
-		return True if testname.replace(" ", "") in self.ch_name.replace(" ", "") else False
+		return True if testname.replace(" ", "").replace("♡", "") in self.ch_name.replace(" ", "").replace("♡", "") else False#Might be good to move the replaces here to a type of CH_NAME_IGNORE_CHARS
 
 class Qualifier(models.Model):
 	id = models.AutoField(primary_key=True)
@@ -289,6 +289,7 @@ class TournamentMatch(models.Model):#This class is assumed to be an "official" m
 	id = models.CharField(primary_key=True, verbose_name="Match ID", max_length=40, default=uuid.uuid1)
 	processed = models.BooleanField(verbose_name="Match Processed", default=False)
 	group = models.ForeignKey(BracketGroup, related_name='%(class)s_matches', verbose_name="Group", on_delete=models.CASCADE)#limit_options_to groups in bracket somehow?
+	defer = models.BooleanField(verbose_name="Deferral Used", default=False)
 	match_players = models.ManyToManyField(GroupSeed, related_name="%(class)s_players", verbose_name="Players", blank=True)
 	started_on = models.DateTimeField(verbose_name="Match Start Time", auto_now_add=True)
 
@@ -326,7 +327,8 @@ class TournamentMatch(models.Model):#This class is assumed to be an "official" m
 				outStr += f" vs {ply.ch_name}({self.group.seeding.get(player=ply)})" 
 		return outStr
 
-	def __str__(self):
+	@property
+	def short_name(self):
 		outStr = ""
 		for i, seed in enumerate(self.match_players.iterator()):
 			if i == 0:
@@ -413,23 +415,23 @@ class TournamentMatchOngoing(TournamentMatch):
 
 def steg_upload_dir(self, filename):
 	if self.ongoing_match:
-		return f"matches/{str(self.ongoing_match.group).replace(' ', '')}/{self.ongoing_match.id}/{filename}"
+		return f"matches/{str(self.ongoing_match.group).replace(' ', '').replace(":", "")}/{self.ongoing_match.id}/{filename}"
 	else:
-		return f"matches/{str(self.completed_match.group).replace(' ', '')}/{self.completed_match.id}/{filename}"
+		return f"matches/{str(self.completed_match.group).replace(' ', '').replace(":", "")}/{self.completed_match.id}/{filename}"
 
 class MatchRound(models.Model):
 	id = models.AutoField(primary_key=True)
 	num = models.PositiveIntegerField(blank=False, null=False)
 	ongoing_match = models.ForeignKey(TournamentMatchOngoing, related_name="ongoing_rounds", verbose_name="Ongoing Match ID", on_delete=models.CASCADE, null=True, blank=True)
 	completed_match = models.ForeignKey(TournamentMatchCompleted, related_name="completed_rounds", verbose_name="Completed Match ID", on_delete=models.CASCADE, null=True, blank=True)
-	picked = models.ForeignKey(TournamentPlayer, related_name="picks", verbose_name="Picked", on_delete=models.CASCADE)
+	picked = models.ForeignKey(TournamentPlayer, related_name="picks", verbose_name="Picked", on_delete=models.CASCADE, blank=True, null=True)
 	chart = models.ForeignKey(Chart, related_name="rounds_played", verbose_name="Chart Played", null=True, blank=True, on_delete=models.SET_NULL)
 	winner = models.ForeignKey(TournamentPlayer, related_name="rounds_won", verbose_name="Winner", null=True, on_delete=models.SET_NULL)
 	#w_points = models.PositiveIntegerField(verbose_name="Players", validators=[MinValueValidator(1), MaxValueValidator(5)], default=1)
 	loser = models.ForeignKey(TournamentPlayer, related_name="rounds_lost", verbose_name="Loser", null=True, on_delete=models.SET_NULL)
 	#l_points = models.PositiveIntegerField(verbose_name="Players", validators=[MinValueValidator(1), MaxValueValidator(5)], default=0)
 	steg = SchemaField(StegScreenshot, verbose_name="Steg Data", null=True, blank=True) #This is the players list in the steg data
-	screenshot = models.ImageField(upload_to=steg_upload_dir, verbose_name="Screenshot", null=True)
+	screenshot = models.ImageField(upload_to=steg_upload_dir, verbose_name="Screenshot", null=True, blank=True)
 
 	class Meta:
 		verbose_name = "Group Match Round"
@@ -478,13 +480,13 @@ class MatchBan(models.Model):
 		return str(self.player.ch_name)
 
 def quali_upload_dir(self, filename):
-	return f"qualifiers/{str(self.qualifier).replace(' ', '')}/{filename}"
+	return f"qualifiers/{str(self.qualifier).replace(' ', '').replace(":", "")}/{filename}"
 
 class QualifierSubmission(models.Model):
 	id = models.CharField(primary_key=True, verbose_name="Qualifier ID", max_length=40, default=uuid.uuid1)
 	player = models.ForeignKey(TournamentPlayer, related_name="qualifiers", verbose_name="Submittor", on_delete=models.CASCADE)
 	submit_time = models.DateTimeField(verbose_name="Submission Time", auto_now_add=True)
-	screenshot = models.ImageField(upload_to=quali_upload_dir, verbose_name="Screenshot", null=True)
+	screenshot = models.ImageField(upload_to=quali_upload_dir, verbose_name="Screenshot", null=True, blank=True)
 	qualifier = models.ForeignKey(Qualifier, related_name='submissions', verbose_name="Tournament Qualifier", on_delete=models.CASCADE)
 	steg = SchemaField(StegScreenshot, verbose_name="Steg Data", null=True, blank=True)
 	submitted = models.BooleanField(verbose_name="Uploaded to GSheet", default=False)
@@ -501,4 +503,7 @@ class QualifierSubmission(models.Model):
 			from corpoch.providers import CHStegTool
 			tool = CHStegTool()
 			self.steg = tool.getStegInfoSync(self.screenshot)
+			for i, ply in enumerate(self.steg.players):
+				if not self.player.check_ch_name(ply.profile_name):
+					self.steg.players.pop(i)
 		super().save()

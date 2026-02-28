@@ -4,9 +4,11 @@ from discord.ui import *
 from discord.enums import ComponentType, InputTextStyle
 from asgiref.sync import sync_to_async
 
+from corpoch import settings
 from corpoch.models import Tournament, Chart, TournamentMatchOngoing, MatchRound, TournamentBracket, BracketGroup, TournamentPlayer, TournamentMatchCompleted, GroupSeed, MatchRound, MatchBan
 from corpoch.dbot.models import CHEmoji
-from corpoch.dbot.view.reftool import DiscordMatchView, FinishedMatchView
+from corpoch.dbot.view.reftool import DiscordMatchView
+from corpoch.types import TB_RULESETS, PICK_RULESETS, BAN_RULESETS
 
 #This class is being written with the assumption of official tournament matches - exhibition can be made to extend this with custom logging/rules
 class DiscordMatch():
@@ -64,13 +66,18 @@ class DiscordMatch():
 			rnd.completed_match = finishedMatch
 			rnd.ongoing_match = None
 			rnd.save()
-		self.matchDb.delete()
 		finishedMatch.save()
+		self.matchDb.delete()
+		self.matchDb = finishedMatch
 		return finishedMatch
 
 	async def finishMatch(self, interaction):
 		match = await self.complete_match()
-		await interaction.edit(embeds=[await self.genMatchEmbed()], content=None, view=FinishedMatchView(match))		
+		attachments = []
+		async for rnd in match.rounds.select_related():
+			print(f"Adding image - https://{settings.BASE_URL}{MEDIA_ROOT}{rnd.screenshot}")
+			attachments.append(discord.Attachment(url=f"https://{settings.BASE_URL}{MEDIA_ROOT}{rnd.screenshot}"))
+		await interaction.edit(attachments=attachments, embeds=[await self.genMatchEmbed()], content=None, view=FinishedMatchView(match))		
 
 	@sync_to_async
 	def load_match(self):
@@ -139,7 +146,13 @@ class DiscordMatch():
 	@sync_to_async
 	def add_round(self):
 		if len(self.rounds) == 0:
-			picked = self.seeding[0].player
+			if self.matchDb.defer and self.bracket.ruleset.pick_ruleset.ban_ruleset == "deferboth":
+				picked = self.seeding[1].player
+			else:
+				picked = self.seeding[0].player
+		elif len(self.rounds) == self.bracket.ruleset.num_rounds:
+			if self.bracket.ruleset.tb_ruleset == 'refdecide':
+				picked = None
 		elif self.bracket.ruleset.pick_ruleset == "loserpicks":
 			picked = self.rounds[-1].loser
 		else:
@@ -161,6 +174,14 @@ class DiscordMatch():
 	@sync_to_async
 	def isFinished(self) -> bool:
 		return self._is_finished
+
+	@sync_to_async
+	def isTieBreaker(self):
+		score = self._score
+		if score[0] == self.bracket.ruleset.wins_needed - 1 and score[1] == self.bracket.ruleset.wins_needed - 1:
+			return True
+		else:
+			return False
 
 	async def genScreenEmbed(self):
 		embed = discord.Embed(colour=0xFFFF66)
@@ -191,7 +212,8 @@ class DiscordMatch():
 			embed.title = f"{self.tourney.short_name} - {self.bracket.name} - Group {self.group.name}"
 			embed.add_field(name="Player Select", value=f"Select which players the match is for", inline=False)
 		else:
-			embed.title = f"{self.tourney.short_name} - {self.bracket.name} - Group {self.group.name}\n{self.seeding_discord[0].mention}({self.seeding[0].seed}) vs {self.seeding_discord[1].mention} ({self.seeding[1].seed})"
+			embed.title = f"{self.tourney.short_name} - {self.bracket.name} - Group {self.group.name}\n{self.seeding[0].player.ch_name}({self.seeding[0].seed}) vs {self.seeding[1].player.ch_name} ({self.seeding[1].seed})"
+			embed.add_field(name="Match VS", value=f"{self.seeding_discord[0].mention} vs {self.seeding_discord[1].mention}")
 			outStr = ""
 			for i, seed in enumerate(self.seeding):
 				outStr += f"**{seed.player.ch_name} Bans**\n"
@@ -202,23 +224,30 @@ class DiscordMatch():
 						outStr += "--\n"
 			if len(self.bans) < self.bracket.ruleset.num_bans:
 				embed.add_field(name="Bans", value=f"{outStr}\nSelect next ban", inline=False)
+			elif self.bracket.ruleset.tb_ruleset == 'banpick' and len(self.rounds) == self.bracket.ruleset.num_rounds:
+				outStr += f"***TIEBREAKER BAN***\n**{self.rounds[-2].winner.ch_name} Bans**"					
+				if len(self.bans) < self.bracket.ruleset.total_bans + 1:
+					outStr += " ---"
+					embed.add_field(name="Bans", value=f"{outStr}\nSelect next ban", inline=False)
+				else:
+					outStr += f"{self.bans[-1]}"
+					embed.add_field(name="Bans", value=outStr, inline=False)
 			else:
 				embed.add_field(name="Bans", value=outStr, inline=False)
-		
-		if self.bans and len(self.bans) == self.bracket.ruleset.total_bans:
-			outStr = ""
-			for i, rnd in enumerate(self.rounds):
-				if i == self.bracket.ruleset.num_rounds:
-					outStr += "**TIEBREAKER**"
 
-				outStr += f"{rnd.picked.ch_name} picks {rnd.chart.tournament_name if rnd.chart else '---'}"
-				if rnd.winner:
-					outStr += f" - {rnd.winner.ch_name} wins!"
-				outStr+= "\n"
+		outStr = ""
+		for i, rnd in enumerate(self.rounds):
+			if i == self.bracket.ruleset.num_rounds:
+				outStr += "**TIEBREAKER**\n"
 
-			if self.matchDb.finished:
-				outStr += f"\n**{self.rounds[-1].winner} WINS!**"
-			embed.add_field(name="Rounds", value=outStr, inline=False)
+			outStr += f"{rnd.picked.ch_name if rnd.picked else '*Chat*'} picks {rnd.chart.tournament_name if rnd.chart else '---'}"
+			if rnd.winner:
+				outStr += f" - {rnd.winner.ch_name} wins!"
+			outStr+= "\n"
+
+		if self.matchDb and self.matchDb.finished:
+			outStr += f"\n**{self.rounds[-1].winner} WINS!**"
+		embed.add_field(name="Rounds", value=outStr, inline=False)
 		if self.matchDb:
 			embed.set_footer(text=f"Match ID: {self.matchDb.id}")
 		return embed

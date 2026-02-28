@@ -8,4 +8,6 @@ NOTE: I don't quite yet have the confidence to implement a lot of these yet, que
  - Air table/Live match html needs to be made
  - Discord bot views need to have a pass at moving common UI elements to a shared file and tweaked to support different parent objects
 
-File uploads - working - but needs to be broken into organized folders rather than left at the root
+File uploads - working - existing qualifier submissions need to be re-organized
+
+Now that pydantic is being leveraged - go back and make encore charts a proper class from the encore results - will clean up a lot more stupid code

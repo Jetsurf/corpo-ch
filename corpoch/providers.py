@@ -530,8 +530,6 @@ class CHStegTool:
 			else:
 				player.excess_hits = -1
 
-	#TODO: Needs sync providers for django or changed to celery tasks
-
 	async def _prep_image(self, image):
 		image.filename = re.sub(r'[^a-zA-Z0-9-_.]', '', image.filename)
 		self.img_name = image.filename
@@ -548,21 +546,21 @@ class CHStegTool:
 
 	def _call_steg(self):
 		stegCall = f"{self._steg} --json {self.img_path}"
-		#try:
-		proc = subprocess.run(stegCall.split(), stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-		err = proc.stderr.decode('utf-8')
-		if proc.returncode == 0 or proc.returncode == '0':
-			self.output = self._sanitize_steg(proc)
-			if self.output.game_version in "v1.0.0.4080-final":
-				self._get_over_strums()
-			for i, player in enumerate(self.output.players):
-				player.notes_missed = player.total_notes - player.notes_hit
-		elif err == 'Error: InvalidScreenshotData\n':
-			print(f"STEG: Error - invalid no steg data found in image {self.img_name}")
+		try:
+			proc = subprocess.run(stegCall.split(), stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+			err = proc.stderr.decode('utf-8')
+			if proc.returncode == 0 or proc.returncode == '0':
+				self.output = self._sanitize_steg(proc)
+				if self.output.game_version in "v1.0.0.4080-final":
+					self._get_over_strums()
+				for i, player in enumerate(self.output.players):
+					player.notes_missed = player.total_notes - player.notes_hit
+			elif err == 'Error: InvalidScreenshotData\n':
+				print(f"STEG: Error - invalid no steg data found in image {self.img_name}")
+				self.output = None
+		except Exception as e:
+			print(f"STEG: Call failed: {e}")
 			self.output = None
-		#except Exception as e:
-		#	print(f"STEG: Call failed: {e}")
-		#	self.output = None
 
 	def getStegInfoSync(self, image) -> dict:
 		self.img_name = image
@@ -579,24 +577,19 @@ class CHStegTool:
 	def buildStatsEmbed(self, title: str) -> discord.Embed:
 		embed = discord.Embed(colour=0x3FFF33)
 		embed.title = title
-		if 'players' in self.output:
-			chartStr = f"Chart Name: {self.output['song_name']}" + f" ({self.output['playback_speed']}%)\n" if self.output["playback_speed"] != 100 else '\n'
-			chartStr += f"Run Time: <t:{int(round(datetime.strptime(self.output['score_timestamp'], '%Y-%m-%dT%H:%M:%S.%fZ').timestamp()))}:f>\n"
-			chartStr += f"Game Version: {self.output['game_version']}"
-			embed.add_field(name="Submission Stats", value=chartStr, inline=False)
-			embed.set_footer(text=f"Chart md5 {self.output['checksum']}")
-			plySteg = self.output['players']
-		else:
-			plySteg = self.output
-
-		for i, player in enumerate(plySteg):
+		chartStr = f"Chart Name: {self.output.song_name}" + f" ({self.output.playback_speed}%)\n" if self.output.playback_speed != 100 else '\n'
+		chartStr += f"Run Time: <t:{int(round(datetime.strptime(self.output.score_timestamp, '%Y-%m-%dT%H:%M:%S.%fZ').timestamp()))}:f>\n"
+		chartStr += f"Game Version: {self.output.game_version}"
+		embed.add_field(name="Submission Stats", value=chartStr, inline=False)
+		embed.set_footer(text=f"Chart md5 {self.output.checksum}")
+		for i, player in enumerate(self.output.players):
 			plyStr = ""
-			plyStr += f"Player Name: {player["profile_name"]}\n"
-			plyStr += f"Score: {player["score"]}\n"
-			plyStr += f"Notes Hit: {player["notes_hit"]}/{player["total_notes"]} - {(player["notes_hit"]/player["total_notes"]) * 100:.2f}% {' - 👑' if player['is_fc'] else f'(-{player["notes_missed"]})'}\n"
-			plyStr += f"Overstrums: (+){player["excess_hits"]}\n"
-			plyStr += f"Ghosts: {player["frets_ghosted"]}\n"
-			plyStr += f"SP Phrases: {player["sp_phrases_earned"]}/{player["sp_phrases_total"]}\n"
+			plyStr += f"Player Name: {player.profile_name}\n"
+			plyStr += f"Score: {player.score}\n"
+			plyStr += f"Notes Hit: {player.notes_hit}/{player.total_notes} - {(player.notes_hit/player.total_notes) * 100:.2f}% {' - 👑' if player.is_fc else f'(-{player.notes_missed})'}\n"
+			plyStr += f"Overstrums: (+){player.excess_hits}\n"
+			plyStr += f"Ghosts: {player.frets_ghosted}\n"
+			plyStr += f"SP Phrases: {player.sp_phrases_earned}/{player.sp_phrases_total}\n"
 			embed.add_field(name=f"Player {i+1}", value=plyStr, inline=False)
 
 		return embed
@@ -619,11 +612,11 @@ class GSheets():
 			self._bracket = self._submission.qualifier.bracket
 			self._url = self._submission.qualifier.gsheet
 		elif isinstance(self._submission, TournamentMatchOngoing):
-			self._tourney = self._submission.group.bracket.tourney
+			self._tourney = self._submission.group.bracket.tournament
 			self._bracket = self._submission.group.bracket
 			self._url = self._tourney.config.gsheet
 		elif isinstance(self._submission, TournamentMatchCompleted):
-			self._tourney = self._submission.group.bracket.tourney
+			self._tourney = self._submission.group.bracket.tournament
 			self._bracket = self._submission.group.bracket
 			self._url = self._tourney.config.gsheet
 
@@ -640,12 +633,12 @@ class GSheets():
 				ws = self.setup_qualifier_sheet()
 		elif isinstance(self._submission, TournamentMatchOngoing):
 			try:
-				ws = self._sheet.worksheet((f"{self._submission.tourney.short_name} - Live Data"))
+				ws = self._sheet.worksheet((f"{self._submission.tournament.short_name} - Live Data"))
 			except gspread.exceptions.WorksheetNotFound:
 				ws = self.setup_ongoing_sheet()
 		elif isinstance(self._submission, TournamentMatchCompleted):
 			try:
-				ws = self._sheet.worksheet((f"{self._submission.tourney.short_name} - Completed Data"))
+				ws = self._sheet.worksheet((f"{self._submission.tournament.short_name} - Match Data"))
 			except gspread.exceptions.WorksheetNotFound:
 				ws = self.setup_completed_sheet()
 
@@ -661,11 +654,11 @@ class GSheets():
 	def setup_ongoing_sheet(self) -> bool:
 		pass
 
-	def set_completed_sheet(self) -> bool:
+	def setup_completed_sheet(self) -> bool:
 		pass
 
 	def submit_completed(self) -> bool:
-		pass
+		self._ws.append_rows(self.completed_lines)
 
 	def submit_ongoing(self) -> bool:
 		pass
@@ -679,26 +672,48 @@ class GSheets():
 
 	@property
 	def qualifier_line(self):
-		chName = self._submission.steg['profile_name']
-		score = self._submission.steg['score']
-		missed = self._submission.steg['notes_missed']
-		hit = self._submission.steg['notes_hit']
-		excess = self._submission.steg['excess_hits']
-		ghosts = self._submission.steg['frets_ghosted']
-		phrases = self._submission.steg['sp_phrases_earned']
-		submissionTimestamp = str(self._submission.submit_time.strftime("%Y-%m-%d %H:%M:%S") + "-UTC")
-		screenshotTimestamp = f"{datetime.strptime(self._submission.steg['score_timestamp'], '%Y-%m-%dT%H:%M:%S.%fZ').strftime('%Y-%m-%d %H:%M:%S')}-UTC"
+		chName = self._submission.steg.players[0].profile_name
+		score = self._submission.steg.players[0].score
+		missed = self._submission.steg.players[0].notes_missed
+		hit = self._submission.steg.players[0].notes_hit
+		excess = self._submission.steg.players[0].excess_hits
+		ghosts = self._submission.steg.players[0].frets_ghosted
+		phrases = self._submission.steg.players[0].sp_phrases_earned
+		submissionTimestamp = f"{self._submission.submit_time.strftime("%Y-%m-%d %H:%M:%S")}-UTC"
+		screenshotTimestamp = f"{self._submission.steg.score_timestamp.strftime('%Y-%m-%d %H:%M:%S')}-UTC"
 		imgUrl = f"https://{settings.BASE_URL}{self._submission.screenshot.url}"
 		gameVer = self._submission.qualifier.tournament.config.version
 		return [self._submission.player.name, chName, score, missed, hit, excess, ghosts, phrases, submissionTimestamp, screenshotTimestamp, imgUrl, gameVer]
 
 	@property
-	def ongoing_line(self):
+	def ongoing_lines(self):
 		pass
 
 	@property
-	def complete_line(self):
-		pass
+	def completed_lines(self):
+		retLines = []
+		matchId = self._submission.id
+		bracket = str(self._submission.bracket)
+		match = self._submission.short_name
+		for rnd in self._submission.rounds:
+			for ply in rnd.steg.players:
+				picked = str(rnd.picked.ch_name)
+				song = rnd.chart.tournament_name
+				chName = ply.profile_name
+				score = ply.score
+				if rnd.winner.check_ch_name(chName):
+					wl = "W"
+				else:
+					wl = "L"
+				missed = ply.notes_missed
+				hit = ply.notes_hit
+				excess = ply.excess_hits
+				ghosts = ply.frets_ghosted
+				phrases = ply.sp_phrases_earned
+				ts = f"{rnd.steg.score_timestamp.strftime('%Y-%m-%d %H:%M:%S')}-UTC"
+				url = f"https://{settings.BASE_URL}{rnd.screenshot.url}"
+				retLines.append([matchId, bracket, match, picked, song, chName, score, wl, missed, hit, excess, ghosts, phrases, ts, url])
+		return retLines
 
 
 #Keeping for future OCR use/reference

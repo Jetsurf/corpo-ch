@@ -6,7 +6,7 @@ from asgiref.sync import sync_to_async
 
 from corpoch.dbot import settings
 from corpoch.providers import CHStegTool
-from corpoch.types import StegScreenshot
+from corpoch.types import StegScreenshot, TB_RULESETS, PICK_RULESETS, BAN_RULESETS
 from corpoch.models import Tournament, Chart, TournamentMatchOngoing, MatchRound, TournamentBracket, BracketGroup, TournamentPlayer, TournamentMatchCompleted, GroupSeed, MatchRound, MatchBan
 from corpoch.dbot.models import CHEmoji
 from corpoch.dbot.view.helpers import get_chart_emoji
@@ -21,30 +21,6 @@ class MatchScreenModal(discord.ui.DesignerModal):
 	async def callback(self, interaction: discord.Interaction):
 		await interaction.respond("Processing, wait for embed to update", ephemeral=True, delete_after=10)
 		self.screens = self.children[1].item.values
-		for screen in self.screens:
-			tool = CHStegTool()
-			try:
-				steg = await tool.getStegInfo(screen)
-				playedChart = await self.match.setlist.aget(md5=steg.checksum)
-			except Exception as e:
-				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot upload failed {screen.filename} to parse: {e}")
-				continue
-			if playedChart.speed != steg.playback_speed:
-				await interaction.followup.send(f"Screenshot {screen.filename} does not match playback speed {steg.playback_speed} for {playedChart.tournament_name}", ephemeral=True, delete_after=10)
-				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} does not match playback speed {steg.playback_speed} for {playedChart.tournament_name}")
-				continue
-			elif steg.game_version != self.match.bracket.tournament.config.version:
-				await interaction.followup.send(f"Screenshot {screen.filename} game version {steg.game_version} does not match tournament {self.match.tournament.config.version}", ephemeral=True, delete_after=10)
-				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} game version {steg.game_version} does not match tournament {self.match.tournament.config.version}")
-				continue
-			try:
-				rnd = await self.match.matchDb.rounds.aget(chart=playedChart)
-			except MatchRound.DoesNotExist:
-				continue
-			print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} accepted")
-			await sync_to_async(rnd.screenshot.save)(screen.filename, open(tool.img_path, 'rb'))
-			rnd.steg = steg
-			await rnd.asave()
 		self.stop()
 
 class BanSelect(discord.ui.Select):
@@ -61,14 +37,20 @@ class BanSelect(discord.ui.Select):
 			charts = self.match.setlist.select_related('icon').filter(tiebreaker=False).exclude(bans__in=self.match.bans)
 		async for chart in charts:
 			emoji = await get_chart_emoji(self.match.bot, chart)
-			self.retOpts[chart.name] = chart
-			opts.append(discord.SelectOption(label=str(chart), description=f"{chart.artist} - {chart.charter}", emoji=emoji))
-		super().__init__(placeholder=f"{await sync_to_async(lambda: self.match.seeding[self.index].player.ch_name)()} Ban", max_values=1, options=opts, custom_id="ban_sel")
+			self.retOpts[chart.md5] = chart
+			opts.append(discord.SelectOption(label=str(chart.tournament_name), description=f"{chart.artist} - {chart.charter}", emoji=emoji, value=chart.md5))
+		if len(self.match.rounds) == self.match.bracket.ruleset.num_rounds:
+			super().__init__(placeholder=f"{await sync_to_async(lambda: self.match.rounds[-2].winner.ch_name)()} Ban", max_values=1, options=opts, custom_id="ban_sel")
+		else:
+			super().__init__(placeholder=f"{await sync_to_async(lambda: self.match.seeding[self.index].player.ch_name)()} Ban", max_values=1, options=opts, custom_id="ban_sel")
 
 	async def callback(self, interaction: discord.Interaction):
 		chart = self.retOpts[self.values[0]]
-		seed = self.match.seeding[self.index]
-		newBan = MatchBan(num=len(self.match.bans), player=seed, chart=chart, ongoing_match=self.match.matchDb)
+		if len(self.match.rounds) < self.match.bracket.ruleset.num_rounds:
+			seed = self.match.seeding[self.index]
+			newBan = MatchBan(num=len(self.match.bans), player=seed, chart=chart, ongoing_match=self.match.matchDb)
+		else:
+			newBan = MatchBan(num=len(self.match.bans), player=self.match.rounds[-2].winner)#"NPDO" TB Ban
 		await newBan.asave()
 		self.match.bans.append(newBan)
 		await self.match.showTool(interaction)
@@ -99,8 +81,17 @@ class SongRoundSelect(discord.ui.Select):
 			bansDone.append(ban.chart.id)
 
 		songOptsDone = []
-		if len(self.match.rounds) > self.match.bracket.ruleset.num_rounds:
-			charts = self.match.setlist.select_related('icon').filter(tiebreaker=True).exclude(id__in=bansDone)
+		if len(self.match.rounds) == self.match.bracket.ruleset.num_rounds:
+			if self.match.bracket.ruleset.tb_ruleset == 'refdecide':
+				for rnd in self.match.rounds:
+					chart = await sync_to_async(lambda: rnd.chart)()
+					if chart:
+						songOptsDone.append(chart.id)
+				charts = self.match.setlist.select_related('icon').filter().exclude(id__in=bansDone).exclude(id__in=songOptsDone)
+			elif self.match.bracket.ruleset.tb_ruleset == "banpick":
+				charts = self.match.setlist.select_related('icon').filter(tiebreaker=True).exclude(id__in=bansDone)
+			else:
+				charts = self.match.setlist.select_related('icon').filter(tiebreaker=True)
 		else:
 			for rnd in self.match.rounds:
 				chart = await sync_to_async(lambda: rnd.chart)()
@@ -240,16 +231,6 @@ class PlayerSelect(discord.ui.Select):
 		self.match.seeding_discord.append(await self.match.guild.fetch_member(seed.player.user))
 		await self.match.showTool(interaction)
 
-class FinishedMatchView(discord.ui.DesignerView):
-	def __init__(self, match):
-		self.match = match
-		super().__init__(timeout=0)
-
-	async def init(self):
-		gallery = discord.ui.MediaGallery()
-		async for rnd in self.match.rounds.select_related():
-			self.add_item(f"https://{settings.BASE_URL}{MEDIA_ROOT}{rnd.screenshot}")
-
 class DiscordMatchView(discord.ui.View):
 	def __init__(self, match):
 		super().__init__(timeout = None)
@@ -262,6 +243,9 @@ class DiscordMatchView(discord.ui.View):
 		self.back = discord.ui.Button(label="Back", style=discord.ButtonStyle.secondary, custom_id="backBtn")
 		self.back.callback = self.backBtn
 
+		self.defer = discord.ui.Button(label="Defer", style=discord.ButtonStyle.secondary, custom_id="deferBtn")
+		self.defer.callback = self.deferBtn
+
 		self.plyin = discord.ui.Button(label="Allow player input", style=discord.ButtonStyle.secondary, custom_id="plyinBtn")
 		self.plyin.callback = self.plyinBtn # Future idea
 
@@ -271,6 +255,16 @@ class DiscordMatchView(discord.ui.View):
 		self.submit = discord.ui.Button(label='Submit Match', style=discord.ButtonStyle.green, custom_id="submitBtn")
 		self.submit.callback = self.submitBtn
 		self.submit.disabled = True
+
+	async def setup_round_player_sels(self):
+		sngDis = True if self.match.rounds[-1].chart else False
+		sngSel = SongRoundSelect(self.match, sngDis)
+		plyDis = True if not self.match.rounds[-1].chart else False
+		plySel = PlayerRoundSelect(self.match, plyDis)
+		await sngSel.init()
+		await plySel.init()
+		self.add_item(sngSel)
+		self.add_item(plySel)
 
 	async def init(self):
 		if self.match.matchDb and self.match.matchDb.finished:
@@ -295,29 +289,31 @@ class DiscordMatchView(discord.ui.View):
 				self.add_item(sel)
 		elif len(self.match.bans) < self.match.bracket.ruleset.total_bans:
 			self.add_item(self.back)
+			if 'defer' in self.match.bracket.ruleset.ban_ruleset:
+				self.add_item(self.defer)
 			sel = BanSelect(self.match)
 			await sel.init()
 			self.add_item(sel)
 		elif not self.match.matchDb.finished:
 			self.add_item(self.back)
 			self.add_item(self.submit)
-			if len(self.match.rounds) == 0:
+			if len(self.match.bans) == self.match.bracket.ruleset.total_bans and len(self.match.rounds) == 0:
 				await self.match.add_round()
 
 			wins = await self.match.getScore()
-			print(f"DEBUG: WINS: {wins} - NEEDED: {self.match.bracket.ruleset.wins_needed}")
-			if wins[0] < self.match.bracket.ruleset.wins_needed  and wins[1] < self.match.bracket.ruleset.wins_needed:
-				sngDis = True if self.match.rounds[-1].chart else False
-				sngSel = SongRoundSelect(self.match, sngDis)
-				plyDis = True if not self.match.rounds[-1].chart else False
-				plySel = PlayerRoundSelect(self.match, plyDis)
-				await sngSel.init()
-				await plySel.init()
-				self.add_item(sngSel)
-				self.add_item(plySel)
-			elif wins[0] == (self.match.bracket.ruleset.wins_needed  - 1) and wins[1] == (self.match.bracket.ruleset.wins_needed - 1):
-				pass #TB
-			elif wins[0] == self.match.bracket.ruleset.wins_needed or wins[1] == self.match.bracket.ruleset.wins_needed:
+			if not await self.match.isFinished() and not await self.match.isTieBreaker():
+				await self.setup_round_player_sels()
+			elif not await self.match.isFinished() and await self.match.isTieBreaker():
+				if self.match.bracket.ruleset.tb_ruleset == 'banpick':
+					if len(self.match.bans) == self.match.bracket.ruleset.total_bans:
+						sel = BanSelect(self.match)
+						await sel.init()
+						self.add_item(sel)
+					else:
+						await self.setup_round_player_sels()
+				else:
+					await self.setup_round_player_sels()
+			elif await self.match.isFinished():
 				self.submit.disabled = False
 
 	async def interaction_check(self, interaction: discord.Interaction):
@@ -328,11 +324,11 @@ class DiscordMatchView(discord.ui.View):
 		if interaction.user.id == self.match.ref.id:
 			return True
 		else:
-			await interaction.response.send_message("You are not the ref for this match", ephemeral=True, delete_after=10)
+			await interaction.response.send_message("You are not the ref or player for this match", ephemeral=True, delete_after=10)
 			return False
 
 	async def plyinBtn(self, interaction: discord.Interaction):
-		pass
+		pass #To be used in the future to allow ref to have player manually input their choices into the tool
 
 	async def backBtn(self, interaction: discord.Interaction):
 		if len(self.match.rounds) > 0:
@@ -360,12 +356,60 @@ class DiscordMatchView(discord.ui.View):
 			self.match.confirmCancel = True
 			await interaction.response.send_message(content="Are you sure you want to cancel? Click cancel again to confirm", ephemeral=True, delete_after=10)
 
+	async def deferBtn(self, interaction: discord.Interaction):
+		self.match.matchDb.defer = not self.match.matchDb.defer
+		await self.showTool(interaction)
+
 	async def uploadBtn(self, interaction: discord.Interaction):
 		modal = MatchScreenModal(self.match)
 		await interaction.response.send_modal(modal)
 		await modal.wait()
+		print("Returning from modal")
+		for screen in modal.screens:
+			tool = CHStegTool()
+			try:
+				steg = await tool.getStegInfo(screen)
+				rnd = await MatchRound.objects.select_related('chart').aget(ongoing_match__id=self.match.matchDb.id, chart__md5=steg.checksum)
+				playedChart = rnd.chart
+			except MatchRound.DoesNotExist:
+				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} was for a setlist chart not played in this match")
+				continue
+			except Exception as e:
+				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot upload failed {screen.filename} to parse: {e}")
+				continue
+
+			if playedChart.speed != steg.playback_speed:
+				await interaction.followup.send(f"Screenshot {screen.filename} does not match playback speed {steg.playback_speed} for {playedChart.tournament_name}", ephemeral=True, delete_after=10)
+				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} does not match playback speed {steg.playback_speed} for {playedChart.tournament_name}")
+				continue
+			elif steg.game_version != self.match.bracket.tournament.config.version:
+				await interaction.followup.send(f"Screenshot {screen.filename} game version {steg.game_version} does not match tournament {self.tournament.config.version}", ephemeral=True, delete_after=10)
+				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} game version {steg.game_version} does not match tournament {self.tournament.config.version}")
+				continue
+			stop = False
+			for seed in self.match.seeding:
+				if not seed.player.check_ch_name(steg.players[0].profile_name) and not seed.player.check_ch_name(steg.players[1].profile_name):
+					print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} players do not match players for this match")
+					await interaction.followup.send(f"Screenshot {screen.filename} does not match players for this match", ephemeral=True, delete_after=10)
+					stop = True
+					break
+			if stop:
+				continue
+			try:
+				rnd = await self.match.matchDb.rounds.aget(chart=playedChart)
+			except MatchRound.DoesNotExist:
+				continue
+			if not rnd.screenshot:
+				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} accepted")
+				await sync_to_async(rnd.screenshot.save)(screen.filename, open(tool.img_path, 'rb'))
+				rnd.steg = steg
+				await rnd.asave()
+			else:
+				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} already submitted")
+		await self.match.save_match()
 		for rnd in self.match.rounds:
 			if not rnd.steg:
+				print("REFRESHING TOOL")
 				await self.match.showTool(interaction)
 				return
 		await self.match.finishMatch(interaction)

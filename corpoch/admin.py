@@ -141,7 +141,7 @@ class BracketGroupAdmin(SortableAdminBase, admin.ModelAdmin):
 class QualifierSubmission(admin.ModelAdmin):
 	list_display = ('id', 'qualifier', 'player_ch_name')
 	list_filter = ["qualifier", "player"]
-	actions = ['set_unsubmitted']
+	actions = ['set_unsubmitted',"reread_steg"]
 
 	def tournament(self, obj):
 		return obj.qualifier.tournament.short_name
@@ -155,6 +155,12 @@ class QualifierSubmission(admin.ModelAdmin):
 			quali.submitted = False
 			quali.save()
 
+	@admin.action(description="Reread steg data")
+	def reread_steg(modeladmin, request, queryset):
+		for quali in queryset:
+			quali.steg = None
+			quali.save()
+
 class StegScreenshotInline(SortableStackedInline):
 	model = StegScreenshot
 	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
@@ -165,7 +171,7 @@ class RoundsOngoingInline(SortableStackedInline):
 	inlines = [StegScreenshotInline]
 	#formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
 	exclude = ['completed_match']
-	extra = 1
+	extra = 0
 
 class RoundsCompletedInline(SortableStackedInline):
 	model = MatchRound
@@ -175,7 +181,7 @@ class RoundsCompletedInline(SortableStackedInline):
 class BansOngoingInline(SortableStackedInline):
 	model = MatchBan
 	exclude = ['completed_match']
-	extra = 1
+	extra = 0
 
 class BansCompletedInline(SortableStackedInline):
 	model = MatchBan
@@ -194,8 +200,8 @@ class TournamentMatchCompletedAdmin(SortableAdminBase, admin.ModelAdmin):
 
 	def _match_players(self, obj):
 		retList = []
-		for player in obj.match_players.iterator():
-			retList.append(player.ch_name)
+		for seed in obj.match_players.iterator():
+			retList.append(seed.player.ch_name)
 		return retList
 
 	def version(self, obj):

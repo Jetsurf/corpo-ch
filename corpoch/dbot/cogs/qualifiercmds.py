@@ -50,14 +50,14 @@ class QualiPlayerSel(discord.ui.Select):
 		self.quali = quali
 		self.retOpts = {}
 		opts = []
-		for i, player in enumerate(self.quali.steg.output['players']):
-			self.retOpts[player['profile_name']] = i
-			opts.append(discord.SelectOption(label=player['profile_name']))
+		for i, player in enumerate(self.quali.steg.output.players):
+			self.retOpts[player.profile_name] = i
+			opts.append(discord.SelectOption(label=player.profile_name))
 		super().__init__(max_values=1, options=opts, custom_id="bracket_sel")
 
 	async def callback(self, interaction: discord.Interaction):
 		#Purge all non-selected players from steg data
-		self.quali.steg.output['players'] = [ ply for i, ply in enumerate(self.quali.steg.output['players']) if i == self.retOpts[self.values[0]]]
+		self.quali.steg.output.players = [ ply for i, ply in enumerate(self.quali.steg.output.players) if i == self.retOpts[self.values[0]]]
 		await interaction.response.defer(invisible=True)
 		await self.quali.show()
 
@@ -128,7 +128,7 @@ class DiscordQualifierView(discord.ui.View):
 
 		if self.steg:
 			embeds.append(self.steg.buildStatsEmbed("Qualifier Submission"))
-			if len(self.steg.output['players']) > 1:
+			if len(self.steg.output.players) > 1:
 				embeds.append(self.buildPlySelEmbed())
 				self.add_item(QualiPlayerSel(self))
 			else:
@@ -157,36 +157,36 @@ class DiscordQualifierView(discord.ui.View):
 			print(f"QUALIFIER: {self.ctx.user.display_name} upload not valid CH screenshot")
 			await interaction.followup.send("Screenshot is not a valid in-game screenshot. Please use a screenshot taken with the select button on the results screen or from using auto-screenshots!", ephemeral=True, delete_after=10)
 		plySteg = []
-		for i, ply in enumerate(steg.output['players']):
+		for i, ply in enumerate(steg.output.players):
 			try:
-				otherPly = await TournamentPlayer.objects.aget(ch_name=ply['profile_name'])
+				otherPly = await TournamentPlayer.objects.aget(ch_name=ply.profile_name)
 				if self.ply and self.ply != otherPly:
-					print(f"QUALIFIER: Removing player {ply['profile_name']} already in tournament {self.tourney.short_name}")
+					print(f"QUALIFIER: Removing player {ply.profile_name} already in tournament {self.tourney.short_name}")
 					continue
 			except TournamentPlayer.DoesNotExist:
 				pass
 
-			if self.ply.ch_name != "</Null>" and not self.ply.check_ch_name(ply['profile_name']):
-					print(f"QUALIFIER: Stripping {i}:{ply['profile_name']} from {self.ply.ch_name} qualifier screen")
+			if self.ply.ch_name != "</Null>" and not self.ply.check_ch_name(ply.profile_name):
+					print(f"QUALIFIER: Stripping {i}:{ply.profile_name} from {self.ply.ch_name} qualifier screen")
 					continue
 
 			plySteg.append(ply)
 
-		steg.output['players'] = plySteg
+		steg.outputplayers = plySteg
 		try:
-			playedChart = await self.qualifier.charts.aget(md5=steg.output['checksum'])
+			playedChart = await self.qualifier.charts.aget(md5=steg.output.checksum)
 		except Chart.DoesNotExist:
 			print(f"QUALIFIER: {self.qualifier}: {self.ctx.user.display_name} uploaded screenshot with checksum {steg.output['checksum']} that did not match any charts")
 			await interaction.followup.send("Screenshot is not for the qualifier chart.", ephemeral=True, delete_after=10)
 			await self.show()
 			return
 
-		if steg.output['game_version'] != self.tourney.config.version:
-			print(f"QUALIFIER: {self.qualifier}: {self.ctx.user.display_name} screenshot version {steg.output['game_version']} does not match tourney version {self.tourney.config.version}")
+		if steg.output.game_version != self.tourney.config.version:
+			print(f"QUALIFIER: {self.qualifier}: {self.ctx.user.display_name} screenshot version {steg.outputgame_version} does not match tourney version {self.tourney.config.version}")
 			await interaction.followup.send(f"Qualifier is not Clone Hero version {self.tourney.config.version}", ephemeral=True, delete_after=10)
-		elif steg.output['playback_speed'] != playedChart.speed:
-			print(f"QUALIFIER: {self.qualifier}: {self.ctx.user.display_name} screenshot speed {steg.output['playback_speed']}% does not match speed of qualifier: {playedChart.speed}%")
-			await interaction.followup.send(f"Uploaded screenshot speed ({steg.output['playback_speed']}%) does not match speed of qualifier: {playedChart.speed}%", ephemeral=True, delete_after=10)
+		elif steg.outputplayback_speed != playedChart.speed:
+			print(f"QUALIFIER: {self.qualifier}: {self.ctx.user.display_name} screenshot speed {steg.output.playback_speed}% does not match speed of qualifier: {playedChart.speed}%")
+			await interaction.followup.send(f"Uploaded screenshot speed ({steg.output.playback_speed}%) does not match speed of qualifier: {playedChart.speed}%", ephemeral=True, delete_after=10)
 		else:
 			print(f"QUALIFIER: {self.ctx.user.display_name} screenshot {steg.img_path} accepted")
 			self.steg = steg
@@ -196,11 +196,10 @@ class DiscordQualifierView(discord.ui.View):
 	async def submitBtn(self, interaction: discord.Interaction):
 		print(f"QUALIFIER: {self.qualifier}: {self.ctx.user.display_name} submitted a screenshot")
 		await interaction.response.defer()
-		self.steg.output['players'][0]['score_timestamp'] = self.steg.output['score_timestamp'] #Copy into player row for slicing out metadata
 		self.ply.name = self.ctx.user.display_name
-		self.ply.ch_name = self.steg.output['players'][0]['profile_name']
+		self.ply.ch_name = self.steg.output.players[0].profile_name
 		await self.ply.asave()
-		quali = QualifierSubmission(player=self.ply, qualifier=self.qualifier, steg=self.steg.output['players'][0])
+		quali = QualifierSubmission(player=self.ply, qualifier=self.qualifier, steg=self.steg.output)
 		await sync_to_async(quali.screenshot.save)(f'{uuid.uuid1()}.png', open(self.steg.img_path, 'rb'))
 		await quali.asave()
 		await self.ctx.interaction.delete_original_response()
