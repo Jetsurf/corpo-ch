@@ -45,3 +45,8 @@ main {
     text-align: left;
     vertical-align: top;
 }
+
+.no-matches {
+	color: white;
+    text-align: center;
+}

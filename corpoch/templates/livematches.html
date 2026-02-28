@@ -17,8 +17,8 @@
 <link rel="stylesheet" type="text/css" href="{% static 'mainapp/css/livematches.css' %}">
 {% block content %}
 <main
-    hx-get="{% url 'update_livematches' %}" 
-    hx-trigger="every 1s" 
+    hx-get="{% url 'update_livematches' %}"
+    hx-trigger="every 1s"
     hx-swap="innerHTML">
     {% include 'partials/livematchesdata.html' %}
 </main>
