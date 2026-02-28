@@ -48,9 +48,12 @@ class BanSelect(discord.ui.Select):
 		chart = self.retOpts[self.values[0]]
 		if len(self.match.rounds) < self.match.bracket.ruleset.num_rounds:
 			seed = self.match.seeding[self.index]
-			newBan = MatchBan(num=len(self.match.bans), player=seed, chart=chart, ongoing_match=self.match.matchDb)
 		else:
-			newBan = MatchBan(num=len(self.match.bans), player=self.match.rounds[-2].winner)#"NPDO" TB Ban
+			if self.match.seeding[0].player == self.match.rounds[-2].winner:
+				seed = self.match.seeding[0]
+			else:
+				seed = self.match.seeding[1]
+		newBan = MatchBan(num=len(self.match.bans), player=seed, chart=chart, ongoing_match=self.match.matchDb)
 		await newBan.asave()
 		self.match.bans.append(newBan)
 		await self.match.showTool(interaction)
@@ -66,6 +69,8 @@ class SongRoundSelect(discord.ui.Select):
 		selStr = ""
 		if len(self.match.rounds) == 1:
 			selStr += f"{self.match.seeding[0].player.ch_name} Picks"
+		elif len(self.match.rounds) == self.match.bracket.ruleset.num_rounds and self.match.bracket.ruleset.tb_ruleset == 'refdecide':
+			selStr += f"Chat Picks"
 		elif self.match.bracket.ruleset.pick_ruleset == "loserpicks":
 			selStr += f"{self.match.rounds[-2].loser.ch_name} Picks"
 		else:
@@ -332,8 +337,10 @@ class DiscordMatchView(discord.ui.View):
 
 	async def backBtn(self, interaction: discord.Interaction):
 		if len(self.match.rounds) > 0:
-			rnd = self.match.rounds.pop()
-			await rnd.adelete()
+			if self.match.rounds[-1].chart:
+				self.match.rounds[-1].chart = None
+			else:
+				self.match.rounds.pop()
 		elif len(self.match.bans) > 0:
 			ban = self.match.bans.pop()
 			await ban.adelete()
@@ -403,16 +410,22 @@ class DiscordMatchView(discord.ui.View):
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} accepted")
 				await sync_to_async(rnd.screenshot.save)(screen.filename, open(tool.img_path, 'rb'))
 				rnd.steg = steg
+				print(f"TEST STEG {rnd.steg}")
 				await rnd.asave()
 			else:
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} already submitted")
-		await self.match.save_match()
-		for rnd in self.match.rounds:
+		done = True
+		retRnds = []
+		async for rnd in MatchRound.objects.select_related('picked', 'chart', 'winner', 'loser').all().filter(ongoing_match=self.match.matchDb):
+			retRnds.append(rnd)
 			if not rnd.steg:
+				done = False
 				print("REFRESHING TOOL")
-				await self.match.showTool(interaction)
-				return
-		await self.match.finishMatch(interaction)
+		self.match.rounds = retRnds
+		if done:
+			await self.match.finishMatch(interaction)
+		else:
+			await self.match.showTool(interaction)
 
 	async def submitBtn(self, interaction: discord.Interaction):
 		self.match.matchDb.finished = True

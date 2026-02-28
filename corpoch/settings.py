@@ -9,6 +9,7 @@ from django.conf import settings
 
 BASE_URL = os.getenv("BASE_URL")
 MEDIA_ROOT = os.getenv("MEDIA_ROOT")
+MEDIA_URL = os.getenv("MEDIA_URL")
 
 CHOPT_PATH = os.getenv("CHOPT_PATH")
 CHOPT_OUTPUT = os.getenv("CHOPT_OUTPUT")

@@ -171,7 +171,7 @@ class RoundsOngoingInline(SortableStackedInline):
 	inlines = [StegScreenshotInline]
 	#formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
 	exclude = ['completed_match']
-	extra = 0
+	extra = 1
 
 class RoundsCompletedInline(SortableStackedInline):
 	model = MatchRound

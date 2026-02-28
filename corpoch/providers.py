@@ -578,7 +578,7 @@ class CHStegTool:
 		embed = discord.Embed(colour=0x3FFF33)
 		embed.title = title
 		chartStr = f"Chart Name: {self.output.song_name}" + f" ({self.output.playback_speed}%)\n" if self.output.playback_speed != 100 else '\n'
-		chartStr += f"Run Time: <t:{int(round(datetime.strptime(self.output.score_timestamp, '%Y-%m-%dT%H:%M:%S.%fZ').timestamp()))}:f>\n"
+		chartStr += f"Run Time: <t:{self.output.score_timestamp}:f>\n"
 		chartStr += f"Game Version: {self.output.game_version}"
 		embed.add_field(name="Submission Stats", value=chartStr, inline=False)
 		embed.set_footer(text=f"Chart md5 {self.output.checksum}")

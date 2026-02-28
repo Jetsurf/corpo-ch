@@ -53,7 +53,10 @@ class DiscordMatch():
 	def complete_match(self):
 		finishedMatch = TournamentMatchCompleted(id=self.matchDb.id)
 		finishedMatch.group = self.matchDb.group
-		finishedMatch.match_players.set(self.seeding)
+		plys = []
+		for seed in self.seeding:
+			plys.append(seed.player)
+		finishedMatch.match_players.set(list(self.group.seeding.select_related('group', 'player').filter(player__in=plys)))
 		finishedMatch.winner = self.rounds[-1].winner
 		finishedMatch.loser = self.rounds[-1].loser
 		#finishedMatch.match_players.set self.matchDb.match_players
@@ -73,11 +76,13 @@ class DiscordMatch():
 
 	async def finishMatch(self, interaction):
 		match = await self.complete_match()
-		attachments = []
+		embeds = [await self.genMatchEmbed()]
+		shared_url = f"https://{settings.BASE_URL}/gallery/"
 		async for rnd in match.rounds.select_related():
-			print(f"Adding image - https://{settings.BASE_URL}{MEDIA_ROOT}{rnd.screenshot}")
-			attachments.append(discord.Attachment(url=f"https://{settings.BASE_URL}{MEDIA_ROOT}{rnd.screenshot}"))
-		await interaction.edit(attachments=attachments, embeds=[await self.genMatchEmbed()], content=None, view=FinishedMatchView(match))		
+			embed = discord.Embed(url=shared_url)
+			embed.set_image(url=f"https://{settings.BASE_URL}{settings.MEDIA_URL}{rnd.screenshot}")
+			embeds.append(embed)
+		await interaction.edit(embeds=embeds[:10], view=None)
 
 	@sync_to_async
 	def load_match(self):
@@ -150,9 +155,9 @@ class DiscordMatch():
 				picked = self.seeding[1].player
 			else:
 				picked = self.seeding[0].player
-		elif len(self.rounds) == self.bracket.ruleset.num_rounds:
-			if self.bracket.ruleset.tb_ruleset == 'refdecide':
-				picked = None
+		elif len(self.rounds) + 1 == self.bracket.ruleset.num_rounds and self.bracket.ruleset.tb_ruleset == 'refdecide':
+			print("GOT TB!")
+			picked = None
 		elif self.bracket.ruleset.pick_ruleset == "loserpicks":
 			picked = self.rounds[-1].loser
 		else:
@@ -190,7 +195,7 @@ class DiscordMatch():
 		noneStr = ""
 		validStr = ""
 		for rnd in self.rounds:
-			if rnd.screenshot:
+			if rnd.steg:
 				validStr += f"{rnd.chart.name}\n"
 			else:
 				noneStr += f"{rnd.chart.name}\n"
@@ -225,19 +230,19 @@ class DiscordMatch():
 			if len(self.bans) < self.bracket.ruleset.num_bans:
 				embed.add_field(name="Bans", value=f"{outStr}\nSelect next ban", inline=False)
 			elif self.bracket.ruleset.tb_ruleset == 'banpick' and len(self.rounds) == self.bracket.ruleset.num_rounds:
-				outStr += f"***TIEBREAKER BAN***\n**{self.rounds[-2].winner.ch_name} Bans**"					
+				outStr += f"***TIEBREAKER BAN***\n**{self.rounds[-2].winner.ch_name}** Bans"					
 				if len(self.bans) < self.bracket.ruleset.total_bans + 1:
 					outStr += " ---"
 					embed.add_field(name="Bans", value=f"{outStr}\nSelect next ban", inline=False)
 				else:
-					outStr += f"{self.bans[-1]}"
+					outStr += f" {self.bans[-1]}"
 					embed.add_field(name="Bans", value=outStr, inline=False)
 			else:
 				embed.add_field(name="Bans", value=outStr, inline=False)
 
 		outStr = ""
 		for i, rnd in enumerate(self.rounds):
-			if i == self.bracket.ruleset.num_rounds:
+			if i == self.bracket.ruleset.num_rounds - 1:
 				outStr += "**TIEBREAKER**\n"
 
 			outStr += f"{rnd.picked.ch_name if rnd.picked else '*Chat*'} picks {rnd.chart.tournament_name if rnd.chart else '---'}"
@@ -245,7 +250,7 @@ class DiscordMatch():
 				outStr += f" - {rnd.winner.ch_name} wins!"
 			outStr+= "\n"
 
-		if self.matchDb and self.matchDb.finished:
+		if isinstance(self.matchDb, TournamentMatchCompleted) or (self.matchDb and self.matchDb.finished):
 			outStr += f"\n**{self.rounds[-1].winner} WINS!**"
 		embed.add_field(name="Rounds", value=outStr, inline=False)
 		if self.matchDb:
