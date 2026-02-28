@@ -29,5 +29,19 @@ def upload_qualifiers_gsheet(base=ConnectionRefreshingTask):
 		print(f"GSHEETS: Uploading ({quali}) to sheet")
 		sheet.set_submission(quali)
 		sheet.submit_qualifier()
+	close_old_connections()
 
+@app.task
+def upload_completed_match_gsheet(base=ConnectionRefreshingTask):
+	close_old_connections()
+	matches = TournamentMatchCompleted.objects.all().filter(processed=False)
+	sheet = GSheets()
+	sheet.login()
+	print(f"GSHEETS: Running gsheets upload for completed matches")
+	for match in matches:
+		print(f"GSHEETS: Uploading completed match {match.id} to tourney config sheet")
+		sheet.set_submission(match)
+		sheet.submit_completed()
+		match.processed = True
+		match.save()
 	close_old_connections()

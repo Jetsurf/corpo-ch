@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django_celery_beat',
     'django_celery_results',
+    'django_jsonform',
     'encrypted_fields',
     'redis',
     'corpoch',
@@ -49,7 +50,6 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'corpoch.middleware.RefreshDatabaseConnectionMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -83,6 +83,7 @@ DATABASES = {
         "USER" : os.getenv("MYSQL_USER"),
         "PASSWORD" : os.getenv("MYSQL_PW"),
         "HOST" : os.getenv("MYSQL_HOST"),
+        "CONN_MAX_AGE" : None
     }
 }
 

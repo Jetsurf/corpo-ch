@@ -1,4 +1,5 @@
 import typing, requests_cache, json, io, hashlib, re, gspread, asyncio, discord, os, uuid, platform, subprocess, pytesseract, shutil
+from zipfile import ZipFile
 from datetime import datetime
 from typing import Union
 from random import randbytes
@@ -6,25 +7,51 @@ from PIL import Image, ImageEnhance
 from django.db import models
 
 from corpoch import __user_agent__
-from corpoch import settings 
+from corpoch import settings
 from corpoch.models import GSheetAPI, Chart, Tournament, TournamentMatchCompleted, TournamentMatchOngoing, Qualifier, QualifierSubmission, CH_DIFFICULTIES, CH_INSTRUMENTS
 from corpoch.utils.hydra.hydra.hyutil import analyze_chart_bytes_chart, analyze_chart_bytes_mid
+from corpoch.types import StegScreenshot
 
 class SNGHandler:
 	def __init__(self, submission: Union[str,bytes], playlist: str=None, sanitize=True):
-		if not ((isinstance(submission, bytes) and submission[:6].decode('utf-8') == "SNGPKG") or 
-			(os.path.isfile(os.path.join(submission,"song.ini")) and 
+		if not ((isinstance(submission, bytes) and (submission[:6].decode('utf-8') == "SNGPKG") or submission[:4] == b"\x50\x4B\x03\x04") or
+			(os.path.isfile(os.path.join(submission,"song.ini")) and
 			(os.path.isfile(os.path.join(submission,"notes.chart")) or os.path.isfile(os.path.join(submission,"notes.mid"))))):
 			raise TypeError("Submission must be a directory of a single chart or the bytes of an .sng")
 		self._playlist = playlist
 		self._sanitize = sanitize
-		
+
 		if isinstance(submission, bytes):
 			self._files = self.get_sng_files(submission)
 		else:
+			if isinstance(submission, bytes) and submission[:4] == b"\x50\x4B\x03\x04":
+				iszip = True
+				with ZipFile(io.BytesIO(submission), 'r') as zip_file:
+					all_files = zip_file.namelist()
+
+					containing_paths = []
+					for file_path in all_files:
+						if file_path.lower().endswith('song.ini'):
+							if file_path == 'song.ini':
+								dir_path = ""
+							else:
+								dir_path = file_path.rsplit('/',1)[0]
+							containing_paths.append(dir_path)
+
+					target_dir = min(containing_paths,key=len)
+					if target_dir == "":
+						files = [f.lower() for f in all_files if "/" not in f and f != ""]
+						file_paths = [f for f in all_files if "/" not in f and f != ""]
+					else:
+						files = [f.lower().split('/')[-1] for f in all_files if f.startswith(target_dir + "/") and "/" not in f.split(target_dir+"/")[1] and f.split('/')[-1] != "" ]
+						file_paths = [f for f in all_files if f.startswith(target_dir + "/") and "/" not in f.split(target_dir+"/")[1] and f.split('/')[-1] != "" ]
+
+			else:
+				iszip = False
+				files = os.listdir(submission)
+
 			results = []
-			files = os.listdir(submission)
-			
+
 			valid_picture_names = ("album.","background.","highway.")
 			valid_picture_extensions = ("png","jpg","jpeg")
 			valid_music_names = ("guitar.","bass.","rhythm.","vocals.","vocals_1.","vocals_2.","drums.","drums_1.","drums_2.","drums_3.","drums_4.","keys.","song.","crowd.","preview.")
@@ -33,17 +60,54 @@ class SNGHandler:
 			valid_video_extensions = ("mp4","avi","webm","vp8","ogv","mpeg")
 			valid_notes = ["notes.chart","notes.mid"]
 			valid_songini = "song.ini"
-			
+
 			for file in files:
 				if ((file.lower().startswith(valid_picture_names) and file.lower().endswith(valid_picture_extensions)) or
 					(file.lower().startswith(valid_music_names) and file.lower().endswith(valid_music_extensions)) or
 					(file.lower().startswith(valid_video_names) and file.lower().endswith(valid_video_extensions)) or
 					(file.lower() in valid_notes) or
 					(file.lower() == valid_songini)):
-					with open(os.path.join(submission,file), 'rb') as f:
-						file_bytes = f.read()
-						results.append([file.lower(), file_bytes])
+					if iszip:
+						with ZipFile(io.BytesIO(submission), 'r') as zip_file:
+							file_bytes = zip_file.read(file_paths[index])
+							results.append([file, file_bytes])
+					else:
+						with open(os.path.join(submission,file), 'rb') as f:
+							file_bytes = f.read()
+							results.append([file.lower(), file_bytes])
 			self._files = results
+
+	@property
+	def outputChartName(self):
+		for row in self._files:
+			if "song.ini" in row[0]:
+				for line in row[1].decode('utf-8'):
+					subd_line = re.sub("(?:<[^>]*>)", "", line)
+					if line.startswith("name"):
+						name = subd_line.split('=', 1)[1]
+					if line.startswith("artist"):
+						artist = subd_line.split('=', 1)[1]
+					if line.startswith("charter"):
+						charter = subd_line.split('=', 1)[1]
+		newFile = f"{artist} - {name} ({charter})"
+		newFile = newFile.replace("/",  u'\uFF0F') #／
+		newFile = newFile.replace("\\", u'\u29F5') #⧵
+		newFile = newFile.replace(":",  u'\uA789') #꞉
+		newFile = newFile.replace("<",  u'\u276E') #❮
+		newFile = newFile.replace(">",  u'\u276F') #❯
+		newFile = newFile.replace("\"", u'\u0027') #'
+		newFile = newFile.replace("?",  u'\uFF1F') #？
+		newFile = newFile.replace("*",  u'\u204E') #⁎
+		newFile = newFile.replace("|",  u'\u23D0') #⏐
+		newFile = newFile.strip()
+
+		encoding = 'utf-8'
+		bytes_data = newFile.encode(encoding)
+		sliced_bytes = bytes_data[:255]
+		newFile = sliced_bytes.decode(encoding, errors='ignore')
+		newFile = newFile.rstrip()
+
+		return newFile
 
 	@property
 	def songini(self) -> bytes:
@@ -379,6 +443,7 @@ class CHOpt:
 		if isinstance(chart, Chart):
 			content = self._encore.download_from_url(chart.url)
 			chartName = chart.name
+			self.opts.speed = chart.speed
 			self.opts.instrument = chart.instrument
 		elif isinstance(chart, dict):
 			content = self._encore.download_from_chart(chart)
@@ -387,7 +452,7 @@ class CHOpt:
 		self._sng = SNGHandler(content)
 		self._prep_chart()
 		self._out_png = f"{self._output}/{self._file_id}.png"
-		choptCall = f"{self._chopt} -s {self.opts.speed} --ew {self.opts.whammy} --sqz {self.opts.squeeze} -f {self._tmp}/{'notes.chart' if self._sng.is_chart_format else 'notes.mid'} -i {self.opts.instrument[0]} -d {self.opts.difficulty[0]} --lazy {self.opts.lazy} --delay {self.opts.delay} -o {self._out_png}"
+		choptCall = f"{self._chopt} -s {self.opts.speed} --ew {self.opts.whammy} --sqz {self.opts.squeeze} -f {self._tmp}/{'notes.chart' if self._sng.is_chart_format else 'notes.mid'} -i {self.opts.instrument} -d {self.opts.difficulty[0]} --lazy {self.opts.lazy} --delay {self.opts.delay} -o {self._out_png}"
 		try:
 			subprocess.run(choptCall, check=True, shell=True, stdout=subprocess.DEVNULL)
 		except Exception as e:
@@ -445,9 +510,10 @@ class CHStegTool:
 		self.img_name = ""
 		self.output = None
 		self.img = None
+		self.delete = True
 
 	def __del__(self):
-		if self.img:
+		if self.delete and self.img:
 			os.remove(self.img_path)
 
 	def _get_over_strums(self):
@@ -457,14 +523,12 @@ class CHStegTool:
 		outStr = pytesseract.image_to_string(osImg)
 		osCnt = re.findall("(?<=Overstrums )([Oo0-9]+)", outStr)
 		#Sanity check OS's before adding
-		for i, player in enumerate(self.output['players']):
+		for i, player in enumerate(self.output.players):
 			## TODO: THIS NEEDS TO BE FIXED FOR ACTUAL ROUND DATA INFO
-			if len(osCnt) == len(self.output['players']):
-				player['excess_hits'] = osCnt[i]
+			if len(osCnt) == len(self.output.players):
+				player.excess_hits = int(osCnt[i])
 			else:
-				player['excess_hits'] = '-'
-
-	#TODO: Needs sync providers for django or changed to celery tasks
+				player.excess_hits = -1
 
 	async def _prep_image(self, image):
 		image.filename = re.sub(r'[^a-zA-Z0-9-_.]', '', image.filename)
@@ -474,10 +538,10 @@ class CHStegTool:
 		self.img = Image.open(self.img_path)
 
 	def _sanitize_steg(self, steg: dict):
-		steg = json.loads(steg.stdout.decode("utf-8"))
-		steg['charter_name'] = re.sub(r"(?:<[^>]*>)", "", steg['charter_name'])
-		for ply in steg['players']:
-			ply['profile_name'] = re.sub(r"(?:<[^>]*>)", "", ply['profile_name'])
+		steg = StegScreenshot.parse_raw(steg.stdout.decode("utf-8"))
+		steg.charter_name = re.sub(r"(?:<[^>]*>)", "", steg.charter_name)
+		for ply in steg.players:
+			ply.profile_name = re.sub(r"(?:<[^>]*>)", "", ply.profile_name)
 		return steg
 
 	def _call_steg(self):
@@ -487,16 +551,23 @@ class CHStegTool:
 			err = proc.stderr.decode('utf-8')
 			if proc.returncode == 0 or proc.returncode == '0':
 				self.output = self._sanitize_steg(proc)
-				if self.output['game_version'] in "v1.0.0.4080-final":
+				if self.output.game_version in "v1.0.0.4080-final":
 					self._get_over_strums()
-				for i, player in enumerate(self.output['players']):
-					player["notes_missed"] = player["total_notes"] - player['notes_hit']
+				for i, player in enumerate(self.output.players):
+					player.notes_missed = player.total_notes - player.notes_hit
 			elif err == 'Error: InvalidScreenshotData\n':
 				print(f"STEG: Error - invalid no steg data found in image {self.img_name}")
 				self.output = None
 		except Exception as e:
 			print(f"STEG: Call failed: {e}")
 			self.output = None
+
+	def getStegInfoSync(self, image) -> dict:
+		self.img_name = image
+		self.img_path = f"{settings.MEDIA_ROOT}{image}"
+		self.delete = False
+		self._call_steg()
+		return self.output
 
 	async def getStegInfo(self, image: discord.Attachment) -> dict:
 		await self._prep_image(image)
@@ -506,24 +577,19 @@ class CHStegTool:
 	def buildStatsEmbed(self, title: str) -> discord.Embed:
 		embed = discord.Embed(colour=0x3FFF33)
 		embed.title = title
-		if 'players' in self.output:
-			chartStr = f"Chart Name: {self.output['song_name']}" + f" ({self.output['playback_speed']}%)\n" if self.output["playback_speed"] != 100 else '\n'
-			chartStr += f"Run Time: <t:{int(round(datetime.strptime(self.output['score_timestamp'], '%Y-%m-%dT%H:%M:%S.%fZ').timestamp()))}:f>\n"
-			chartStr += f"Game Version: {self.output['game_version']}"
-			embed.add_field(name="Submission Stats", value=chartStr, inline=False)
-			embed.set_footer(text=f"Chart md5 {self.output['checksum']}")
-			plySteg = self.output['players']
-		else:
-			plySteg = self.output
-
-		for i, player in enumerate(plySteg):
+		chartStr = f"Chart Name: {self.output.song_name}" + f" ({self.output.playback_speed}%)\n" if self.output.playback_speed != 100 else '\n'
+		chartStr += f"Run Time: <t:{self.output.score_timestamp}:f>\n"
+		chartStr += f"Game Version: {self.output.game_version}"
+		embed.add_field(name="Submission Stats", value=chartStr, inline=False)
+		embed.set_footer(text=f"Chart md5 {self.output.checksum}")
+		for i, player in enumerate(self.output.players):
 			plyStr = ""
-			plyStr += f"Player Name: {player["profile_name"]}\n"
-			plyStr += f"Score: {player["score"]}\n"
-			plyStr += f"Notes Hit: {player["notes_hit"]}/{player["total_notes"]} - {(player["notes_hit"]/player["total_notes"]) * 100:.2f}% {' - 👑' if player['is_fc'] else f'(-{player["notes_missed"]})'}\n"
-			plyStr += f"Overstrums: (+){player["excess_hits"]}\n"
-			plyStr += f"Ghosts: {player["frets_ghosted"]}\n"
-			plyStr += f"SP Phrases: {player["sp_phrases_earned"]}/{player["sp_phrases_total"]}\n"
+			plyStr += f"Player Name: {player.profile_name}\n"
+			plyStr += f"Score: {player.score}\n"
+			plyStr += f"Notes Hit: {player.notes_hit}/{player.total_notes} - {(player.notes_hit/player.total_notes) * 100:.2f}% {' - 👑' if player.is_fc else f'(-{player.notes_missed})'}\n"
+			plyStr += f"Overstrums: (+){player.excess_hits}\n"
+			plyStr += f"Ghosts: {player.frets_ghosted}\n"
+			plyStr += f"SP Phrases: {player.sp_phrases_earned}/{player.sp_phrases_total}\n"
 			embed.add_field(name=f"Player {i+1}", value=plyStr, inline=False)
 
 		return embed
@@ -546,11 +612,11 @@ class GSheets():
 			self._bracket = self._submission.qualifier.bracket
 			self._url = self._submission.qualifier.gsheet
 		elif isinstance(self._submission, TournamentMatchOngoing):
-			self._tourney = self._submission.group.bracket.tourney
+			self._tourney = self._submission.group.bracket.tournament
 			self._bracket = self._submission.group.bracket
 			self._url = self._tourney.config.gsheet
 		elif isinstance(self._submission, TournamentMatchCompleted):
-			self._tourney = self._submission.group.bracket.tourney
+			self._tourney = self._submission.group.bracket.tournament
 			self._bracket = self._submission.group.bracket
 			self._url = self._tourney.config.gsheet
 
@@ -567,12 +633,12 @@ class GSheets():
 				ws = self.setup_qualifier_sheet()
 		elif isinstance(self._submission, TournamentMatchOngoing):
 			try:
-				ws = self._sheet.worksheet((f"{self._submission.tourney.short_name} - Live Data"))
+				ws = self._sheet.worksheet((f"{self._submission.tournament.short_name} - Live Data"))
 			except gspread.exceptions.WorksheetNotFound:
 				ws = self.setup_ongoing_sheet()
 		elif isinstance(self._submission, TournamentMatchCompleted):
 			try:
-				ws = self._sheet.worksheet((f"{self._submission.tourney.short_name} - Completed Data"))
+				ws = self._sheet.worksheet((f"{self._submission.tournament.short_name} - Match Data"))
 			except gspread.exceptions.WorksheetNotFound:
 				ws = self.setup_completed_sheet()
 
@@ -588,11 +654,11 @@ class GSheets():
 	def setup_ongoing_sheet(self) -> bool:
 		pass
 
-	def set_completed_sheet(self) -> bool:
+	def setup_completed_sheet(self) -> bool:
 		pass
 
 	def submit_completed(self) -> bool:
-		pass
+		self._ws.append_rows(self.completed_lines)
 
 	def submit_ongoing(self) -> bool:
 		pass
@@ -606,26 +672,48 @@ class GSheets():
 
 	@property
 	def qualifier_line(self):
-		chName = self._submission.steg['profile_name']
-		score = self._submission.steg['score']
-		missed = self._submission.steg['notes_missed']
-		hit = self._submission.steg['notes_hit']
-		excess = self._submission.steg['excess_hits']
-		ghosts = self._submission.steg['frets_ghosted']
-		phrases = self._submission.steg['sp_phrases_earned']
-		submissionTimestamp = str(self._submission.submit_time.strftime("%Y-%m-%d %H:%M:%S") + "-UTC")
-		screenshotTimestamp = f"{datetime.strptime(self._submission.steg['score_timestamp'], '%Y-%m-%dT%H:%M:%S.%fZ').strftime('%Y-%m-%d %H:%M:%S')}-UTC"
+		chName = self._submission.steg.players[0].profile_name
+		score = self._submission.steg.players[0].score
+		missed = self._submission.steg.players[0].notes_missed
+		hit = self._submission.steg.players[0].notes_hit
+		excess = self._submission.steg.players[0].excess_hits
+		ghosts = self._submission.steg.players[0].frets_ghosted
+		phrases = self._submission.steg.players[0].sp_phrases_earned
+		submissionTimestamp = f"{self._submission.submit_time.strftime("%Y-%m-%d %H:%M:%S")}-UTC"
+		screenshotTimestamp = f"{self._submission.steg.score_timestamp.strftime('%Y-%m-%d %H:%M:%S')}-UTC"
 		imgUrl = f"https://{settings.BASE_URL}{self._submission.screenshot.url}"
 		gameVer = self._submission.qualifier.tournament.config.version
 		return [self._submission.player.name, chName, score, missed, hit, excess, ghosts, phrases, submissionTimestamp, screenshotTimestamp, imgUrl, gameVer]
 
 	@property
-	def ongoing_line(self):
+	def ongoing_lines(self):
 		pass
 
 	@property
-	def complete_line(self):
-		pass
+	def completed_lines(self):
+		retLines = []
+		matchId = self._submission.id
+		bracket = str(self._submission.bracket)
+		match = self._submission.short_name
+		for rnd in self._submission.rounds:
+			for ply in rnd.steg.players:
+				picked = str(rnd.picked.ch_name)
+				song = rnd.chart.tournament_name
+				chName = ply.profile_name
+				score = ply.score
+				if rnd.winner.check_ch_name(chName):
+					wl = "W"
+				else:
+					wl = "L"
+				missed = ply.notes_missed
+				hit = ply.notes_hit
+				excess = ply.excess_hits
+				ghosts = ply.frets_ghosted
+				phrases = ply.sp_phrases_earned
+				ts = f"{rnd.steg.score_timestamp.strftime('%Y-%m-%d %H:%M:%S')}-UTC"
+				url = f"https://{settings.BASE_URL}{rnd.screenshot.url}"
+				retLines.append([matchId, bracket, match, picked, song, chName, score, wl, missed, hit, excess, ghosts, phrases, ts, url])
+		return retLines
 
 
 #Keeping for future OCR use/reference

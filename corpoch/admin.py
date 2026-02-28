@@ -2,10 +2,12 @@ import json
 
 from adminsortable2.admin import CustomInlineFormSet, SortableAdminBase, SortableStackedInline, SortableAdminMixin
 
+from django_pydantic_field import fields
+from django_jsonform.widgets import JSONFormWidget
 from django.contrib import admin
 from django.contrib.contenttypes.models import ContentType
 from corpoch.models import Chart, Tournament, TournamentConfig, BracketRules, TournamentBracket, Qualifier, TournamentPlayer, GroupSeed, MatchRound, CHIcon
-from corpoch.models import TournamentMatchCompleted, TournamentMatchOngoing, BracketGroup, QualifierSubmission, CH_MODIFIERS, MatchBan, GSheetAPI
+from corpoch.models import TournamentMatchCompleted, TournamentMatchOngoing, BracketGroup, QualifierSubmission, CH_MODIFIERS, MatchBan, GSheetAPI, StegScreenshot
 from corpoch.providers import EncoreClient
 from django.utils.html import mark_safe
 import corpoch.dbot.tasks
@@ -56,7 +58,7 @@ class ChartAdmin(admin.ModelAdmin):
 			try:
 				icon = CHIcon.objects.get(name=newChart['icon'])
 			except CHIcon.DoesNotExist:
-				icon = CHIcon.objects.get(name="ch")
+				icon = CHIcon.objects.get(name="ch_default_icon")
 
 			chart.url = encore.url(newChart)
 			chart.name = newChart['name']
@@ -139,7 +141,8 @@ class BracketGroupAdmin(SortableAdminBase, admin.ModelAdmin):
 class QualifierSubmission(admin.ModelAdmin):
 	list_display = ('id', 'qualifier', 'player_ch_name')
 	list_filter = ["qualifier", "player"]
-	actions = ['set_unsubmitted', 'resubmit_gsheets']
+	actions = ['set_unsubmitted',"reread_steg"]
+
 	def tournament(self, obj):
 		return obj.qualifier.tournament.short_name
 
@@ -152,31 +155,38 @@ class QualifierSubmission(admin.ModelAdmin):
 			quali.submitted = False
 			quali.save()
 
-	@admin.action(description="Mark Qualifiers GS Unsubmitted")
-	def resubmit_gsheets(modeladmin, request, queryset):
+	@admin.action(description="Reread steg data")
+	def reread_steg(modeladmin, request, queryset):
 		for quali in queryset:
-			quali = False
+			quali.steg = None
 			quali.save()
+
+class StegScreenshotInline(SortableStackedInline):
+	model = StegScreenshot
+	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
+	extra = 1
 
 class RoundsOngoingInline(SortableStackedInline):
 	model = MatchRound
+	inlines = [StegScreenshotInline]
+	#formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
 	exclude = ['completed_match']
 	extra = 1
 
 class RoundsCompletedInline(SortableStackedInline):
 	model = MatchRound
 	exclude = ['ongoing_match']
-	extra = 1
+	extra = 0
 
 class BansOngoingInline(SortableStackedInline):
 	model = MatchBan
 	exclude = ['completed_match']
-	extra = 1
+	extra = 0
 
 class BansCompletedInline(SortableStackedInline):
 	model = MatchBan
 	exclude = ['ongoing_match']
-	extra = 1
+	extra = 0
 
 @admin.register(TournamentMatchCompleted)
 class TournamentMatchCompletedAdmin(SortableAdminBase, admin.ModelAdmin):
@@ -190,8 +200,8 @@ class TournamentMatchCompletedAdmin(SortableAdminBase, admin.ModelAdmin):
 
 	def _match_players(self, obj):
 		retList = []
-		for player in obj.match_players.iterator():
-			retList.append(player.ch_name)
+		for seed in obj.match_players.iterator():
+			retList.append(seed.player.ch_name)
 		return retList
 
 	def version(self, obj):
