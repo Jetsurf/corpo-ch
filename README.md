@@ -32,7 +32,7 @@ Needs nginx/apache2/web server hosting the static directories - preferable turn 
 More to come!
 
 ## Credits
-All Contributors
-The CH Competitive Scene
-[CHOpt](https://github.com/GenericMadScientist/CHOpt) [CH Steg Reader](https://github.com/GenericMadScientist/CH-Steg-Reader) - [@GenericMadScientist](https://github.com/GenericMadScientist)
-[Hydra](https://github.com/DragonDelgar/hydra) - [@DragonDelgar](https://github.com/DragonDelgar)
+ - All Contributors
+ - The CH Competitive Scene
+ - [CHOpt](https://github.com/GenericMadScientist/CHOpt) [CH Steg Reader](https://github.com/GenericMadScientist/CH-Steg-Reader) - [@GenericMadScientist](https://github.com/GenericMadScientist)
+ - [Hydra](https://github.com/DragonDelgar/hydra) - [@DragonDelgar](https://github.com/DragonDelgar)
