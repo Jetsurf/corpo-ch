@@ -5,7 +5,6 @@ from adminsortable2.admin import CustomInlineFormSet, SortableAdminBase, Sortabl
 from django_pydantic_field import fields
 from django.contrib import admin
 from django_jsonform.widgets import JSONFormWidget
-from django_pydantic_field.v2.forms import JSONFormSchemaWidget
 from django.contrib.contenttypes.models import ContentType
 from corpoch.models import Chart, Tournament, TournamentConfig, BracketRules, TournamentBracket, Qualifier, TournamentPlayer, GroupSeed, MatchRound, CHIcon
 from corpoch.models import TournamentMatchCompleted, TournamentMatchOngoing, BracketGroup, QualifierSubmission, CH_MODIFIERS, MatchBan, GSheetAPI
@@ -228,10 +227,3 @@ class TournamentMatchOngoingAdmin(SortableAdminBase, admin.ModelAdmin):
 		for ban in MatchBan.objects.all().iterator():
 			retList.append(ban.chart)
 		return retList
-
-	def formfield_for_manytomany(self, db_field, request, **kwargs):#Limit options in admin to ONLY players/bans in a group?
-		#if db_field.name == "bans":
-		#	kwargs["queryset"] = TournamentBracket.setlist.objects.filter(brackets__in=request.group.bracket)
-		#if db_field.name == "match_players":
-		#	kwargs["queryset"] = self.group.seeding.objects.all()
-		return super().formfield_for_foreignkey(db_field, request, **kwargs)

@@ -156,7 +156,6 @@ class DiscordMatch():
 			else:
 				picked = self.seeding[0].player
 		elif len(self.rounds) + 1 == self.bracket.ruleset.num_rounds and self.bracket.ruleset.tb_ruleset == 'refdecide':
-			print("GOT TB!")
 			picked = None
 		elif self.bracket.ruleset.pick_ruleset == "loserpicks":
 			picked = self.rounds[-1].loser
