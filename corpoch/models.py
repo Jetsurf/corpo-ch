@@ -174,7 +174,7 @@ class TournamentBracket(models.Model):
 	class Meta:
 		verbose_name = "Bracket"
 		verbose_name_plural = "Brackets"
-	
+
 	def __str__(self):
 		return f"{self.tournament.short_name} - {self.name}"
 
@@ -276,7 +276,7 @@ class GroupSeed(models.Model):
 
 	@property
 	def player_ch_name(self):
-		return self.player.ch_name 
+		return self.player.ch_name
 
 	@property
 	def full_name(self):
@@ -334,8 +334,8 @@ class TournamentMatch(models.Model):#This class is assumed to be an "official" m
 			if i == 0:
 				outStr += f"{seed.player.ch_name}({seed.seed})"
 			elif i == 1:
-				outStr += f" vs {seed.player.ch_name}({seed.seed})" 
-		return outStr	
+				outStr += f" vs {seed.player.ch_name}({seed.seed})"
+		return outSt
 
 class TournamentMatchCompleted(TournamentMatch):
 	ended_on = models.DateTimeField(verbose_name="Match end time", auto_now_add=True)
@@ -346,11 +346,11 @@ class TournamentMatchCompleted(TournamentMatch):
 	class Meta:
 		verbose_name = "Completed Match"
 		verbose_name_plural = "Matches Completed"
-		
+
 	@property
 	def bans(self):
 		return self.completed_bans.all()
-		
+
 	@property
 	def rounds(self):
 		return self.completed_rounds.all()
@@ -371,15 +371,15 @@ class TournamentMatchOngoing(TournamentMatch):
 	class Meta:
 		verbose_name = "Ongoing Match"
 		verbose_name_plural = "Ongoing Matches"
-		
+
 	@property
 	def bans(self):
 		return self.ongoing_bans.all()
-	
+
 	@property
 	def high_seed_bans(self):
 		return [ban for ban in self.bans if ban.player.player_id == self.high_seed.player_id]
-	
+
 	@property
 	def low_seed_bans(self):
 		return [ban for ban in self.bans if ban.player.player_id == self.low_seed.player_id]
@@ -387,17 +387,18 @@ class TournamentMatchOngoing(TournamentMatch):
 	@property
 	def rounds(self):
 		return self.ongoing_rounds.all()
-	
+
 	@property
 	def score(self):
 		score1 = 0
 		score2 = 0
 
 		for round in self.rounds:
-			if round.winner_id == self.high_seed.player_id:
-				score1 += 1
-			else:
-				score2 += 1
+			if round.winner_id:
+				if round.winner_id == self.high_seed.player_id:
+					score1 += 1
+				else:
+					score2 += 1
 
 		return f"{score1} - {score2}"
 
@@ -426,9 +427,9 @@ class MatchRound(models.Model):
 	completed_match = models.ForeignKey(TournamentMatchCompleted, related_name="completed_rounds", verbose_name="Completed Match ID", on_delete=models.CASCADE, null=True, blank=True)
 	picked = models.ForeignKey(TournamentPlayer, related_name="picks", verbose_name="Picked", on_delete=models.CASCADE, blank=True, null=True)
 	chart = models.ForeignKey(Chart, related_name="rounds_played", verbose_name="Chart Played", null=True, blank=True, on_delete=models.SET_NULL)
-	winner = models.ForeignKey(TournamentPlayer, related_name="rounds_won", verbose_name="Winner", null=True, blank=True, on_delete=models.SET_NULL)
+	winner = models.ForeignKey(TournamentPlayer, related_name="rounds_won", verbose_name="Winner", null=True, on_delete=models.SET_NULL)
 	#w_points = models.PositiveIntegerField(verbose_name="Players", validators=[MinValueValidator(1), MaxValueValidator(5)], default=1)
-	loser = models.ForeignKey(TournamentPlayer, related_name="rounds_lost", verbose_name="Loser", null=True, blank=True, on_delete=models.SET_NULL)
+	loser = models.ForeignKey(TournamentPlayer, related_name="rounds_lost", verbose_name="Loser", null=True, on_delete=models.SET_NULL)
 	#l_points = models.PositiveIntegerField(verbose_name="Players", validators=[MinValueValidator(1), MaxValueValidator(5)], default=0)
 	steg = SchemaField(StegScreenshot, verbose_name="Steg Data", null=True, blank=True) #This is the players list in the steg data
 	screenshot = models.ImageField(upload_to=steg_upload_dir, verbose_name="Screenshot", null=True, blank=True)
@@ -449,12 +450,11 @@ class MatchRound(models.Model):
 		return outStr
 
 	def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
-		if self.winner and self.loser:
-			if self.screenshot and not self.steg:
-				from corpoch.providers import CHStegTool
-				tool = CHStegTool()
-				self.steg = tool.getStegInfoSync(self.screenshot)
-			super().save()
+		if self.screenshot and not self.steg:
+			from corpoch.providers import CHStegTool
+			tool = CHStegTool()
+			self.steg = tool.getStegInfoSync(self.screenshot)
+		super().save()
 
 #Potential class for a "Series" of tournaments - just needs to be a list of tournaments for ogranization
 #class TournamentSeries(models.Model):

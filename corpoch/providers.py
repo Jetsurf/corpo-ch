@@ -697,7 +697,7 @@ class GSheets():
 		match = self._submission.short_name
 		for rnd in self._submission.rounds:
 			for ply in rnd.steg.players:
-				picked = str(rnd.picked.ch_name)
+				picked = str(rnd.picked.ch_name) if rnd.picked else '"Ref"'
 				song = rnd.chart.tournament_name
 				chName = ply.profile_name
 				score = ply.score

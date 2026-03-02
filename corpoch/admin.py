@@ -3,11 +3,12 @@ import json
 from adminsortable2.admin import CustomInlineFormSet, SortableAdminBase, SortableStackedInline, SortableAdminMixin
 
 from django_pydantic_field import fields
-from django_jsonform.widgets import JSONFormWidget
 from django.contrib import admin
+from django_jsonform.widgets import JSONFormWidget
+from django_pydantic_field.v2.forms import JSONFormSchemaWidget
 from django.contrib.contenttypes.models import ContentType
 from corpoch.models import Chart, Tournament, TournamentConfig, BracketRules, TournamentBracket, Qualifier, TournamentPlayer, GroupSeed, MatchRound, CHIcon
-from corpoch.models import TournamentMatchCompleted, TournamentMatchOngoing, BracketGroup, QualifierSubmission, CH_MODIFIERS, MatchBan, GSheetAPI, StegScreenshot
+from corpoch.models import TournamentMatchCompleted, TournamentMatchOngoing, BracketGroup, QualifierSubmission, CH_MODIFIERS, MatchBan, GSheetAPI
 from corpoch.providers import EncoreClient
 from django.utils.html import mark_safe
 import corpoch.dbot.tasks
@@ -135,11 +136,12 @@ class BracketGroupAdmin(SortableAdminBase, admin.ModelAdmin):
 			guild = tourney.guild
 			for seed in group.seeding.all():
 				ply = seed.player.user
-				corpoch.dbot.tasks.set_group_role(ply, guild, role)
+				corpoch.dbot.tasks.set_group_role(ply, guild, role)	
 
 @admin.register(QualifierSubmission)
 class QualifierSubmission(admin.ModelAdmin):
-	list_display = ('id', 'qualifier', 'player_ch_name')
+	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
+	list_display = ('id', 'qualifier', 'player_ch_name', '_score')
 	list_filter = ["qualifier", "player"]
 	actions = ['set_unsubmitted',"reread_steg"]
 
@@ -148,6 +150,9 @@ class QualifierSubmission(admin.ModelAdmin):
 
 	def player_ch_name(self, obj):
 		return obj.player.ch_name
+
+	def _score(self, obj):
+		return obj.steg.players[0].score
 
 	@admin.action(description="Mark Qualifiers GS Unsubmitted")
 	def set_unsubmitted(modeladmin, request, queryset):
@@ -161,27 +166,22 @@ class QualifierSubmission(admin.ModelAdmin):
 			quali.steg = None
 			quali.save()
 
-class StegScreenshotInline(SortableStackedInline):
-	model = StegScreenshot
-	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
-	extra = 1
-
 class RoundsOngoingInline(SortableStackedInline):
 	model = MatchRound
-	inlines = [StegScreenshotInline]
-	#formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
+	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
 	exclude = ['completed_match']
 	extra = 1
 
 class RoundsCompletedInline(SortableStackedInline):
 	model = MatchRound
 	exclude = ['ongoing_match']
+	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
 	extra = 0
 
 class BansOngoingInline(SortableStackedInline):
 	model = MatchBan
 	exclude = ['completed_match']
-	extra = 0
+	extra = 1
 
 class BansCompletedInline(SortableStackedInline):
 	model = MatchBan

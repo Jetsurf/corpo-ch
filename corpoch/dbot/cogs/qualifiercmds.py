@@ -182,7 +182,7 @@ class DiscordQualifierView(discord.ui.View):
 			return
 
 		if steg.output.game_version != self.tourney.config.version:
-			print(f"QUALIFIER: {self.qualifier}: {self.ctx.user.display_name} screenshot version {steg.outputgame_version} does not match tourney version {self.tourney.config.version}")
+			print(f"QUALIFIER: {self.qualifier}: {self.ctx.user.display_name} screenshot version {steg.output.game_version} does not match tourney version {self.tourney.config.version}")
 			await interaction.followup.send(f"Qualifier is not Clone Hero version {self.tourney.config.version}", ephemeral=True, delete_after=10)
 		elif steg.output.playback_speed != playedChart.speed:
 			print(f"QUALIFIER: {self.qualifier}: {self.ctx.user.display_name} screenshot speed {steg.output.playback_speed}% does not match speed of qualifier: {playedChart.speed}%")
