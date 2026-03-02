@@ -140,7 +140,7 @@ class BracketGroupAdmin(SortableAdminBase, admin.ModelAdmin):
 @admin.register(QualifierSubmission)
 class QualifierSubmission(admin.ModelAdmin):
 	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
-	list_display = ('id', 'qualifier', 'player_ch_name', '_score')
+	list_display = ('id', 'submitted', 'qualifier', 'player_ch_name', '_score', '_miss', '_hit', '_excess', '_ghosts', '_phrases')
 	list_filter = ["qualifier", "player"]
 	actions = ['set_unsubmitted',"reread_steg"]
 
@@ -152,6 +152,21 @@ class QualifierSubmission(admin.ModelAdmin):
 
 	def _score(self, obj):
 		return obj.steg.players[0].score
+
+	def _miss(self, obj):
+		return obj.steg.players[0].notes_missed
+
+	def _hit(self, obj):
+		return obj.steg.players[0].notes_hit
+
+	def _excess(self, obj):
+		return obj.steg.players[0].excess_hits
+
+	def _ghosts(self, obj):
+		return obj.steg.players[0].frets_ghosted
+
+	def _phrases(self, obj):
+		return obj.steg.players[0].sp_phrases_earned
 
 	@admin.action(description="Mark Qualifiers GS Unsubmitted")
 	def set_unsubmitted(modeladmin, request, queryset):
