@@ -35,7 +35,7 @@ main {
 
 .match table {
     width: 100%;
-    table-layout: auto;
+    table-layout: fixed;
     border-collapse: collapse;
 }
 
@@ -44,9 +44,21 @@ main {
     padding: 8px;
     text-align: left;
     vertical-align: top;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .no-matches {
 	color: white;
     text-align: center;
 }
+
+.header-player1 { width: 95% / 7%; }
+.header-player2 { width: 95% / 7%; }
+.header-score   { width: 5%; }
+.header-bans1   { width: 95% / 7%; }
+.header-bans2   { width: 95% / 7%; }
+.header-pickers { width: 95% / 7%; }
+.header-picks   { width: 95% / 7%; }
+.header-wins    { width: 95% / 7%; }
