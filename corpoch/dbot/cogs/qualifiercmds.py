@@ -117,7 +117,8 @@ class DiscordQualifierView(discord.ui.View):
 			try:
 				self.ply = await TournamentPlayer.objects.aget(user=self.ctx.user.id)
 				self.prev_subs = []
-				async for qual in QualifierSubmission.objects.all().filter(player=self.ply):
+				async for qual in QualifierSubmission.objects.select_related().all().filter(player=self.ply):
+					print(f"QUALI ADD{qual}")
 					self.prev_subs.append(qual)
 				self.num_subs = len(self.prev_subs)
 			except TournamentPlayer.DoesNotExist:
@@ -125,7 +126,8 @@ class DiscordQualifierView(discord.ui.View):
 				self.num_subs = 0
 		
 			embeds.append(self.buildRulesEmbed())
-
+		if self.num_subs > 0:
+			embeds.append(self.buildSubmissionsEmbed())
 		if self.steg:
 			embeds.append(self.steg.buildStatsEmbed("Qualifier Submission"))
 			if len(self.steg.output.players) > 1:
@@ -229,6 +231,18 @@ class DiscordQualifierView(discord.ui.View):
 		embed = discord.Embed(colour=0xEEFF00)
 		embed.title = "Submit"
 		embed.add_field(name="Directions", value="If you agree to everything, hit submit to complete your submission!", inline=False)
+		return embed
+
+	def buildSubmissionsEmbed(self) -> discord.Embed:
+		embed = discord.Embed(colour=0x00FF00)
+		embed.title = "Current submissions"
+		retStr = ""
+		if self.num_subs == 0:
+			retStr += "No current submissions!"
+		else:
+			for i, sub in enumerate(self.prev_subs):
+				retStr += f"Submission {i + 1}: {sub.steg.players[0].score}"
+		embed.add_field(name="Scores", value=retStr, inline=False)
 		return embed
 
 	def buildRulesEmbed(self) -> discord.Embed:
