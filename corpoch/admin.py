@@ -3,11 +3,11 @@ import json
 from adminsortable2.admin import CustomInlineFormSet, SortableAdminBase, SortableStackedInline, SortableAdminMixin
 
 from django_pydantic_field import fields
-from django_jsonform.widgets import JSONFormWidget
 from django.contrib import admin
+from django_jsonform.widgets import JSONFormWidget
 from django.contrib.contenttypes.models import ContentType
 from corpoch.models import Chart, Tournament, TournamentConfig, BracketRules, TournamentBracket, Qualifier, TournamentPlayer, GroupSeed, MatchRound, CHIcon
-from corpoch.models import TournamentMatchCompleted, TournamentMatchOngoing, BracketGroup, QualifierSubmission, CH_MODIFIERS, MatchBan, GSheetAPI, StegScreenshot
+from corpoch.models import TournamentMatchCompleted, TournamentMatchOngoing, BracketGroup, QualifierSubmission, CH_MODIFIERS, MatchBan, GSheetAPI
 from corpoch.providers import EncoreClient
 from django.utils.html import mark_safe
 import corpoch.dbot.tasks
@@ -135,11 +135,12 @@ class BracketGroupAdmin(SortableAdminBase, admin.ModelAdmin):
 			guild = tourney.guild
 			for seed in group.seeding.all():
 				ply = seed.player.user
-				corpoch.dbot.tasks.set_group_role(ply, guild, role)
+				corpoch.dbot.tasks.set_group_role(ply, guild, role)	
 
 @admin.register(QualifierSubmission)
 class QualifierSubmission(admin.ModelAdmin):
-	list_display = ('id', 'qualifier', 'player_ch_name')
+	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
+	list_display = ('id', 'submitted', 'qualifier', 'player_ch_name', '_score', '_miss', '_hit', '_excess', '_ghosts', '_phrases')
 	list_filter = ["qualifier", "player"]
 	actions = ['set_unsubmitted',"reread_steg"]
 
@@ -148,6 +149,24 @@ class QualifierSubmission(admin.ModelAdmin):
 
 	def player_ch_name(self, obj):
 		return obj.player.ch_name
+
+	def _score(self, obj):
+		return obj.steg.players[0].score
+
+	def _miss(self, obj):
+		return obj.steg.players[0].notes_missed
+
+	def _hit(self, obj):
+		return obj.steg.players[0].notes_hit
+
+	def _excess(self, obj):
+		return obj.steg.players[0].excess_hits
+
+	def _ghosts(self, obj):
+		return obj.steg.players[0].frets_ghosted
+
+	def _phrases(self, obj):
+		return obj.steg.players[0].sp_phrases_earned
 
 	@admin.action(description="Mark Qualifiers GS Unsubmitted")
 	def set_unsubmitted(modeladmin, request, queryset):
@@ -161,27 +180,22 @@ class QualifierSubmission(admin.ModelAdmin):
 			quali.steg = None
 			quali.save()
 
-class StegScreenshotInline(SortableStackedInline):
-	model = StegScreenshot
-	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
-	extra = 1
-
 class RoundsOngoingInline(SortableStackedInline):
 	model = MatchRound
-	inlines = [StegScreenshotInline]
-	#formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
+	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
 	exclude = ['completed_match']
 	extra = 1
 
 class RoundsCompletedInline(SortableStackedInline):
 	model = MatchRound
 	exclude = ['ongoing_match']
+	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
 	extra = 0
 
 class BansOngoingInline(SortableStackedInline):
 	model = MatchBan
 	exclude = ['completed_match']
-	extra = 0
+	extra = 1
 
 class BansCompletedInline(SortableStackedInline):
 	model = MatchBan
@@ -228,10 +242,3 @@ class TournamentMatchOngoingAdmin(SortableAdminBase, admin.ModelAdmin):
 		for ban in MatchBan.objects.all().iterator():
 			retList.append(ban.chart)
 		return retList
-
-	def formfield_for_manytomany(self, db_field, request, **kwargs):#Limit options in admin to ONLY players/bans in a group?
-		#if db_field.name == "bans":
-		#	kwargs["queryset"] = TournamentBracket.setlist.objects.filter(brackets__in=request.group.bracket)
-		#if db_field.name == "match_players":
-		#	kwargs["queryset"] = self.group.seeding.objects.all()
-		return super().formfield_for_foreignkey(db_field, request, **kwargs)

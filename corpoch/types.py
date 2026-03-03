@@ -101,13 +101,13 @@ class StegScreenshotPlayer(pydantic.BaseModel):
 	notes_missed : int = 0
 
 class StegScreenshot(pydantic.BaseModel):
-	artist_name : typing.Optional[str] = "None"
-	band_score : typing.Optional[int] = 0
-	band_stars : typing.Optional[int] = 0
-	checksum : typing.Optional[str] = "None"
-	charter_name : typing.Optional[str] = "None"
-	game_version : typing.Optional[str] = CH_VERSIONS[0]
-	game_mode : typing.Optional[str] = "Versus"
-	playback_speed : typing.Optional[int] = 100
-	players : typing.Optional[list[StegScreenshotPlayer]] = []
-	score_timestamp: typing.Optional[datetime] = datetime.now()
+	artist_name : str = "None"
+	band_score : int = 0
+	band_stars : int = 0
+	checksum : str = "None"
+	charter_name : str = "None"
+	game_version : str = CH_VERSIONS[0]
+	game_mode : str = "Versus"
+	playback_speed : int = 100
+	players : list[StegScreenshotPlayer] = []
+	score_timestamp: datetime = datetime.now()
