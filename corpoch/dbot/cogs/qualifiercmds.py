@@ -118,7 +118,6 @@ class DiscordQualifierView(discord.ui.View):
 				self.ply = await TournamentPlayer.objects.aget(user=self.ctx.user.id)
 				self.prev_subs = []
 				async for qual in QualifierSubmission.objects.select_related().all().filter(player=self.ply):
-					print(f"QUALI ADD{qual}")
 					self.prev_subs.append(qual)
 				self.num_subs = len(self.prev_subs)
 			except TournamentPlayer.DoesNotExist:
