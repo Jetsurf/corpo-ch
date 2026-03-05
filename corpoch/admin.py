@@ -1,4 +1,4 @@
-import json
+import json, time
 
 from adminsortable2.admin import CustomInlineFormSet, SortableAdminBase, SortableStackedInline, SortableAdminMixin
 
@@ -8,7 +8,7 @@ from django_jsonform.widgets import JSONFormWidget
 from django.contrib.contenttypes.models import ContentType
 from corpoch.models import Chart, Tournament, TournamentConfig, BracketRules, TournamentBracket, Qualifier, TournamentPlayer, GroupSeed, MatchRound, CHIcon
 from corpoch.models import TournamentMatchCompleted, TournamentMatchOngoing, BracketGroup, QualifierSubmission, CH_MODIFIERS, MatchBan, GSheetAPI
-from corpoch.providers import EncoreClient
+from corpoch.providers import EncoreClient, GSheets
 from django.utils.html import mark_safe
 import corpoch.dbot.tasks
 
@@ -142,7 +142,7 @@ class QualifierSubmission(admin.ModelAdmin):
 	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
 	list_display = ('id', 'submitted', 'qualifier', 'player_ch_name', '_score', '_miss', '_hit', '_excess', '_ghosts', '_phrases')
 	list_filter = ["qualifier", "player"]
-	actions = ['set_unsubmitted',"reread_steg"]
+	actions = ['set_unsubmitted',"reread_steg", "resubmit_gsheet"]
 
 	def tournament(self, obj):
 		return obj.qualifier.tournament.short_name
@@ -179,6 +179,16 @@ class QualifierSubmission(admin.ModelAdmin):
 		for quali in queryset:
 			quali.steg = None
 			quali.save()
+
+	@admin.action(description="Correct GSheet Values")
+	def resubmit_gsheet(modeladmin, request, queryset):
+		sheet = GSheets()
+		sheet.login()
+		for quali in queryset:
+			sheet.set_submission(quali)
+			sheet.update_qualifier()
+			time.sleep(1.5)
+
 
 class RoundsOngoingInline(SortableStackedInline):
 	model = MatchRound
