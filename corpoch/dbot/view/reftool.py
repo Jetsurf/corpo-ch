@@ -106,9 +106,9 @@ class SongRoundSelect(discord.ui.Select):
 
 		opts = []
 		async for chart in charts:
-			self.retOpts[chart.name] = chart
+			self.retOpts[chart.md5] = chart
 			emoji = await get_chart_emoji(self.match.bot, chart)
-			opts.append(discord.SelectOption(label=chart.tournament_name, value=str(chart),description=f"{chart.artist} - {chart.charter}", emoji=emoji))
+			opts.append(discord.SelectOption(label=chart.tournament_name, value=chart.md5,description=f"{chart.artist} - {chart.charter}", emoji=emoji))
 		super().__init__(placeholder=selStr, max_values=1, options=opts, custom_id="roundsong_sel", disabled=self.dis)
 
 	async def callback(self, interaction: discord.Integration):
@@ -125,9 +125,9 @@ class PlayerRoundSelect(discord.ui.Select):
 
 	async def init(self):
 		opts = []
-		for seed in self.match.seeding:
+		for i, seed in enumerate(self.match.seeding):
 			self.retOpts[seed.player.ch_name] = seed
-			opts.append(discord.SelectOption(label=f"{seed.player.ch_name} ({seed.seed})", value=seed.player.ch_name))
+			opts.append(discord.SelectOption(label=f"{seed.player.ch_name} ({seed.seed})", value=seed.player.ch_name, description=f"@{self.match.seeding_discord[i].display_name}"))
 		super().__init__(placeholder="Round Winner", max_values=1, options=opts, custom_id="roundwin_sel", disabled=self.dis)
 
 	async def callback(self, interaction: discord.Integration):
@@ -226,7 +226,8 @@ class PlayerSelect(discord.ui.Select):
 		async for seed in self.match.group.seeding.select_related('player').all().exclude(id__in=id_list):
 			if seed.player.is_active:
 				self.retOpts[seed.player.ch_name] = seed
-				seeding.append(discord.SelectOption(label=str(seed.player)))
+				mem = await self.match.guild.fetch_member(seed.player.user)
+				seeding.append(discord.SelectOption(label=f"{seed.player.ch_name} ({seed.seed})", value=seed.player.ch_name, description=f"@{mem.display_name}"))
 		super().__init__(placeholder=placeholder, max_values=1,	options=seeding, custom_id=self.cid, disabled=dis)
 
 	async def callback(self, interaction: discord.Interaction):

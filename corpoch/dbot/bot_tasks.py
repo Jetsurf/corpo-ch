@@ -64,3 +64,17 @@ async def reload_cog(bot, cog):
 	except Exception as e:
 		print(f"Reloading cog: {cog} failed: {e}")
 
+async def send_qualifier_discord_dms(bot, player, quali, req_subs, quali_end, guild, num_subs):
+	print(f"Sending reminder to {player} for {quali}")
+	guild = bot.get_guild(guild)
+	try:
+		user = await guild.fetch_member(player)
+	except:
+		print(f"Can't find user {player} in guild {guild}")
+		return
+	if user.can_send():
+		outStr = f"Hey! I wanted to quick remind you that the {quali} qualifier deadline is coming up at <t:{int(quali_end.timestamp())}:f>!\n"
+		outStr += f"You've only submitted {num_subs} out of {req_subs} times, and need to submit before the deadline!"
+		await user.send(outStr)
+	else:
+		print(f"Can't DM {player}")

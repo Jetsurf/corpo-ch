@@ -37,13 +37,14 @@ class DiscordMatch():
 			self.ref = await self.guild.fetch_member(self.matchDb.ref)
 			for seed in self.seeding:
 				self.seeding_discord.append(await self.guild.fetch_member(seed.player.user))
-			if not await self.isFinished() and (len(self.rounds) == 0 or self.rounds[-1].winner):
+			if not await self.isFinished() and len(self.bans) > 0 and (len(self.rounds) == 0 or self.rounds[-1].winner):
 				await self.add_round()
 		try:
 			self.tourney = await Tournament.objects.aget(guild=self.msg.guild.id, active=True)
 		except Tournament.DoesNotExist:
 			await self.msg.respond("No active tourney - running exhibition mode not supported now", ephemeral=True)
 			return
+
 		if isinstance(self.msg, discord.ApplicationContext):
 			await self.msg.respond("Setting up")
 		else:
