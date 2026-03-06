@@ -13,7 +13,7 @@ from corpoch.utils.hydra.hydra.hyutil import analyze_chart_bytes_chart, analyze_
 from corpoch.types import StegScreenshot
 
 class SNGHandler:
-	def __init__(self, submission: Union[str,bytes], playlist: str=None, sanitize=True):
+	def __init__(self, submission: Union[str,bytes], playlist: Union[str,None]=None, sanitize=True):
 		if not ((isinstance(submission, bytes) and (submission[:6].decode('utf-8') == "SNGPKG") or submission[:4] == b"\x50\x4B\x03\x04") or
 			(os.path.isfile(os.path.join(submission,"song.ini")) and
 			(os.path.isfile(os.path.join(submission,"notes.chart")) or os.path.isfile(os.path.join(submission,"notes.mid"))))):
@@ -21,7 +21,7 @@ class SNGHandler:
 		self._playlist = playlist
 		self._sanitize = sanitize
 
-		if isinstance(submission, bytes):
+		if isinstance(submission, bytes) and submission[:6].decode('utf-8') == "SNGPKG":
 			self._files = self.get_sng_files(submission)
 		else:
 			if isinstance(submission, bytes) and submission[:4] == b"\x50\x4B\x03\x04":
@@ -61,7 +61,7 @@ class SNGHandler:
 			valid_notes = ["notes.chart","notes.mid"]
 			valid_songini = "song.ini"
 
-			for file in files:
+			for index, file in enumerate(files):
 				if ((file.lower().startswith(valid_picture_names) and file.lower().endswith(valid_picture_extensions)) or
 					(file.lower().startswith(valid_music_names) and file.lower().endswith(valid_music_extensions)) or
 					(file.lower().startswith(valid_video_names) and file.lower().endswith(valid_video_extensions)) or
@@ -70,7 +70,7 @@ class SNGHandler:
 					if iszip:
 						with ZipFile(io.BytesIO(submission), 'r') as zip_file:
 							file_bytes = zip_file.read(file_paths[index])
-							results.append([file, file_bytes])
+							results.append([file.lower(), file_bytes])
 					else:
 						with open(os.path.join(submission,file), 'rb') as f:
 							file_bytes = f.read()
@@ -80,15 +80,18 @@ class SNGHandler:
 	@property
 	def outputChartName(self):
 		for row in self._files:
-			if "song.ini" in row[0]:
-				for line in row[1].decode('utf-8'):
+			filename = row[0]
+			if "song.ini" in filename:
+				for line in row[1].decode('utf-8').splitlines():
 					subd_line = re.sub("(?:<[^>]*>)", "", line)
 					if line.startswith("name"):
-						name = subd_line.split('=', 1)[1]
+						name = subd_line.split('=', 1)[1].strip()
 					if line.startswith("artist"):
-						artist = subd_line.split('=', 1)[1]
+						artist = subd_line.split('=', 1)[1].strip()
 					if line.startswith("charter"):
-						charter = subd_line.split('=', 1)[1]
+						charter = subd_line.split('=', 1)[1].strip()
+			else:
+				continue
 		newFile = f"{artist} - {name} ({charter})"
 		newFile = newFile.replace("/",  u'\uFF0F') #／
 		newFile = newFile.replace("\\", u'\u29F5') #⧵
@@ -136,7 +139,7 @@ class SNGHandler:
 	def md5(self) -> str:
 		return hashlib.md5(self.chart).hexdigest()
 
-	def parse_metadataPairArray(self, data: bytes) -> list[list[str, str]]:
+	def parse_metadataPairArray(self, data: bytes) -> list[list[str]]:
 		results = []
 		byte_stream = io.BytesIO(data)
 		while True:
@@ -157,7 +160,7 @@ class SNGHandler:
 			results.append([key, value])
 		return results
 
-	def parse_fileMetaArray(self, data: bytes) -> list[list[str, int, int]]:
+	def parse_fileMetaArray(self, data: bytes) -> list[list[Union[str, int]]]:
 		results = []
 		byte_stream = io.BytesIO(data)
 		while True:
