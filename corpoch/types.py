@@ -106,7 +106,7 @@ class StegScreenshot(pydantic.BaseModel):
 	band_stars : int = 0
 	checksum : str = "None"
 	charter_name : str = "None"
-	game_version : str = CH_VERSIONS[0]
+	game_version : str = CH_VERSIONS[0][0]
 	game_mode : str = "Versus"
 	playback_speed : int = 100
 	players : list[StegScreenshotPlayer] = []

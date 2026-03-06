@@ -1,4 +1,4 @@
-import discord, uuid, json
+import discord, uuid, json, re
 from discord.ext import commands
 from discord.ui import *
 from discord.enums import ComponentType, InputTextStyle
@@ -174,6 +174,7 @@ class GroupSelect(discord.ui.Select):
 		self.match.group = self.retOpts[self.values[0]]
 		self.match.matchDb = TournamentMatchOngoing(id=uuid.uuid1(), group=self.match.group)
 		await self.match.matchDb.asave()
+		print(f"REF: {self.match.ref.global_name} starting match {self.match.matchDb.id}")
 		await self.match.showTool(interaction)
 
 class PlayerSelect(discord.ui.Select):
@@ -341,7 +342,9 @@ class DiscordMatchView(discord.ui.View):
 			if self.match.rounds[-1].chart:
 				self.match.rounds[-1].chart = None
 			else:
-				self.match.rounds.pop()
+				rnd = self.match.rounds.pop()
+				if rnd.id:
+					await rnd.adelete()
 		elif len(self.match.bans) > 0:
 			ban = self.match.bans.pop()
 			await ban.adelete()
@@ -409,9 +412,9 @@ class DiscordMatchView(discord.ui.View):
 				continue
 			if not rnd.screenshot:
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} accepted")
+				screen.filename = re.sub(r'[^a-zA-Z0-9-_.]', '', screen.filename)
 				await sync_to_async(rnd.screenshot.save)(screen.filename, open(tool.img_path, 'rb'))
 				rnd.steg = steg
-				print(f"TEST STEG {rnd.steg}")
 				await rnd.asave()
 			else:
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} already submitted")
@@ -421,7 +424,6 @@ class DiscordMatchView(discord.ui.View):
 			retRnds.append(rnd)
 			if not rnd.steg:
 				done = False
-				print("REFRESHING TOOL")
 		self.match.rounds = retRnds
 		if done:
 			await self.match.finishMatch(interaction)

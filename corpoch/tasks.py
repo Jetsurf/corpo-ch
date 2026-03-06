@@ -40,11 +40,12 @@ def upload_completed_match_gsheet(base=ConnectionRefreshingTask):
 	sheet.login()
 	print(f"GSHEETS: Running gsheets upload for completed matches")
 	for match in matches:
-		print(f"GSHEETS: Uploading completed match {match.id} to tourney config sheet")
-		sheet.set_submission(match)
-		sheet.submit_completed()
-		match.processed = True
-		match.save()
+		if len(match.match_players.all()) > 0:
+			print(f"GSHEETS: Uploading completed match {match.id} to tourney config sheet")
+			sheet.set_submission(match)
+			sheet.submit_completed()
+			match.processed = True
+			match.save()
 	close_old_connections()
 
 @app.task

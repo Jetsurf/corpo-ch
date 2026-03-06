@@ -168,7 +168,7 @@ class QualifierSubmission(admin.ModelAdmin):
 	def _phrases(self, obj):
 		return obj.steg.players[0].sp_phrases_earned
 
-	@admin.action(description="Mark Qualifiers GS Unsubmitted")
+	@admin.action(description="Mark Qualifiers GSheet Unsent")
 	def set_unsubmitted(modeladmin, request, queryset):
 		for quali in queryset:
 			quali.submitted = False
@@ -188,7 +188,6 @@ class QualifierSubmission(admin.ModelAdmin):
 			sheet.set_submission(quali)
 			sheet.update_qualifier()
 			time.sleep(1.5)
-
 
 class RoundsOngoingInline(SortableStackedInline):
 	model = MatchRound
@@ -218,6 +217,7 @@ class TournamentMatchCompletedAdmin(SortableAdminBase, admin.ModelAdmin):
 	inlines = [BansCompletedInline, RoundsCompletedInline]
 	list_per_page = 16
 	exclude = ['ongoing_match']
+	actions = ['set_unsubmitted',"reread_steg", "resubmit_gsheet"]
 
 	def bracket_name(self, obj):
 		return obj.group.bracket.name
@@ -230,6 +230,28 @@ class TournamentMatchCompletedAdmin(SortableAdminBase, admin.ModelAdmin):
 
 	def version(self, obj):
 		return obj.group.bracket.tournament.config.version
+
+	@admin.action(description="Mark Match GSheet Unsent")
+	def set_unsubmitted(modeladmin, request, queryset):
+		for match in queryset:
+			match.submitted = False
+			match.save()
+
+	@admin.action(description="Reread steg data")
+	def reread_steg(modeladmin, request, queryset):
+		for match in queryset:
+			for rnd in match.rounds:
+				rnd.steg = None
+				rnd.save()
+
+	@admin.action(description="Correct GSheet Values")
+	def resubmit_gsheet(modeladmin, request, queryset):
+		sheet = GSheets()
+		sheet.login()
+		for quali in queryset:
+			sheet.set_submission(quali)
+			sheet.update_match()
+			time.sleep(1.5)
 
 @admin.register(TournamentMatchOngoing)
 class TournamentMatchOngoingAdmin(SortableAdminBase, admin.ModelAdmin):

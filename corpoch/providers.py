@@ -670,7 +670,8 @@ class GSheets():
 
 	def update_match(self):
 		cell = self._ws.find(self._submission.id)
-		self._ws.update([self.completed_lines], f"A{cell.row}:O{cell.row}")
+		for i, line in enumerate(self.completed_lines):
+			self._ws.update([line], f"A{(cell.row + i)}:P{(cell.row + i)}")
 
 	@property
 	def qualifier_line(self):
@@ -696,6 +697,7 @@ class GSheets():
 		retLines = []
 		matchId = self._submission.id
 		bracket = str(self._submission.bracket)
+		group = str(self._submission.group)
 		match = self._submission.short_name
 		for rnd in self._submission.rounds:
 			for ply in rnd.steg.players:
@@ -714,5 +716,5 @@ class GSheets():
 				phrases = ply.sp_phrases_earned
 				ts = f"{rnd.steg.score_timestamp.strftime('%Y-%m-%d %H:%M:%S')}-UTC"
 				url = f"https://{settings.BASE_URL}{rnd.screenshot.url}"
-				retLines.append([matchId, bracket, match, picked, song, chName, score, wl, missed, hit, excess, ghosts, phrases, ts, url])
+				retLines.append([matchId, bracket, group, match, picked, song, chName, score, wl, missed, hit, excess, ghosts, phrases, ts, url])
 		return retLines
