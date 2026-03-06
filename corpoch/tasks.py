@@ -1,6 +1,7 @@
 from celery import Celery, shared_task, Task
 from celery.schedules import crontab
 from django.db import close_old_connections, connection
+from django.utils import timezone
 
 from corpoch.models import TournamentPlayer, Qualifier, QualifierSubmission, TournamentMatchOngoing, TournamentMatchCompleted
 from corpoch.providers import GSheets
@@ -51,7 +52,7 @@ def upload_completed_match_gsheet(base=ConnectionRefreshingTask):
 @app.task
 def send_qualifier_discord_dms(base=ConnectionRefreshingTask):
 	close_old_connections()
-	for qualifier in Qualifier.objects.all().filter(required_submissions__gt=1):
+	for qualifier in Qualifier.objects.all().filter(required_submissions__gt=1, end_time__gt=timezone.now()):
 		for ply in TournamentPlayer.objects.all().filter(tournament=qualifier.tournament):
 			submissions = QualifierSubmission.objects.all().filter(player=ply)
 			if len(submissions) < qualifier.required_submissions:
