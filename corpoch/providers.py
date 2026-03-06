@@ -596,7 +596,7 @@ class GSheets():
 
 	def login(self):
 		gs = GSheetAPI.objects.get()
-		self._gc = gspread.service_account_from_dict(gs.api_key)
+		self._gc = gspread.service_account_from_dict(gs.api_key, http_client=gspread.BackOffHTTPClient)
 		if not self._gc:
 			raise RuntimeError("Gsheels API: API Key invalid/failed to login")
 
@@ -606,10 +606,6 @@ class GSheets():
 			self._tourney = self._submission.qualifier.tournament
 			self._bracket = self._submission.qualifier.bracket
 			self._url = self._submission.qualifier.gsheet
-		elif isinstance(self._submission, TournamentMatchOngoing):
-			self._tourney = self._submission.group.bracket.tournament
-			self._bracket = self._submission.group.bracket
-			self._url = self._tourney.config.gsheet
 		elif isinstance(self._submission, TournamentMatchCompleted):
 			self._tourney = self._submission.group.bracket.tournament
 			self._bracket = self._submission.group.bracket
@@ -626,11 +622,6 @@ class GSheets():
 				ws = self._sheet.worksheet((f"{self._submission.qualifier} - Data"))
 			except gspread.exceptions.WorksheetNotFound:
 				ws = self.setup_qualifier_sheet()
-		elif isinstance(self._submission, TournamentMatchOngoing):
-			try:
-				ws = self._sheet.worksheet((f"{self._submission.tournament.short_name} - Live Data"))
-			except gspread.exceptions.WorksheetNotFound:
-				ws = self.setup_ongoing_sheet()
 		elif isinstance(self._submission, TournamentMatchCompleted):
 			try:
 				ws = self._sheet.worksheet((f"{self._submission.tournament.short_name} - Match Data"))
@@ -656,12 +647,12 @@ class GSheets():
 		return ws
 
 	def submit_qualifier(self):
-		self._ws.append_row(self.qualifier_line, raw=False)
+		self._ws.append_row(self.qualifier_line, value_input_option="USER_ENTERED")
 		self._submission.submitted = True
 		self._submission.save()
 
 	def submit_completed(self) -> bool:
-		self._ws.append_rows(self.completed_lines, raw=False)
+		self._ws.append_rows(self.completed_lines, value_input_option="USER_ENTERED")
 
 	def update_qualifier(self):
 		cell = self._ws.find(f"https://{settings.BASE_URL}{self._submission.screenshot.url}")
@@ -686,7 +677,7 @@ class GSheets():
 		screenshotTimestamp = f"{self._submission.steg.score_timestamp.strftime('%Y-%m-%d %H:%M:%S')}-UTC"
 		link = f'=HYPERLINK("https://{settings.BASE_URL}{self._submission.screenshot.url}", "Screenshot Link")'
 		gameVer = self._submission.qualifier.tournament.config.version
-		return [qid self._submission.player.name, chName, score, missed, hit, excess, ghosts, phrases, submissionTimestamp, screenshotTimestamp, link, gameVer]
+		return [qid, self._submission.player.name, chName, score, missed, hit, excess, ghosts, phrases, submissionTimestamp, screenshotTimestamp, link, gameVer]
 
 	@property
 	def completed_lines(self):

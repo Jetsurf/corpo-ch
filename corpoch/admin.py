@@ -187,7 +187,6 @@ class QualifierSubmission(admin.ModelAdmin):
 		for quali in queryset:
 			sheet.set_submission(quali)
 			sheet.update_qualifier()
-			time.sleep(1.5)
 
 class RoundsOngoingInline(SortableStackedInline):
 	model = MatchRound
@@ -252,7 +251,6 @@ class TournamentMatchCompletedAdmin(SortableAdminBase, admin.ModelAdmin):
 		for quali in queryset:
 			sheet.set_submission(quali)
 			sheet.update_match()
-			time.sleep(1.5)
 
 @admin.register(TournamentMatchOngoing)
 class TournamentMatchOngoingAdmin(SortableAdminBase, admin.ModelAdmin):
