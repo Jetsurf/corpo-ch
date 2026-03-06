@@ -633,7 +633,7 @@ class GSheets():
 	def setup_qualifier_sheet(self) -> gspread.Worksheet:
 		print(f"Creating qualifier {self._submission.qualifier} worksheet in sheet {self._url}")
 		ws = self._sheet.add_worksheet(title=f"{self._submission.qualifier} - Data", rows=1, cols=12)
-		ws.update([["Qualifier ID", "Discord Name", "Clone Hero Name", "Score", "Notes Missed", "Notes Hit", "Overstrums", "Ghosts", "Phrases Hit", "Submission Timestamp", "Screenshot Timestamp", "Screenshot URL", "Game Version" ]], "A1:M1")
+		ws.update([["Qualifier ID", "Discord Name", "Clone Hero Name", "Score", "Notes Missed", "Notes Hit", "Overstrums", "Ghosts", "Phrases Hit", "Submission Timestamp", "Screenshot Timestamp", "Screenshot", "Game Version" ]], "A1:M1")
 		ws.format("A1:M1", self._format_header)
 		#TODO - Add any graphs/viewables that'd be nice to add
 		return ws
@@ -641,7 +641,7 @@ class GSheets():
 	def setup_completed_sheet(self) -> bool:
 		print(f"Creating Match Air Table {self._submission.tournament} worksheet in sheet {self._url}")
 		ws = self._sheet.add_worksheet(title=f"{self._submission.tournament.short_name} - Match Data", rows=1, cols=16)
-		ws.update([["Match ID", "Bracket", "Group", "Match", "Pick" "Song", "Player", "Score", "W/L",  "Notes Missed", "Notes Hit", "Overstrums", "Ghosts", "Phrases Hit", "imestamp", "Screenshot URL"]], "A1:P1")
+		ws.update([["Match ID", "Bracket", "Group", "Match", "Pick" "Song", "Player", "Score", "W/L",  "Notes Missed", "Notes Hit", "Overstrums", "Ghosts", "Phrases Hit", "imestamp", "Screenshot"]], "A1:P1")
 		ws.format("A1:P1", self._format_header)
 		#TODO - Add "the live table formatting/formulas for the viewable worksheets
 		return ws
@@ -655,7 +655,7 @@ class GSheets():
 		self._ws.append_rows(self.completed_lines, value_input_option="USER_ENTERED")
 
 	def update_qualifier(self):
-		cell = self._ws.find(f"https://{settings.BASE_URL}{self._submission.screenshot.url}")
+		cell = self._ws.find(self._submission.id)
 		self._ws.update([self.qualifier_line], f"A{cell.row}:M{cell.row}", raw=False)
 
 	def update_match(self):
