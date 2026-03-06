@@ -37,13 +37,14 @@ class DiscordMatch():
 			self.ref = await self.guild.fetch_member(self.matchDb.ref)
 			for seed in self.seeding:
 				self.seeding_discord.append(await self.guild.fetch_member(seed.player.user))
-			if not await self.isFinished() and (len(self.rounds) == 0 or self.rounds[-1].winner):
+			if not await self.isFinished() and len(self.bans) > 0 and (len(self.rounds) == 0 or self.rounds[-1].winner):
 				await self.add_round()
 		try:
 			self.tourney = await Tournament.objects.aget(guild=self.msg.guild.id, active=True)
 		except Tournament.DoesNotExist:
 			await self.msg.respond("No active tourney - running exhibition mode not supported now", ephemeral=True)
 			return
+
 		if isinstance(self.msg, discord.ApplicationContext):
 			await self.msg.respond("Setting up")
 		else:
@@ -75,6 +76,7 @@ class DiscordMatch():
 		return finishedMatch
 
 	async def finishMatch(self, interaction):
+		print(f"Finishing match {self.matchDb.id}")
 		match = await self.complete_match()
 		embeds = [await self.genMatchEmbed()]
 		shared_url = f"https://{settings.BASE_URL}/gallery/"
@@ -100,7 +102,6 @@ class DiscordMatch():
 		self.bans = list(self.matchDb.ongoing_bans.select_related('chart', 'player').all())
 		self.rounds = list(self.matchDb.ongoing_rounds.select_related('chart', 'picked', 'winner', 'loser').all())
 		self.chart = self.rounds[-1].chart if len(self.rounds) > 0 else None
-
 		print(f"Reattached to on-going match {self.matchDb}")
 		
 	@sync_to_async
@@ -181,8 +182,7 @@ class DiscordMatch():
 
 	@sync_to_async
 	def isTieBreaker(self):
-		score = self._score
-		if score[0] == self.bracket.ruleset.wins_needed - 1 and score[1] == self.bracket.ruleset.wins_needed - 1:
+		if self._score[0] == self.bracket.ruleset.wins_needed - 1 and self._score[1] == self.bracket.ruleset.wins_needed - 1:
 			return True
 		else:
 			return False

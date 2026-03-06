@@ -496,7 +496,6 @@ class Hydra:
 		self.output = [p.pathstring_verbose() for p in output.all_paths()]
 		return self.output
 
-
 class CHStegTool:
 	def __init__(self):
 		self._path = settings.CHSTEG_PATH
@@ -517,14 +516,9 @@ class CHStegTool:
 			os.remove(self.img_path)
 
 	def _get_over_strums(self):
-		#print(f"OS Counts: {osCnt}")
-		img = Image.open(self.img_path)
-		osImg = img.crop((0, 690, 1080, 727))
-		outStr = pytesseract.image_to_string(osImg)
-		osCnt = re.findall("(?<=Overstrums )([Oo0-9]+)", outStr)
-		#Sanity check OS's before adding
+		outStr = pytesseract.image_to_string(self.img)
+		osCnt = re.findall("(?<=Overstrums )([O|o|0-9]+)", outStr)
 		for i, player in enumerate(self.output.players):
-			## TODO: THIS NEEDS TO BE FIXED FOR ACTUAL ROUND DATA INFO
 			if len(osCnt) == len(self.output.players):
 				player.excess_hits = int(osCnt[i])
 			else:
@@ -566,6 +560,7 @@ class CHStegTool:
 		self.img_name = image
 		self.img_path = f"{settings.MEDIA_ROOT}{image}"
 		self.delete = False
+		self.img = Image.open(self.img_path)
 		self._call_steg()
 		return self.output
 
@@ -598,6 +593,7 @@ class GSheets():
 	def __init__(self):	
 		self._format_border = {'textFormat': {'bold': False}, "horizontalAlignment": "CENTER", 'borders': {'right': {'style' : 'SOLID'}, 'left': {'style' : 'SOLID' }}}
 		self._format_header = {'textFormat': {'bold': True}, "horizontalAlignment": "CENTER", 'borders': { 'bottom': { 'style' : 'SOLID' }, 'left': { 'style' : 'SOLID' }, 'right': { 'style' : 'SOLID' }}}
+		#worksheet.update([['=SUM(A1:A4)']], 'A5', raw=False) - note for adding formulas
 
 	def login(self):
 		gs = GSheetAPI.objects.get()
@@ -668,7 +664,14 @@ class GSheets():
 		self._submission.submitted = True
 		self._submission.save()
 
-	#worksheet.update([['=SUM(A1:A4)']], 'A5', raw=False)
+	def update_qualifier(self):
+		cell = self._ws.find(f"https://{settings.BASE_URL}{self._submission.screenshot.url}")
+		self._ws.update([self.qualifier_line], f"A{cell.row}:L{cell.row}")
+
+	def update_match(self):
+		cell = self._ws.find(self._submission.id)
+		for i, line in enumerate(self.completed_lines):
+			self._ws.update([line], f"A{(cell.row + i)}:P{(cell.row + i)}")
 
 	@property
 	def qualifier_line(self):
@@ -694,6 +697,7 @@ class GSheets():
 		retLines = []
 		matchId = self._submission.id
 		bracket = str(self._submission.bracket)
+		group = str(self._submission.group)
 		match = self._submission.short_name
 		for rnd in self._submission.rounds:
 			for ply in rnd.steg.players:
@@ -712,18 +716,5 @@ class GSheets():
 				phrases = ply.sp_phrases_earned
 				ts = f"{rnd.steg.score_timestamp.strftime('%Y-%m-%d %H:%M:%S')}-UTC"
 				url = f"https://{settings.BASE_URL}{rnd.screenshot.url}"
-				retLines.append([matchId, bracket, match, picked, song, chName, score, wl, missed, hit, excess, ghosts, phrases, ts, url])
+				retLines.append([matchId, bracket, group, match, picked, song, chName, score, wl, missed, hit, excess, ghosts, phrases, ts, url])
 		return retLines
-
-
-#Keeping for future OCR use/reference
-#OCR Tweaking - Keep until v6 is dead
-#img = Image.open(imageName)
-#image = cv2.imread(imageName)
-#gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-#blur = cv2.GaussianBlur(gray, (3,3), 0)
-#thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
-# Morph open to remove noise and invert image
-#kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
-#opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=1)
-#invert = 255 - opening

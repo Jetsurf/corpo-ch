@@ -81,7 +81,7 @@ class Chart(models.Model):
 	def tournament_name(self):
 		retStr = f"{self.name}"
 		if self.speed != 100:
-			retStr += f" ({self.speed}%) "
+			retStr += f" ({self.speed}%)"
 		if self.modifiers != ['NM']:
 			retStr += self.modifiers_short
 		return retStr
@@ -335,7 +335,7 @@ class TournamentMatch(models.Model):#This class is assumed to be an "official" m
 				outStr += f"{seed.player.ch_name}({seed.seed})"
 			elif i == 1:
 				outStr += f" vs {seed.player.ch_name}({seed.seed})"
-		return outSt
+		return outStr
 
 class TournamentMatchCompleted(TournamentMatch):
 	ended_on = models.DateTimeField(verbose_name="Match end time", auto_now_add=True)
@@ -361,6 +361,14 @@ class TournamentMatchCompleted(TournamentMatch):
 		if len(seeds) > 1:#Not going to work 3+ players
 			outStr += f" - {seeds[0].player.ch_name} ({seeds[0].seed}) vs {seeds[1].player.ch_name} ({seeds[1].seed})"
 		return outStr
+
+	def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
+		for rnd in self.rounds:
+			if rnd.screenshot and (not rnd.steg or len(rnd.steg.players) == 0):
+				from corpoch.providers import CHStegTool
+				tool = CHStegTool()
+				rnd.steg = tool.getStegInfoSync(rnd.screenshot)
+		super().save()
 
 class TournamentMatchOngoing(TournamentMatch): 
 	finished = models.BooleanField(verbose_name="Finished", default=False) #Flag to match in-progress as complete, start triggers to move to completed
@@ -392,7 +400,6 @@ class TournamentMatchOngoing(TournamentMatch):
 	def score(self):
 		score1 = 0
 		score2 = 0
-
 		for round in self.rounds:
 			if round.winner_id:
 				if round.winner_id == self.high_seed.player_id:
@@ -404,8 +411,6 @@ class TournamentMatchOngoing(TournamentMatch):
 
 	def complete_match(self):
 		pass
-		#tmpRnds = 
-		#compMatch = TournamentMatchCompleted(id=self.id, winner=winner, loser=loser, bracket=self.bracket, player1=self.player1, player1_ban=self.player1_ban, player2=self.player2, player2_ban=self.player2_ban, match_data=self.match_data)
 
 	def __str__(self):
 		outStr = f"{self.tournament.short_name} - {self.group.bracket.name} - Group {self.group.name}"

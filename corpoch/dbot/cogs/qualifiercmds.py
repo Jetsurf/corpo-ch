@@ -250,7 +250,7 @@ class DiscordQualifierView(discord.ui.View):
 		embed.add_field(name=f"{self.tourney.name} Rules", value=self.tourney.config.rules, inline=False)
 		embed.add_field(name="Submissions Deadline", value=f"<t:{int(self.qualifier.end_time.timestamp())}>", inline=False)
 		if self.qualifier.required_submissions > 1:
-			subs_met = '✅' if self.qualifier.required_submissions < self.num_subs else '❌'
+			subs_met = '✅' if self.qualifier.required_submissions <= self.num_subs else '❌'
 			embed.add_field(name="Required Submissions", value=f"This qualifier requires {self.qualifier.required_submissions} submissions\n\nYou've submitted: {self.num_subs} time(s) {subs_met}")
 		embed.add_field(name=f"Qualifier Rules", value=self.qualifier.rules, inline=False)
 		if self.qualifier.form_link and self.qualifier.form_link != "":

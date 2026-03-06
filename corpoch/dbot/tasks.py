@@ -19,3 +19,8 @@ def add_bot_emoji(name):
 def reload_cog(cog):
 	print(f"Sending task to reload cog {cog}")
 	reload_cog.apply_async(args=[cog])
+
+@app.task
+def send_qualifier_discord_dms(player, quali, req_subs, quali_end, guild, num_subs):
+	print(f"Sending task to send DM to {player} for qualifier {quali} ({num_subs}/{req_subs})")
+	send_qualifier_discord_dms.apply_async(args=[player.user, quali, req_subs, quali_end, guild, num_subs])
