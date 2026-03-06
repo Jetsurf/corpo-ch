@@ -19,6 +19,8 @@ Migrate -> `python3 manage.py migrate`
 
 Collect Static -> `python3 manage.py collectstatic`
 
+Create Super User -> `python3 manage.py createsuperuser`
+
 Load CH AppEmotes -> `python3 manage.py ch_icon_import` - takes a while to not hammer any API's
 
 Start Processes:
