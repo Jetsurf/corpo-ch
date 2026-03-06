@@ -593,7 +593,6 @@ class GSheets():
 	def __init__(self):	
 		self._format_border = {'textFormat': {'bold': False}, "horizontalAlignment": "CENTER", 'borders': {'right': {'style' : 'SOLID'}, 'left': {'style' : 'SOLID' }}}
 		self._format_header = {'textFormat': {'bold': True}, "horizontalAlignment": "CENTER", 'borders': { 'bottom': { 'style' : 'SOLID' }, 'left': { 'style' : 'SOLID' }, 'right': { 'style' : 'SOLID' }}}
-		#worksheet.update([['=SUM(A1:A4)']], 'A5', raw=False) - note for adding formulas
 
 	def login(self):
 		gs = GSheetAPI.objects.get()
@@ -643,38 +642,39 @@ class GSheets():
 	def setup_qualifier_sheet(self) -> gspread.Worksheet:
 		print(f"Creating qualifier {self._submission.qualifier} worksheet in sheet {self._url}")
 		ws = self._sheet.add_worksheet(title=f"{self._submission.qualifier} - Data", rows=1, cols=12)
-		ws.update([["Discord Name", "Clone Hero Name", "Score", "Notes Missed", "Notes Hit", "Overstrums", "Ghosts", "Phrases Earned", "Submission Timestamp", "Screenshot Timestamp", "Image URL", "Game Version" ]], "A1:L1")
-		ws.format("A1:L1", self._format_header)
+		ws.update([["Qualifier ID", "Discord Name", "Clone Hero Name", "Score", "Notes Missed", "Notes Hit", "Overstrums", "Ghosts", "Phrases Hit", "Submission Timestamp", "Screenshot Timestamp", "Screenshot URL", "Game Version" ]], "A1:M1")
+		ws.format("A1:M1", self._format_header)
+		#TODO - Add any graphs/viewables that'd be nice to add
 		return ws
 
-	def setup_ongoing_sheet(self) -> bool:
-		pass
-
 	def setup_completed_sheet(self) -> bool:
-		pass
-
-	def submit_completed(self) -> bool:
-		self._ws.append_rows(self.completed_lines)
-
-	def submit_ongoing(self) -> bool:
-		pass
+		print(f"Creating Match Air Table {self._submission.tournament} worksheet in sheet {self._url}")
+		ws = self._sheet.add_worksheet(title=f"{self._submission.tournament.short_name} - Match Data", rows=1, cols=16)
+		ws.update([["Match ID", "Bracket", "Group", "Match", "Pick" "Song", "Player", "Score", "W/L",  "Notes Missed", "Notes Hit", "Overstrums", "Ghosts", "Phrases Hit", "imestamp", "Screenshot URL"]], "A1:P1")
+		ws.format("A1:P1", self._format_header)
+		#TODO - Add "the live table formatting/formulas for the viewable worksheets
+		return ws
 
 	def submit_qualifier(self):
-		self._ws.append_row(self.qualifier_line)
+		self._ws.append_row(self.qualifier_line, raw=False)
 		self._submission.submitted = True
 		self._submission.save()
 
+	def submit_completed(self) -> bool:
+		self._ws.append_rows(self.completed_lines, raw=False)
+
 	def update_qualifier(self):
 		cell = self._ws.find(f"https://{settings.BASE_URL}{self._submission.screenshot.url}")
-		self._ws.update([self.qualifier_line], f"A{cell.row}:L{cell.row}")
+		self._ws.update([self.qualifier_line], f"A{cell.row}:M{cell.row}", raw=False)
 
 	def update_match(self):
 		cell = self._ws.find(self._submission.id)
 		for i, line in enumerate(self.completed_lines):
-			self._ws.update([line], f"A{(cell.row + i)}:P{(cell.row + i)}")
+			self._ws.update([line], f"A{(cell.row + i)}:P{(cell.row + i)}", raw=False)
 
 	@property
 	def qualifier_line(self):
+		qid = self._submission.id
 		chName = self._submission.steg.players[0].profile_name
 		score = self._submission.steg.players[0].score
 		missed = self._submission.steg.players[0].notes_missed
@@ -684,13 +684,9 @@ class GSheets():
 		phrases = self._submission.steg.players[0].sp_phrases_earned
 		submissionTimestamp = f"{self._submission.submit_time.strftime("%Y-%m-%d %H:%M:%S")}-UTC"
 		screenshotTimestamp = f"{self._submission.steg.score_timestamp.strftime('%Y-%m-%d %H:%M:%S')}-UTC"
-		imgUrl = f"https://{settings.BASE_URL}{self._submission.screenshot.url}"
+		link = f'=HYPERLINK("https://{settings.BASE_URL}{self._submission.screenshot.url}", "Screenshot Link")'
 		gameVer = self._submission.qualifier.tournament.config.version
-		return [self._submission.player.name, chName, score, missed, hit, excess, ghosts, phrases, submissionTimestamp, screenshotTimestamp, imgUrl, gameVer]
-
-	@property
-	def ongoing_lines(self):
-		pass
+		return [qid self._submission.player.name, chName, score, missed, hit, excess, ghosts, phrases, submissionTimestamp, screenshotTimestamp, link, gameVer]
 
 	@property
 	def completed_lines(self):
@@ -714,7 +710,6 @@ class GSheets():
 				excess = ply.excess_hits
 				ghosts = ply.frets_ghosted
 				phrases = ply.sp_phrases_earned
-				ts = f"{rnd.steg.score_timestamp.strftime('%Y-%m-%d %H:%M:%S')}-UTC"
-				url = f"https://{settings.BASE_URL}{rnd.screenshot.url}"
-				retLines.append([matchId, bracket, group, match, picked, song, chName, score, wl, missed, hit, excess, ghosts, phrases, ts, url])
+				link = f'=HYPERLINK("https://{settings.BASE_URL}{rnd.screenshot.url}", "Screenshot Link")'
+				retLines.append([matchId, bracket, group, match, picked, song, chName, score, wl, missed, hit, excess, ghosts, phrases, ts, link])
 		return retLines
