@@ -491,7 +491,10 @@ class CHOpt:
 
 	def gen_path(self, chart: typing.Union[dict, Chart]) -> str:
 		if isinstance(chart, Chart):
-			content = self._encore.download_from_url(chart.url)
+			if chart.sngfile:
+				content = chart.sngfile
+			else:
+				content = self._encore.download_from_url(chart.url)
 			chartName = chart.name
 			self.opts.speed = chart.speed
 			self.opts.instrument = chart.instrument[0]

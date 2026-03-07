@@ -82,7 +82,10 @@ class ChartAdmin(admin.ModelAdmin):
 			chart.genre = songini.genre
 			chart.charter = songini.charter
 			chart.md5 = song.md5
-			chart.icon = CHIcon.objects.get(name=songini.icon) if songini.icon else CHIcon.objects.get(name="ch_default_icon")
+			try:
+				chart.icon = CHIcon.objects.get(name=songini.icon)
+			except CHIcon.DoesNotExist:
+				chart.icon = CHIcon.objects.get(name="ch_default_icon")
 			chart.save()
 
 class TournamentConfigInline(admin.TabularInline):
