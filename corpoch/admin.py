@@ -101,6 +101,20 @@ class TournamentPlayerAdmin(admin.ModelAdmin):
 class TournamentQualifierAdmin(admin.ModelAdmin):
 	list_display = ('id', 'tournament')
 	list_filter = ['tournament']
+	actions = ['submit_final_scores']
+
+	@admin.action(description="Submit Final Top Scores")
+	def submit_final_scores(modeladmin, request, queryset):
+		sheet = GSheets(fin=True)
+		sheet.login()
+		for quali in queryset:
+			for ply in TournamentPlayer.objects.all().filter(tournament=quali.tournament):
+				objs = QualifierSubmission.objects.all().filter(player=ply)
+				subs = sorted(objs, key=lambda i: i.steg.players[0].score)
+				#if len(subs) >= quali.required_submissions:
+				print(f"Got score for {ply} - {subs[-1].steg.players[0].score}")
+				sheet.set_submission(subs[-1])
+				sheet.submit_qualifier()
 
 class SeedingInline(SortableStackedInline):
 	model = GroupSeed
@@ -138,7 +152,7 @@ class BracketGroupAdmin(SortableAdminBase, admin.ModelAdmin):
 				corpoch.dbot.tasks.set_group_role(ply, guild, role)	
 
 @admin.register(QualifierSubmission)
-class QualifierSubmission(admin.ModelAdmin):
+class QualifierSubmissionAdmin(admin.ModelAdmin):
 	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
 	list_display = ('id', 'qualifier', 'player_ch_name', '_score', '_miss', '_hit', '_excess', '_ghosts', '_phrases', 'submitted')
 	list_filter = ["qualifier", "player"]

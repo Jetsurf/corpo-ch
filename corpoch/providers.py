@@ -590,7 +590,8 @@ class CHStegTool:
 		return embed
 
 class GSheets():
-	def __init__(self):	
+	def __init__(self, fin=False):
+		self._final = fin
 		self._format_border = {'textFormat': {'bold': False}, "horizontalAlignment": "CENTER", 'borders': {'right': {'style' : 'SOLID'}, 'left': {'style' : 'SOLID' }}}
 		self._format_header = {'textFormat': {'bold': True}, "horizontalAlignment": "CENTER", 'borders': { 'bottom': { 'style' : 'SOLID' }, 'left': { 'style' : 'SOLID' }, 'right': { 'style' : 'SOLID' }}}
 
@@ -619,7 +620,10 @@ class GSheets():
 		#Load relevant workspace in sheet
 		if isinstance(self._submission, QualifierSubmission):
 			try:
-				ws = self._sheet.worksheet((f"{self._submission.qualifier} - Data"))
+				if not self._final:
+					ws = self._sheet.worksheet((f"{self._submission.qualifier} - Data"))
+				else:
+					ws = self._sheet.worksheet((f"{self._submission.qualifier} - Final Top Scores"))
 			except gspread.exceptions.WorksheetNotFound:
 				ws = self.setup_qualifier_sheet()
 		elif isinstance(self._submission, TournamentMatchCompleted):
@@ -632,7 +636,10 @@ class GSheets():
 
 	def setup_qualifier_sheet(self) -> gspread.Worksheet:
 		print(f"Creating qualifier {self._submission.qualifier} worksheet in sheet {self._url}")
-		ws = self._sheet.add_worksheet(title=f"{self._submission.qualifier} - Data", rows=1, cols=12)
+		if not self._final:
+			ws = self._sheet.add_worksheet(title=f"{self._submission.qualifier} - Data", rows=1, cols=12)
+		else:
+			ws = self._sheet.add_worksheet(title=f"{self._submission.qualifier} - Final Top Scores", rows=1, cols=12)
 		ws.update([["Qualifier ID", "Discord Name", "Clone Hero Name", "Score", "Notes Missed", "Notes Hit", "Overstrums", "Ghosts", "Phrases Hit", "Submission Timestamp", "Screenshot Timestamp", "Screenshot", "Game Version" ]], "A1:M1")
 		ws.format("A1:M1", self._format_header)
 		#TODO - Add any graphs/viewables that'd be nice to add
