@@ -76,7 +76,12 @@ class SNGHandler:
 						with open(os.path.join(submission,file), 'rb') as f:
 							file_bytes = f.read()
 							results.append([file.lower(), file_bytes])
-			self._files = results
+			chart_present = any(item[0] == 'notes.chart' for item in results)
+			if chart_present:
+				filtered_list = [item for item in results if item[0] != 'notes.mid']
+				self._files = filtered_list
+			else:
+				self._files = results
 
 	@property
 	def outputChartName(self):
@@ -129,10 +134,12 @@ class SNGHandler:
 	@property
 	def songini_model(self):
 		songini_raw = self.songini.decode('utf-8')
-		songini_dict = {
-			line.split(" = ", 1)[0].strip(): line.split(" = ", 1)[1].strip() 
-			for line in songini_raw.strip().split("\n") if " = " in line
-		}
+		songini_dict = {}
+		for line in songini_raw.splitlines():
+			if "=" in line:
+				key, value = line.split('=', 1)
+				if value.strip():
+					songini_dict[key.strip()] = value.strip()
 		songini = self.SongIni.model_validate(songini_dict)
 		return songini
 

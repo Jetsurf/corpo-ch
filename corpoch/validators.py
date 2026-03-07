@@ -49,7 +49,7 @@ def validate_chart_file(file):
                 count_notes = sum(1 for f in filtered_files if f in valid_notes)
 
                 has_ini = count_ini == 1
-                has_notes = count_notes == 1
+                has_notes = count_notes >= 1
                 has_music = any(f.startswith(music_names) and f.split('.')[-1] in music_exts for f in filtered_files)
 
                 if has_ini and has_notes and has_music:
