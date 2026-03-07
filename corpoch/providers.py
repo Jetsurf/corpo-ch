@@ -1,7 +1,8 @@
+from pydantic import BaseModel
 import typing, requests_cache, json, io, hashlib, re, gspread, asyncio, discord, os, uuid, platform, subprocess, pytesseract, shutil
 from zipfile import ZipFile
 from datetime import datetime
-from typing import Union
+from typing import Optional, Union
 from random import randbytes
 from PIL import Image, ImageEnhance
 from django.db import models
@@ -92,7 +93,11 @@ class SNGHandler:
 						charter = subd_line.split('=', 1)[1].strip()
 			else:
 				continue
-		newFile = f"{artist} - {name} ({charter})"
+		newFile = f"{name}"
+		if artist:
+			newFile = newFile + " - " + f"{artist}"
+		if charter:
+			newFile = newFile + " (" + f"{charter}" + ")"
 		newFile = newFile.replace("/",  u'\uFF0F') #／
 		newFile = newFile.replace("\\", u'\u29F5') #⧵
 		newFile = newFile.replace(":",  u'\uA789') #꞉
@@ -120,6 +125,16 @@ class SNGHandler:
 				if self._sanitize:
 					row[1] = re.sub(b"(?:<[^>]*>)", b"", row[1])
 				return row[1]
+
+	@property
+	def songini_model(self):
+		songini_raw = self.songini.decode('utf-8')
+		songini_dict = {
+			line.split(" = ", 1)[0].strip(): line.split(" = ", 1)[1].strip() 
+			for line in songini_raw.strip().split("\n") if " = " in line
+		}
+		songini = self.SongIni.model_validate(songini_dict)
+		return songini
 
 	@property
 	def chart(self) -> bytes:
@@ -312,6 +327,38 @@ class SNGHandler:
 				sng_stream.write(bytes(self.xorMask(list(row[1]),xorMask)))
 
 			return sng_stream.getvalue()
+	
+	class SongIni(BaseModel):
+
+		name: str
+		artist: Optional[str] = None
+		album: Optional[str] = None
+		genre: Optional[str] = None
+		year: Optional[str] = None
+		album_track: Optional[int] = None
+		playlist_track: Optional[int] = None
+		charter: Optional[str] = None
+		icon: Optional[str] = None
+		diff_guitar: Optional[int] = None
+		diff_rhythm: Optional[int] = None
+		diff_bass: Optional[int] = None
+		diff_guitar_coop: Optional[int] = None
+		diff_drums: Optional[int] = None
+		diff_drums_real: Optional[int] = None
+		diff_guitarghl: Optional[int] = None
+		diff_bassghl: Optional[int] = None
+		diff_rhythm_ghl: Optional[int] = None
+		diff_guitar_coop_ghl: Optional[int] = None
+		diff_keys: Optional[int] = None
+		song_length: Optional[int] = None
+		preview_start_time: Optional[int] = None
+		video_start_time: Optional[int] = None
+		delay: Optional[int] = None
+		modchart: Optional[bool] = False
+		loading_phrase: Optional[str] = None
+	
+		class Config:
+			populate_by_name = True
 
 class EncoreClient:
 	def __init__(self, limit: int=24, exact: bool=True):
