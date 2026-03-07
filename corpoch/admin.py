@@ -101,6 +101,20 @@ class TournamentPlayerAdmin(admin.ModelAdmin):
 class TournamentQualifierAdmin(admin.ModelAdmin):
 	list_display = ('id', 'tournament')
 	list_filter = ['tournament']
+	actions = ['submit_final_scores']
+
+	@admin.action(description="Submit Final Top Scores")
+	def submit_final_scores(modeladmin, request, queryset):
+		sheet = GSheets(fin=True)
+		sheet.login()
+		for quali in queryset:
+			for ply in TournamentPlayer.objects.all().filter(tournament=quali.tournament):
+				objs = QualifierSubmission.objects.all().filter(player=ply)
+				subs = sorted(objs, key=lambda i: i.steg.players[0].score)
+				if len(subs) >= quali.required_submissions:
+					print(f"Submitting Final Score for {ply} - {subs[-1].steg.players[0].score}")
+					sheet.set_submission(subs[-1])
+					sheet.submit_qualifier()
 
 class SeedingInline(SortableStackedInline):
 	model = GroupSeed
@@ -138,9 +152,9 @@ class BracketGroupAdmin(SortableAdminBase, admin.ModelAdmin):
 				corpoch.dbot.tasks.set_group_role(ply, guild, role)	
 
 @admin.register(QualifierSubmission)
-class QualifierSubmission(admin.ModelAdmin):
+class QualifierSubmissionAdmin(admin.ModelAdmin):
 	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
-	list_display = ('id', 'submitted', 'qualifier', 'player_ch_name', '_score', '_miss', '_hit', '_excess', '_ghosts', '_phrases')
+	list_display = ('id', 'qualifier', 'player_ch_name', '_score', '_miss', '_hit', '_excess', '_ghosts', '_phrases', 'submitted')
 	list_filter = ["qualifier", "player"]
 	actions = ['set_unsubmitted',"reread_steg", "resubmit_gsheet"]
 
@@ -151,22 +165,22 @@ class QualifierSubmission(admin.ModelAdmin):
 		return obj.player.ch_name
 
 	def _score(self, obj):
-		return obj.steg.players[0].score
+		return obj.steg.players[0].score if len(obj.steg.players) > 0 else '-'
 
 	def _miss(self, obj):
-		return obj.steg.players[0].notes_missed
+		return obj.steg.players[0].notes_missed if len(obj.steg.players) > 0 else '-'
 
 	def _hit(self, obj):
-		return obj.steg.players[0].notes_hit
+		return obj.steg.players[0].notes_hit if len(obj.steg.players) > 0 else '-'
 
 	def _excess(self, obj):
-		return obj.steg.players[0].excess_hits
+		return obj.steg.players[0].excess_hits if len(obj.steg.players) > 0 else '-'
 
 	def _ghosts(self, obj):
-		return obj.steg.players[0].frets_ghosted
+		return obj.steg.players[0].frets_ghosted if len(obj.steg.players) > 0 else '-'
 
 	def _phrases(self, obj):
-		return obj.steg.players[0].sp_phrases_earned
+		return obj.steg.players[0].sp_phrases_earned if len(obj.steg.players) > 0 else '-'
 
 	@admin.action(description="Mark Qualifiers GSheet Unsent")
 	def set_unsubmitted(modeladmin, request, queryset):
@@ -187,7 +201,6 @@ class QualifierSubmission(admin.ModelAdmin):
 		for quali in queryset:
 			sheet.set_submission(quali)
 			sheet.update_qualifier()
-			time.sleep(1.5)
 
 class RoundsOngoingInline(SortableStackedInline):
 	model = MatchRound
@@ -211,6 +224,7 @@ class BansCompletedInline(SortableStackedInline):
 	exclude = ['ongoing_match']
 	extra = 0
 
+#TODO - Add match score to table
 @admin.register(TournamentMatchCompleted)
 class TournamentMatchCompletedAdmin(SortableAdminBase, admin.ModelAdmin):
 	list_display = ('__str__', 'processed', 'bracket_name', 'group', '_match_players', 'started_on', 'version')
@@ -251,7 +265,6 @@ class TournamentMatchCompletedAdmin(SortableAdminBase, admin.ModelAdmin):
 		for quali in queryset:
 			sheet.set_submission(quali)
 			sheet.update_match()
-			time.sleep(1.5)
 
 @admin.register(TournamentMatchOngoing)
 class TournamentMatchOngoingAdmin(SortableAdminBase, admin.ModelAdmin):

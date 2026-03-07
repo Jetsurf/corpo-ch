@@ -45,6 +45,12 @@ class DiscordMatch():
 			await self.msg.respond("No active tourney - running exhibition mode not supported now", ephemeral=True)
 			return
 
+		try:
+			self.bracket = await TournamentBracket.objects.aget(score_log=self.msg.channel.id)
+		except TournamentBracket.DoesNotExist: 
+			await self.msg.respond("Channel is not a score log channel - please use this command in a match reporting channel.", ephemeral=True)
+			return
+
 		if isinstance(self.msg, discord.ApplicationContext):
 			await self.msg.respond("Setting up")
 		else:
