@@ -21,7 +21,7 @@ class ChartAdmin(admin.ModelAdmin):
 	list_display = ('_icon','name',  '_bracket', 'charter', 'artist', 'album', 'speed', '_modifiers', 'tiebreaker')
 	list_filter = ['brackets', 'charter', 'artist', 'tiebreaker']
 	readonly_fields = ['_icon']
-	actions = ['run_encore_import']
+	actions = ['run_encore_import', 'import_song_ini']
 
 	def _bracket(self,obj):
 		retList = []
@@ -68,6 +68,19 @@ class ChartAdmin(admin.ModelAdmin):
 			chart.album = newChart['album']
 			chart.artist = newChart['artist']
 			chart.charter = newChart['charter']
+			chart.save()
+
+	@admin.action(description="Import data from song.ini")
+	def import_song_ini(modeladmin, request, queryset):
+		from corpoch.providers import SNGHandler
+		for chart in queryset:
+			songini = SNGHandler(chart.sngfile.open(mode='rb').read()).songini_model
+			chart.name = songini.name
+			chart.artist = songini.artist
+			chart.album = songini.album
+			chart.genre = songini.genre
+			chart.charter = songini.charter
+			chart.icon = CHIcon.objects.get(name=songini.icon) if songini.icon else CHIcon.objects.get(name="ch_default_icon")
 			chart.save()
 
 class TournamentConfigInline(admin.TabularInline):
