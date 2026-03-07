@@ -444,7 +444,7 @@ class CHOpt:
 			content = self._encore.download_from_url(chart.url)
 			chartName = chart.name
 			self.opts.speed = chart.speed
-			self.opts.instrument = chart.instrument
+			self.opts.instrument = chart.instrument[0]
 		elif isinstance(chart, dict):
 			content = self._encore.download_from_chart(chart)
 			chartName = chart['name']
