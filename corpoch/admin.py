@@ -78,6 +78,29 @@ class TournamentConfigInline(admin.TabularInline):
 class TournamentAdmin(admin.ModelAdmin):
 	list_display = ('name', 'guild', 'active')
 	inlines = [TournamentConfigInline]
+	actions = ['set_tournament_role', 'set_players_active']
+
+	@admin.action(description="Set tournament role for players")
+	def set_tournament_role(modeladmin, request, queryset):
+		for tourney in queryset:
+			role = tourney.role
+			guild = tourney.guild
+			for bracket in tourney.brackets.all():
+				for group in bracket.groups.all():
+					for seed in group.seeding.all():
+						ply = seed.player.user
+						corpoch.dbot.tasks.set_group_role(ply, guild, role)
+
+	@admin.action(description="Set players as active")
+	def set_players_active(modeladmin, request, queryset):
+		for tourney in queryset:
+			role = tourney.role
+			guild = tourney.guild
+			for bracket in tourney.brackets.all():
+				for group in bracket.groups.all():
+					for seed in group.seeding.all():
+						seed.player.is_active = True
+						seed.player.save()
 
 class BracketRulesInline(admin.TabularInline):
 	model = BracketRules
@@ -88,9 +111,21 @@ class TournamentBracketAdmin(admin.ModelAdmin):
 	list_display = ("_name", 'tournament')
 	list_filter = ['tournament']
 	inlines = [BracketRulesInline]
+	actions = ['set_bracket_role']
 
 	def _name(self, obj):
 		return f"{obj}"
+
+	@admin.action(description="Set bracket role for players")
+	def set_bracket_role(modeladmin, request, queryset):
+		for bracket in queryset:
+			tourney = bracket.tournament
+			role = bracket.role
+			guild = tourney.guild
+			for group in bracket.groups.all():
+				for seed in group.seeding.all():
+					ply = seed.player.user
+					corpoch.dbot.tasks.set_group_role(ply, guild, role)	
 
 @admin.register(TournamentPlayer)
 class TournamentPlayerAdmin(admin.ModelAdmin):

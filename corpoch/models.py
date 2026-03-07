@@ -104,6 +104,7 @@ class Tournament(models.Model):
 	guild = models.BigIntegerField(verbose_name="Discord Server ID", db_index=True)
 	name = models.CharField(verbose_name="Name", max_length=128, default="New Tournament")
 	short_name = models.CharField(verbose_name="Short Name", max_length=16, default="NT1")
+	role = models.BigIntegerField(verbose_name="Participant Role ID", null=True, blank=True, db_index=True)
 	active = models.BooleanField(verbose_name="In-Progress", default=False)
 
 	class Meta:
@@ -169,6 +170,7 @@ class TournamentBracket(models.Model):
 	name = models.CharField(verbose_name="Bracket Name", max_length=128, default=f"New Bracket")
 	revealed = models.BooleanField("Setlist Revealed", default=False)
 	is_active = models.BooleanField(verbose_name="Bracket Active", default=False)
+	role = models.BigIntegerField(verbose_name="Bracket Role ID", null=True, blank=True, db_index=True)
 	score_log = models.BigIntegerField(verbose_name="Score Log Channel Discord ID", default=-1)
 
 	class Meta:
