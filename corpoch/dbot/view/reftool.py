@@ -361,7 +361,8 @@ class DiscordMatchView(discord.ui.View):
 	async def cancelBtn(self, interaction: discord.Interaction):
 		if self.match.confirmCancel:
 			await interaction.response.edit_message(content="Closing", embed=None, view=None, delete_after=5)
-			await self.match.matchDb.adelete()
+			if self.match.matchDb:
+				await self.match.matchDb.adelete()
 			self.stop()
 		else:
 			self.match.confirmCancel = True
