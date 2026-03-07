@@ -335,7 +335,7 @@ class SNGHandler:
 		album: Optional[str] = None
 		genre: Optional[str] = None
 		year: Optional[str] = None
-		album_track: Optional[int] = None
+		#album_track: Optional[int] = None
 		playlist_track: Optional[int] = None
 		charter: Optional[str] = None
 		icon: Optional[str] = None
@@ -492,12 +492,12 @@ class CHOpt:
 	def gen_path(self, chart: typing.Union[dict, Chart]) -> str:
 		if isinstance(chart, Chart):
 			if chart.sngfile:
-				content = chart.sngfile
+				content = chart.sngfile.open().read()
 			else:
 				content = self._encore.download_from_url(chart.url)
 			chartName = chart.name
 			self.opts.speed = chart.speed
-			self.opts.instrument = chart.instrument[0]
+			self.opts.instrument = chart.instrument
 		elif isinstance(chart, dict):
 			content = self._encore.download_from_chart(chart)
 			chartName = chart['name']
