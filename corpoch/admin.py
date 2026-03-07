@@ -74,12 +74,14 @@ class ChartAdmin(admin.ModelAdmin):
 	def import_song_ini(modeladmin, request, queryset):
 		from corpoch.providers import SNGHandler
 		for chart in queryset:
-			songini = SNGHandler(chart.sngfile.open(mode='rb').read()).songini_model
+			song = SNGHandler(chart.sngfile.open(mode='rb').read())
+			songini = song.songini_model
 			chart.name = songini.name
 			chart.artist = songini.artist
 			chart.album = songini.album
 			chart.genre = songini.genre
 			chart.charter = songini.charter
+			chart.md5 = song.md5
 			chart.icon = CHIcon.objects.get(name=songini.icon) if songini.icon else CHIcon.objects.get(name="ch_default_icon")
 			chart.save()
 
