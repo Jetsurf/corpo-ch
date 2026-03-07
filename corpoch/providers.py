@@ -137,9 +137,11 @@ class SNGHandler:
 		songini_dict = {}
 		for line in songini_raw.splitlines():
 			if "=" in line:
-				key, value = line.split('=', 1)
+				line = line.split('=', 1)
+				key = line[0].strip()
+				value = line[1].strip()
 				if value.strip():
-					songini_dict[key.strip()] = value.strip()
+					songini_dict[key] = value
 		songini = self.SongIni.model_validate(songini_dict)
 		return songini
 
@@ -264,10 +266,14 @@ class SNGHandler:
 					songini_bytes = row[1]
 			songini_text = songini_bytes.decode('utf-8').split('\n',1)[-1]
 			for line in songini_text.strip().split('\n'):
-				line = line.split('=',1)
-				key = line[0].strip()
-				value = line[1].strip()
-				metadataPairArray.append([key,value])
+				if "=" in line:
+					line = line.split('=',1)
+					key = line[0].strip()
+					value = line[1].strip()
+				else:
+					continue
+				if value:
+					metadataPairArray.append([key,value])
 			if "playlist" not in metadataPairArray[0] and self._playlist is not None:
 				metadataPairArray.append(["playlist",self._playlist])
 			with io.BytesIO() as songini_stream:
@@ -342,7 +348,7 @@ class SNGHandler:
 		album: Optional[str] = None
 		genre: Optional[str] = None
 		year: Optional[str] = None
-		#album_track: Optional[int] = None
+		album_track: Optional[int] = None
 		playlist_track: Optional[int] = None
 		charter: Optional[str] = None
 		icon: Optional[str] = None
