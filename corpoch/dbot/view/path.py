@@ -167,7 +167,7 @@ class BracketSelect(discord.ui.Select):
 		async for bracket in self.path.tournament.brackets.select_related():
 			if bracket.revealed:
 				self.retOpts[str(bracket)] = bracket
-				opts.append(discord.SelectOption(label=str(bracket), default=True if self.path.bracket else False))
+				opts.append(discord.SelectOption(label=str(bracket), default=True if self.path.bracket == bracket else False))
 
 		super().__init__(placeholder="Select a bracket", options=opts, custom_id="bracket_sel")
 
@@ -188,11 +188,10 @@ class ChartSelect(discord.ui.Select):
 			emoji = await get_chart_emoji(self.path.bot, chart)
 			if isinstance(chart, Chart):
 				self.retOpts[chart.md5] = chart
-				opts.append(discord.SelectOption(label=chart.tournament_name, emoji=emoji, value=chart.md5, description=f"{chart.artist} - {chart.album} - {chart.charter}", default=True if self.path.chart == chart else False))
+				opts.append(discord.SelectOption(label=chart.tournament_name, emoji=emoji, value=chart.md5, description=f"{'TB - ' if chart.tiebreaker else ''}{chart.artist} - {chart.album} - {chart.charter}", default=True if self.path.chart == chart else False))
 			else:
 				opts.append(discord.SelectOption(label=chart['name'], emoji=emoji, value=chart['md5'], description=f"{chart['artist']} - {chart['album']} - {chart['charter']}", default=True if self.path.chart == chart else False))
 				self.retOpts[chart['md5']] = chart
-
 		super().__init__(placeholder="Select a chart", options=opts, max_values=1, custom_id="chart_sel")
 
 	async def callback(self, interaction: discord.Interaction):
@@ -235,7 +234,7 @@ class PathView(discord.ui.View):
 
 	@discord.ui.button(label="Cancel", style=discord.ButtonStyle.red, custom_id="cancel")
 	async def cancelBtn(self, button, interaction: discord.Interaction):
-		await interaction.response.edit_message(content="Closing", embed=None, ephemeral=True, view=None, delete_after=1)
+		await interaction.response.edit_message(content="Closing", embed=None, view=None, delete_after=1)
 		self.stop()
 
 	@discord.ui.button(label="Search", style=discord.ButtonStyle.secondary)

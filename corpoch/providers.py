@@ -1,7 +1,8 @@
+from pydantic import BaseModel
 import typing, requests_cache, json, io, hashlib, re, gspread, asyncio, discord, os, uuid, platform, subprocess, pytesseract, shutil
 from zipfile import ZipFile
 from datetime import datetime
-from typing import Union
+from typing import Optional, Union
 from random import randbytes
 from PIL import Image, ImageEnhance
 from django.db import models
@@ -13,7 +14,7 @@ from corpoch.utils.hydra.hydra.hyutil import analyze_chart_bytes_chart, analyze_
 from corpoch.types import StegScreenshot
 
 class SNGHandler:
-	def __init__(self, submission: Union[str,bytes], playlist: str=None, sanitize=True):
+	def __init__(self, submission: Union[str,bytes], playlist: Union[str,None]=None, sanitize=True):
 		if not ((isinstance(submission, bytes) and (submission[:6].decode('utf-8') == "SNGPKG") or submission[:4] == b"\x50\x4B\x03\x04") or
 			(os.path.isfile(os.path.join(submission,"song.ini")) and
 			(os.path.isfile(os.path.join(submission,"notes.chart")) or os.path.isfile(os.path.join(submission,"notes.mid"))))):
@@ -21,7 +22,7 @@ class SNGHandler:
 		self._playlist = playlist
 		self._sanitize = sanitize
 
-		if isinstance(submission, bytes):
+		if isinstance(submission, bytes) and submission[:6].decode('utf-8') == "SNGPKG":
 			self._files = self.get_sng_files(submission)
 		else:
 			if isinstance(submission, bytes) and submission[:4] == b"\x50\x4B\x03\x04":
@@ -61,7 +62,7 @@ class SNGHandler:
 			valid_notes = ["notes.chart","notes.mid"]
 			valid_songini = "song.ini"
 
-			for file in files:
+			for index, file in enumerate(files):
 				if ((file.lower().startswith(valid_picture_names) and file.lower().endswith(valid_picture_extensions)) or
 					(file.lower().startswith(valid_music_names) and file.lower().endswith(valid_music_extensions)) or
 					(file.lower().startswith(valid_video_names) and file.lower().endswith(valid_video_extensions)) or
@@ -70,26 +71,38 @@ class SNGHandler:
 					if iszip:
 						with ZipFile(io.BytesIO(submission), 'r') as zip_file:
 							file_bytes = zip_file.read(file_paths[index])
-							results.append([file, file_bytes])
+							results.append([file.lower(), file_bytes])
 					else:
 						with open(os.path.join(submission,file), 'rb') as f:
 							file_bytes = f.read()
 							results.append([file.lower(), file_bytes])
-			self._files = results
+			chart_present = any(item[0] == 'notes.chart' for item in results)
+			if chart_present:
+				filtered_list = [item for item in results if item[0] != 'notes.mid']
+				self._files = filtered_list
+			else:
+				self._files = results
 
 	@property
 	def outputChartName(self):
 		for row in self._files:
-			if "song.ini" in row[0]:
-				for line in row[1].decode('utf-8'):
+			filename = row[0]
+			if "song.ini" in filename:
+				for line in row[1].decode('utf-8').splitlines():
 					subd_line = re.sub("(?:<[^>]*>)", "", line)
 					if line.startswith("name"):
-						name = subd_line.split('=', 1)[1]
+						name = subd_line.split('=', 1)[1].strip()
 					if line.startswith("artist"):
-						artist = subd_line.split('=', 1)[1]
+						artist = subd_line.split('=', 1)[1].strip()
 					if line.startswith("charter"):
-						charter = subd_line.split('=', 1)[1]
-		newFile = f"{artist} - {name} ({charter})"
+						charter = subd_line.split('=', 1)[1].strip()
+			else:
+				continue
+		newFile = f"{name}"
+		if artist:
+			newFile = newFile + " - " + f"{artist}"
+		if charter:
+			newFile = newFile + " (" + f"{charter}" + ")"
 		newFile = newFile.replace("/",  u'\uFF0F') #／
 		newFile = newFile.replace("\\", u'\u29F5') #⧵
 		newFile = newFile.replace(":",  u'\uA789') #꞉
@@ -119,6 +132,20 @@ class SNGHandler:
 				return row[1]
 
 	@property
+	def songini_model(self):
+		songini_raw = self.songini.decode('utf-8')
+		songini_dict = {}
+		for line in songini_raw.splitlines():
+			if "=" in line:
+				line = line.split('=', 1)
+				key = line[0].strip()
+				value = line[1].strip()
+				if value.strip():
+					songini_dict[key] = value
+		songini = self.SongIni.model_validate(songini_dict)
+		return songini
+
+	@property
 	def chart(self) -> bytes:
 		for row in self._files:
 			filename = row[0]
@@ -136,7 +163,7 @@ class SNGHandler:
 	def md5(self) -> str:
 		return hashlib.md5(self.chart).hexdigest()
 
-	def parse_metadataPairArray(self, data: bytes) -> list[list[str, str]]:
+	def parse_metadataPairArray(self, data: bytes) -> list[list[str]]:
 		results = []
 		byte_stream = io.BytesIO(data)
 		while True:
@@ -157,7 +184,7 @@ class SNGHandler:
 			results.append([key, value])
 		return results
 
-	def parse_fileMetaArray(self, data: bytes) -> list[list[str, int, int]]:
+	def parse_fileMetaArray(self, data: bytes) -> list[list[Union[str, int]]]:
 		results = []
 		byte_stream = io.BytesIO(data)
 		while True:
@@ -239,10 +266,14 @@ class SNGHandler:
 					songini_bytes = row[1]
 			songini_text = songini_bytes.decode('utf-8').split('\n',1)[-1]
 			for line in songini_text.strip().split('\n'):
-				line = line.split('=',1)
-				key = line[0].strip()
-				value = line[1].strip()
-				metadataPairArray.append([key,value])
+				if "=" in line:
+					line = line.split('=',1)
+					key = line[0].strip()
+					value = line[1].strip()
+				else:
+					continue
+				if value:
+					metadataPairArray.append([key,value])
 			if "playlist" not in metadataPairArray[0] and self._playlist is not None:
 				metadataPairArray.append(["playlist",self._playlist])
 			with io.BytesIO() as songini_stream:
@@ -309,6 +340,38 @@ class SNGHandler:
 				sng_stream.write(bytes(self.xorMask(list(row[1]),xorMask)))
 
 			return sng_stream.getvalue()
+	
+	class SongIni(BaseModel):
+
+		name: str
+		artist: Optional[str] = None
+		album: Optional[str] = None
+		genre: Optional[str] = None
+		year: Optional[str] = None
+		album_track: Optional[int] = None
+		playlist_track: Optional[int] = None
+		charter: Optional[str] = None
+		icon: Optional[str] = None
+		diff_guitar: Optional[int] = None
+		diff_rhythm: Optional[int] = None
+		diff_bass: Optional[int] = None
+		diff_guitar_coop: Optional[int] = None
+		diff_drums: Optional[int] = None
+		diff_drums_real: Optional[int] = None
+		diff_guitarghl: Optional[int] = None
+		diff_bassghl: Optional[int] = None
+		diff_rhythm_ghl: Optional[int] = None
+		diff_guitar_coop_ghl: Optional[int] = None
+		diff_keys: Optional[int] = None
+		song_length: Optional[int] = None
+		preview_start_time: Optional[int] = None
+		video_start_time: Optional[int] = None
+		delay: Optional[int] = None
+		modchart: Optional[bool] = False
+		loading_phrase: Optional[str] = None
+	
+		class Config:
+			populate_by_name = True
 
 class EncoreClient:
 	def __init__(self, limit: int=24, exact: bool=True):
@@ -441,7 +504,10 @@ class CHOpt:
 
 	def gen_path(self, chart: typing.Union[dict, Chart]) -> str:
 		if isinstance(chart, Chart):
-			content = self._encore.download_from_url(chart.url)
+			if chart.sngfile:
+				content = chart.sngfile.open().read()
+			else:
+				content = self._encore.download_from_url(chart.url)
 			chartName = chart.name
 			self.opts.speed = chart.speed
 			self.opts.instrument = chart.instrument
