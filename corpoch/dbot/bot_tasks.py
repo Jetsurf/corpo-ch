@@ -47,12 +47,19 @@ async def add_bot_emoji(bot, name):
 	with open(dbIcon.img.path, "rb") as f:
 		if len(name) < 2:
 			name += "_"
+		squashed_name = sub("[^\\w]", "_", "".join(c for c in normalize('NFD', name) if category(c) != 'Mn'))
 		try:
-			squashed_name = sub("[^\\w]", "_", "".join(c for c in normalize('NFD', name) if category(c) != 'Mn'))
 			emoji = await bot.create_emoji(name=squashed_name, image=f.read())
 		except discord.errors.HTTPException:
-			print(f"Icon {name} has a dupe?")
-			return
+			foundEmoji = False
+			for tst in await bot.fetch_emojis():
+				if tst.name == squashed_name:
+					emoji = tst 
+					foundEmoji = True
+					break
+			if not foundEmoji:
+				print(f"Error on creating/finding emoji {name}")
+				return
 	new = CHEmoji(id=emoji.id, icon=dbIcon)
 	await new.asave()
 
