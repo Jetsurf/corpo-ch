@@ -37,7 +37,7 @@ class Path():
 			self.hydra.gen_path(self.chart)
 			if not self.hydra.output:
 				await interaction.followup.send("Path generation died on Hydra call.", ephemeral=True)
-				await self.hide()		
+				await self.hide()
 		else:
 			self.chopt.gen_path(self.chart)
 			try:
@@ -47,7 +47,7 @@ class Path():
 			if not self.chopt.url:
 				await interaction.followup.send("Path generation died on CHOpt call.", ephemeral=True)
 				await self.hide()
-		
+
 		if self.chopt.opts.instrument[0] == "drums":
 			await interaction.followup.send(embed=self.genHydraResultEmbed())
 		else:
@@ -90,7 +90,7 @@ class Path():
 		if self.chopt.opts.instrument[0] == 'drums':
 			embed.add_field(name="Hydra Options Used", value=f"Kick/Bass 2x: {self.hydra.opts.bass2x}\nPro Drums: {self.hydra.opts.pro}\nDepth Mode: {self.hydra.opts.depth_mode}\nDepth Value: {self.hydra.opts.depth}", inline=False)
 		else:
-			embed.add_field(name="CHOpt Options Used", value=f"Early Whammy: {self.chopt.opts.whammy}%\nSqueeze: {self.chopt.opts.squeeze}%\nSong Speed: {self.chopt.opts.speed}%\nLazy Whammy: {self.chopt.opts.lazy}ms\nWhammy Delay: {self.chopt.opts.delay}ms", inline=False)
+			embed.add_field(name="CHOpt Options Used", value=f"Squeeze: {self.chopt.opts.squeeze}%\nEarly Whammy: {self.chopt.opts.whammy}%\nSong Speed: {self.chopt.opts.speed}%\nLazy Whammy: {self.chopt.opts.lazy}ms\nWhammy Delay: {self.chopt.opts.delay}ms", inline=False)
 
 	def formatChart(self) -> str:
 		if isinstance(self.chart, Chart):
@@ -135,7 +135,7 @@ class CHCmds(commands.Cog):
 		elif len(msg.attachments) >= 1:
 			#Only gets first screenshot if multiple are attached
 			submission = msg.attachments[0]
-		
+
 		steg = CHStegTool()
 		stegData = await steg.getStegInfo(submission)
 
