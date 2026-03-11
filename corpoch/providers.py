@@ -585,7 +585,6 @@ class CHStegTool:
 		osCnt = re.findall("(?<=Overstrums )([O|o|0-9]+)", outStr)
 		for i, cnt in enumerate(osCnt):
 			osCnt[i] = cnt.replace('O', '0')
-		print(f"WHAT THE FUCK: {osCnt}")
 		for i, player in enumerate(self.output.players):
 			if len(osCnt) == len(self.output.players):
 				player.excess_hits = int(osCnt[i])
@@ -608,21 +607,21 @@ class CHStegTool:
 
 	def _call_steg(self):
 		stegCall = f"{self._steg} --json {self.img_path}"
-		#try:
-		proc = subprocess.run(stegCall.split(), stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-		err = proc.stderr.decode('utf-8')
-		if proc.returncode == 0 or proc.returncode == '0':
-			self.output = self._sanitize_steg(proc)
-			if self.output.game_version in "v1.0.0.4080-final":
-				self._get_over_strums()
-			for i, player in enumerate(self.output.players):
-				player.notes_missed = player.total_notes - player.notes_hit
-		elif err == 'Error: InvalidScreenshotData\n':
-			print(f"STEG: Error - invalid no steg data found in image {self.img_name}")
+		try:
+			proc = subprocess.run(stegCall.split(), stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+			err = proc.stderr.decode('utf-8')
+			if proc.returncode == 0 or proc.returncode == '0':
+				self.output = self._sanitize_steg(proc)
+				if self.output.game_version in "v1.0.0.4080-final":
+					self._get_over_strums()
+				for i, player in enumerate(self.output.players):
+					player.notes_missed = player.total_notes - player.notes_hit
+			elif err == 'Error: InvalidScreenshotData\n':
+				print(f"STEG: Error - invalid no steg data found in image {self.img_name}")
+				self.output = None
+		except Exception as e:
+			print(f"STEG: Call failed: {e}")
 			self.output = None
-		#except Exception as e:
-		#	print(f"STEG: Call failed: {e}")
-		#	self.output = None
 
 	def getStegInfoSync(self, image) -> dict:
 		self.img_name = image
