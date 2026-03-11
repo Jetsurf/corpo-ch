@@ -440,6 +440,121 @@ class Match(models.Model):
 		pass
 		
 	def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
+		if self.screenshot and not self.steg:
+			from corpoch.providers import CHStegTool
+			tool = CHStegTool()
+			self.steg = tool.getStegInfoSync(self.screenshot)
+			for i, ply in enumerate(self.steg.players):
+				if not self.player.check_ch_name(ply.profile_name):
+					self.steg.players.pop(i)
+		super().save()
+
+class Match(models.Model):
+	id = models.CharField(primary_key=True, verbose_name="Match ID", max_length=40, default=uuid.uuid1)
+	defer = models.BooleanField(verbose_name="Deferral Used", default=False)
+	players = models.ManyToManyField(GroupSeed, related_name="players", verbose_name="Players", blank=True)
+	loser = models.ForeignKey(TournamentPlayer, related_name="matches_lost", null=True, blank=True, on_delete=models.SET_NULL)
+	winner = models.ForeignKey(TournamentPlayer, related_name="matches_won", null=True, blank=True, on_delete=models.SET_NULL)
+	group = models.ForeignKey(Group, related_name='matches', verbose_name="Group", on_delete=models.CASCADE)#limit_options_to groups in bracket somehow?
+	started_on = models.DateTimeField(verbose_name="Match Start Time", auto_now_add=True)
+	ended_on = models.DateTimeField(verbose_name="Match End Time", null=True, blank=True)
+	complete = models.BooleanField(verbose_name="Match 'Complete'", default=False)
+	finished = models.BooleanField(verbose_name="Finished", default=False) #Flag to match in-progress as complete, start triggers to move to completed
+	submitted = models.BooleanField(verbose_name="Uploaded to GSheet", default=False)
+	channel = models.BigIntegerField(verbose_name="Ref-Tool Discord Channel ID", null=True, blank=True)
+	message = models.BigIntegerField(verbose_name="Ref-Tool Discord Message ID", null=True, blank=True)
+	referee = models.BigIntegerField(verbose_name="Discord Ref ID", null=True, blank=True)
+	exhibition = models.BooleanField(default=False)
+
+	class Meta:
+		ordering = ['-started_on']
+		verbose_name = "Match"
+		verbose_name_plural = "Matches"
+
+	@property
+	def ongoing(self):
+		return self.finished == False
+
+	@property
+	def high_seed(self):
+		return self.players.all()[0]
+
+	@property
+	def low_seed(self):
+		return self.players.all()[1]
+	
+	@property
+	def bans(self):
+		return self.match_bans.all()
+	
+	@property
+	def high_seed_bans(self):
+		return [ban for ban in self.bans if ban.player.player_id == self.high_seed.player_id]
+
+	@property
+	def low_seed_bans(self):
+		return [ban for ban in self.bans if ban.player.player_id == self.low_seed.player_id]
+	
+	@property
+	def rounds(self):
+		return self.match_rounds.all()
+
+	@property
+	def tournament(self):
+		return self.group.bracket.tournament
+
+	@property
+	def bracket(self):
+		return self.group.bracket
+
+	@property
+	def version(self):
+		self.tournament.config.version
+
+	@property
+	def score(self):
+		score1 = 0
+		score2 = 0
+		for round in self.rounds:
+			if round.winner_id:
+				if round.winner_id == self.high_seed.player_id:
+					score1 += 1
+				else:
+					score2 += 1
+
+		return f"{score1} - {score2}"
+
+	@property
+	def full_name(self):
+		outStr = f"{self.tournament.short_name} - {self.bracket.name}"
+		for i, ply in enumerate(self.players.iterator()):
+			if i == 0:
+				outStr += f" - {ply.player_ch_name}({ply.seed})"
+			elif i == 1:
+				outStr += f" vs {ply.player_ch_name}({ply.seed})" 
+		return outStr
+	
+	@property
+	def short_name(self):
+		outStr = ""
+		for i, ply in enumerate(self.players.iterator()):
+			if i == 0:
+				outStr += f"{ply.player_ch_name}({ply.seed})"
+			elif i == 1:
+				outStr += f" vs {ply.player_ch_name}({ply.seed})"
+		return outStr
+	
+	def __str__(self):
+		outStr = f"{self.tournament.short_name} - {self.bracket.name} - Group {self.group.name}"
+		seeds = [seed for seed in self.players.all()]
+		if len(seeds) > 1:#Not going to work 3+ players
+			outStr += f" - {seeds[0].player.ch_name} ({seeds[0].seed}) vs {seeds[1].player.ch_name} ({seeds[1].seed})"
+		return outStr
+	
+	def complete_match(self):
+		pass
+		
+	def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
 		for rnd in self.rounds:
 			if rnd.screenshot and (not rnd.steg or len(rnd.steg.players) == 0):
 				from corpoch.providers import CHStegTool
