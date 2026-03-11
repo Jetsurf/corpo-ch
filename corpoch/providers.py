@@ -634,7 +634,6 @@ class CHStegTool:
 	async def getStegInfo(self, image: discord.Attachment) -> dict:
 		await self._prep_image(image)
 		self._call_steg()
-		print(f"STEG: {self.output}")
 		return self.output
 
 	def buildStatsEmbed(self, title: str) -> discord.Embed:
