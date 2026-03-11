@@ -76,9 +76,9 @@ class SNGHandler:
 						with open(os.path.join(submission,file), 'rb') as f:
 							file_bytes = f.read()
 							results.append([file.lower(), file_bytes])
-			chart_present = any(item[0] == 'notes.chart' for item in results)
+			chart_present = any(item[0] == 'notes.mid' for item in results)
 			if chart_present:
-				filtered_list = [item for item in results if item[0] != 'notes.mid']
+				filtered_list = [item for item in results if item[0] != 'notes.chart']
 				self._files = filtered_list
 			else:
 				self._files = results
@@ -171,16 +171,16 @@ class SNGHandler:
 			if not keyLen_bytes:
 				break
 			keyLen = int.from_bytes(keyLen_bytes, byteorder='little')
-			
+
 			key_bytes = byte_stream.read(keyLen)
 			key = key_bytes.decode('utf-8')
-			
+
 			valueLen_bytes = byte_stream.read(4)
 			valueLen = int.from_bytes(valueLen_bytes, byteorder='little')
-			
+
 			value_bytes = byte_stream.read(valueLen)
 			value = value_bytes.decode('utf-8')
-			
+
 			results.append([key, value])
 		return results
 
@@ -192,19 +192,19 @@ class SNGHandler:
 			if not filenameLen_bytes:
 				break
 			filenameLen = int.from_bytes(filenameLen_bytes, byteorder='little')
-			
+
 			filename_bytes = byte_stream.read(filenameLen)
 			filename = filename_bytes.decode('utf-8').casefold()
-				
+
 			contentsLen_bytes = byte_stream.read(8)
 			contentsLen = int.from_bytes(contentsLen_bytes, byteorder='little')
-			
+
 			contentsIndex_bytes = byte_stream.read(8)
 			contentsIndex = int.from_bytes(contentsIndex_bytes, byteorder='little')
-			
+
 			results.append([filename, contentsLen, contentsIndex])
 		return results
-			
+
 	def xorMask(self, dataArray: list[int], xorMask:list[int]) -> list[int]:
 		unmasked_file_bytes = [None] * len(dataArray)
 		for i in range(len(dataArray)):
@@ -216,18 +216,18 @@ class SNGHandler:
 	def get_sng_files(self, all_bytes: bytes) -> list[list[str, bytes]]:
 		all_bytes_stream = io.BytesIO(all_bytes)
 		all_bytes_stream.seek(10)
-		
+
 		xor_mask_bytes = all_bytes_stream.read(16)
 		xorMask = list(xor_mask_bytes)
 
 		metadataLen_bytes = all_bytes_stream.read(8)
 		metadataLen = int.from_bytes(metadataLen_bytes, byteorder='little', signed=False)
-		
+
 		all_bytes_stream.seek(8,1)
-		
+
 		metadataPairArray_bytes = all_bytes_stream.read(metadataLen-8)
 		metadataPairArray = self.parse_metadataPairArray(metadataPairArray_bytes)
-		
+
 		fileMetaLen_bytes = all_bytes_stream.read(8)
 		fileMetaLen = int.from_bytes(fileMetaLen_bytes, byteorder='little', signed=False)
 
@@ -243,13 +243,13 @@ class SNGHandler:
 				line = f"{row[0]} = {row[1]}\n"
 				songini_stream.write(line.encode('utf-8'))
 			results.append(["song.ini", songini_stream.getvalue()])
-			
+
 		for row in fileMetaArray:
 			all_bytes_stream.seek(row[2])
 			results.append([row[0],bytes(self.xorMask(list(all_bytes_stream.read(row[1])),xorMask))])
-			
+
 		return results
-	
+
 	def build_sng(self) -> bytes:
 		with io.BytesIO() as sng_stream:
 			header ="SNGPKG"
@@ -286,7 +286,7 @@ class SNGHandler:
 						songini_stream.write(keyLen)
 						songini_stream.write(key)
 						songini_stream.write(valueLen)
-						songini_stream.write(value)	
+						songini_stream.write(value)
 						continue
 					key = bytes(row[0].encode('utf-8'))
 					keyLen = len(key).to_bytes(4, byteorder="little",signed=True)
@@ -301,7 +301,7 @@ class SNGHandler:
 				sng_stream.write(metadataLen)
 				sng_stream.write(metadataCount)
 				sng_stream.write(songini_stream.getvalue())
-			
+
 			fileCount = len(self._files)-1
 			fileMetaLen = 8 + (17)*fileCount
 			for row in self._files:
@@ -328,7 +328,7 @@ class SNGHandler:
 					fileDataArray_Array.append([row[0], len(row[1]), fileDataArray_index])
 					fileDataArray_index += len(row[1])
 				sng_stream.write(fileMeta_stream.getvalue())
-			
+
 			fileDataLen = 0
 			for row in fileDataArray_Array:
 				fileDataLen += row[1]
@@ -340,9 +340,8 @@ class SNGHandler:
 				sng_stream.write(bytes(self.xorMask(list(row[1]),xorMask)))
 
 			return sng_stream.getvalue()
-	
-	class SongIni(BaseModel):
 
+	class SongIni(BaseModel):
 		name: str
 		artist: Optional[str] = None
 		album: Optional[str] = None
@@ -369,7 +368,7 @@ class SNGHandler:
 		delay: Optional[int] = None
 		modchart: Optional[bool] = False
 		loading_phrase: Optional[str] = None
-	
+
 		class Config:
 			populate_by_name = True
 

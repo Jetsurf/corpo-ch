@@ -147,7 +147,7 @@ class BracketSelect(discord.ui.Select):
 
 	async def init(self):
 		brackets = []
-		async for bracket in self.match.tourney.brackets.all().filter(is_active=True):
+		async for bracket in self.match.tourney.brackets.select_related().all().filter(is_active=True):
 			self.retOpts[bracket.name] = bracket
 			brackets.append(discord.SelectOption(label=bracket.name))
 		super().__init__(max_values=1, options=brackets, custom_id="bracket_sel")
@@ -165,7 +165,7 @@ class GroupSelect(discord.ui.Select):
 
 	async def init(self):
 		groups = []
-		async for group in self.match.bracket.groups.all():
+		async for group in self.match.bracket.groups.select_related().all():
 			self.retOpts[group.name] = group
 			groups.append(discord.SelectOption(label=group.name))
 		super().__init__(max_values=1, options=groups, custom_id="group_sel")
@@ -226,9 +226,9 @@ class PlayerSelect(discord.ui.Select):
 		seeding = []
 		async for seed in self.match.group.seeding.select_related('player').all().exclude(id__in=id_list):
 			if seed.player.is_active:
-				self.retOpts[seed.player.ch_name] = seed
+				self.retOpts[seed.player.user] = seed.player.user
 				mem = await self.match.guild.fetch_member(seed.player.user)
-				seeding.append(discord.SelectOption(label=f"{seed.player.ch_name} ({seed.seed})", value=seed.player.ch_name, description=f"@{mem.display_name}"))
+				seeding.append(discord.SelectOption(label=f"{seed.player.ch_name} ({seed.seed})", value=seed.player.user, description=f"@{mem.display_name}"))
 		super().__init__(placeholder=placeholder, max_values=1,	options=seeding, custom_id=self.cid, disabled=dis)
 
 	async def callback(self, interaction: discord.Interaction):
