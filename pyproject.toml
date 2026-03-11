@@ -14,7 +14,7 @@ readme = "README.md"
 license = {file = "LICENSE"}
 requires-python = ">=3.11"
 authors = [
-    { name = "AaronKable", email = "aaronkable@gmail.com"}
+    { name = "Connor Meade", email = "crmeade@mtu.edu"}
 ]
 keywords = [
     "clonehero",
