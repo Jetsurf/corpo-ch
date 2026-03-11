@@ -372,7 +372,7 @@ class Match(models.Model):
 
 	@property
 	def tournament(self):
-		return self.high_seed.tournament
+		return self.group.bracket.tournament
 
 	@property
 	def bracket(self):

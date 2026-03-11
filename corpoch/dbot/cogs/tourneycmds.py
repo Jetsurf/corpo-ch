@@ -58,33 +58,14 @@ class DiscordMatch():
 
 	@sync_to_async
 	def complete_match(self):
-		finishedMatch = Match(id=self.matchDb.id)
-		finishedMatch.group = self.matchDb.group
-		plys = []
-		for seed in self.seeding:
-			plys.append(seed.player)
-		finishedMatch.players.set(list(self.group.seeding.select_related('group', 'player').filter(player__in=plys)))
-		finishedMatch.winner = self.rounds[-1].winner
-		finishedMatch.loser = self.rounds[-1].loser
-		#finishedMatch.players.set self.matchDb.players
-		finishedMatch.save()
-		for ban in self.bans:
-			ban.match = finishedMatch
-			ban.save()
-		for rnd in self.rounds:
-			rnd.match = finishedMatch
-			rnd.save()
-		finishedMatch.save()
-		self.matchDb.delete()
-		self.matchDb = finishedMatch
-		return finishedMatch
+		self.matchDb.finished = True
 
 	async def finishMatch(self, interaction):
 		print(f"Finishing match {self.matchDb.id}")
-		match = await self.complete_match()
+		await self.complete_match()
 		embeds = [await self.genMatchEmbed()]
 		shared_url = f"https://{settings.BASE_URL}/gallery/"
-		async for rnd in match.rounds.select_related():
+		async for rnd in self.matchDb.rounds.select_related():
 			embed = discord.Embed(url=shared_url)
 			embed.set_image(url=f"https://{settings.BASE_URL}{settings.MEDIA_URL}{rnd.screenshot}")
 			embeds.append(embed)
@@ -103,8 +84,8 @@ class DiscordMatch():
 		self.setlist = self.matchDb.bracket.setlist
 		self.players = self.matchDb.players
 		self.seeding = list(self.matchDb.group.seeding.select_related('group', 'player').filter(id__in=self.matchDb.players.all().only('id')))
-		self.bans = list(self.matchDb.ongoing_bans.select_related('chart', 'player').all())
-		self.rounds = list(self.matchDb.ongoing_rounds.select_related('chart', 'picked', 'winner', 'loser').all())
+		self.bans = list(self.matchDb.bans.select_related('chart', 'player').all())
+		self.rounds = list(self.matchDb.rounds.select_related('chart', 'picked', 'winner', 'loser').all())
 		self.chart = self.rounds[-1].chart if len(self.rounds) > 0 else None
 		print(f"Reattached to on-going match {self.matchDb}")
 		
@@ -174,7 +155,7 @@ class DiscordMatch():
 		if len(self.rounds) > 0:
 			self.rounds[-1].save()
 		if not self._is_finished:
-			self.rounds.append(MatchRound(num=len(self.rounds) + 1, ongoing_match=self.matchDb, picked=picked))
+			self.rounds.append(MatchRound(num=len(self.rounds) + 1, match=self.matchDb, picked=picked))
 
 	@sync_to_async
 	def getScore(self) -> list:

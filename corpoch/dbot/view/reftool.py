@@ -226,9 +226,9 @@ class PlayerSelect(discord.ui.Select):
 		seeding = []
 		async for seed in self.match.group.seeding.select_related('player').all().exclude(id__in=id_list):
 			if seed.player.is_active:
-				self.retOpts[seed.player.user] = seed.player.user
+				self.retOpts[str(seed.player.user)] = seed
 				mem = await self.match.guild.fetch_member(seed.player.user)
-				seeding.append(discord.SelectOption(label=f"{seed.player.ch_name} ({seed.seed})", value=seed.player.user, description=f"@{mem.display_name}"))
+				seeding.append(discord.SelectOption(label=f"{seed.player.ch_name} ({seed.seed})", value=str(seed.player.user), description=f"@{mem.display_name}"))
 		super().__init__(placeholder=placeholder, max_values=1,	options=seeding, custom_id=self.cid, disabled=dis)
 
 	async def callback(self, interaction: discord.Interaction):
