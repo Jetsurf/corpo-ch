@@ -6,8 +6,8 @@ from django_pydantic_field import fields
 from django.contrib import admin
 from django_jsonform.widgets import JSONFormWidget
 from django.contrib.contenttypes.models import ContentType
-from corpoch.models import Chart, Tournament, TournamentConfig, BracketRules, TournamentBracket, Qualifier, TournamentPlayer, GroupSeed, MatchRound, CHIcon
-from corpoch.models import TournamentMatchCompleted, TournamentMatchOngoing, BracketGroup, QualifierSubmission, CH_MODIFIERS, MatchBan, GSheetAPI
+from corpoch.models import Chart, Tournament, TournamentConfig, BracketRules, Bracket, Qualifier, TournamentPlayer, GroupSeed, MatchRound, CHIcon
+from corpoch.models import Match, Group, QualifierSubmission, CH_MODIFIERS, MatchBan, GSheetAPI
 from corpoch.providers import EncoreClient, GSheets
 from django.utils.html import mark_safe
 import corpoch.dbot.tasks
@@ -124,8 +124,8 @@ class BracketRulesInline(admin.TabularInline):
 	model = BracketRules
 	extra = 0
 
-@admin.register(TournamentBracket)
-class TournamentBracketAdmin(admin.ModelAdmin):
+@admin.register(Bracket)
+class BracketAdmin(admin.ModelAdmin):
 	list_display = ("_name", 'tournament')
 	list_filter = ['tournament']
 	inlines = [BracketRulesInline]
@@ -173,8 +173,8 @@ class SeedingInline(SortableStackedInline):
 	model = GroupSeed
 	extra = 1
 
-@admin.register(BracketGroup)
-class BracketGroupAdmin(SortableAdminBase, admin.ModelAdmin):
+@admin.register(Group)
+class GroupAdmin(SortableAdminBase, admin.ModelAdmin):
 	list_display = ('name', 'tournament', 'bracket_name')#, 'group_players')
 	inlines = [SeedingInline]
 	list_per_page = 32
@@ -192,7 +192,7 @@ class BracketGroupAdmin(SortableAdminBase, admin.ModelAdmin):
 	def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
 		if db_field.name == "group_players":
 			kwargs["queryset"] = Tournament.players.objects.all()
-		return super(BracketGroupAdmin, self).formfield_for_foreignkey(db_field, request, **kwargs)
+		return super(GroupAdmin, self).formfield_for_foreignkey(db_field, request, **kwargs)
 
 	@admin.action(description="Set group role for players")
 	def set_group_role(modeladmin, request, queryset):
@@ -255,35 +255,21 @@ class QualifierSubmissionAdmin(admin.ModelAdmin):
 			sheet.set_submission(quali)
 			sheet.update_qualifier()
 
-class RoundsOngoingInline(SortableStackedInline):
+class RoundsInline(SortableStackedInline):
 	model = MatchRound
 	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
-	exclude = ['completed_match']
 	extra = 1
 
-class RoundsCompletedInline(SortableStackedInline):
-	model = MatchRound
-	exclude = ['ongoing_match']
-	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
-	extra = 0
-
-class BansOngoingInline(SortableStackedInline):
+class BansInline(SortableStackedInline):
 	model = MatchBan
-	exclude = ['completed_match']
 	extra = 1
-
-class BansCompletedInline(SortableStackedInline):
-	model = MatchBan
-	exclude = ['ongoing_match']
-	extra = 0
 
 #TODO - Add match score to table
-@admin.register(TournamentMatchCompleted)
-class TournamentMatchCompletedAdmin(SortableAdminBase, admin.ModelAdmin):
-	list_display = ('__str__', 'processed', 'bracket_name', 'group', '_match_players', 'started_on', 'version')
-	inlines = [BansCompletedInline, RoundsCompletedInline]
+@admin.register(Match)
+class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
+	list_display = ('__str__', 'finished', 'bracket_name', 'group', '_match_players', 'started_on', 'version')
+	inlines = [BansInline, RoundsInline]
 	list_per_page = 16
-	exclude = ['ongoing_match']
 	actions = ['set_unsubmitted',"reread_steg", "resubmit_gsheet"]
 
 	def bracket_name(self, obj):
@@ -291,8 +277,14 @@ class TournamentMatchCompletedAdmin(SortableAdminBase, admin.ModelAdmin):
 
 	def _match_players(self, obj):
 		retList = []
-		for seed in obj.match_players.iterator():
+		for seed in obj.players.iterator():
 			retList.append(seed.player.ch_name)
+		return retList
+
+	def _match_bans(self, obj):
+		retList = []
+		for ban in MatchBan.objects.all().iterator():
+			retList.append(ban.chart)
 		return retList
 
 	def version(self, obj):
@@ -318,25 +310,3 @@ class TournamentMatchCompletedAdmin(SortableAdminBase, admin.ModelAdmin):
 		for quali in queryset:
 			sheet.set_submission(quali)
 			sheet.update_match()
-
-@admin.register(TournamentMatchOngoing)
-class TournamentMatchOngoingAdmin(SortableAdminBase, admin.ModelAdmin):
-	list_display = ('__str__', 'processed', '_bracket_name', 'group', '_match_players', '_match_bans', 'started_on', 'version')
-	inlines = [BansOngoingInline, RoundsOngoingInline]
-	list_per_page = 16
-	exclude = ['completed_match']
-
-	def _bracket_name(self, obj):
-		return obj.group.bracket.name
-
-	def _match_players(self, obj):
-		retList = []
-		for seed in obj.match_players.iterator():
-			retList.append(seed.player.ch_name)
-		return retList
-
-	def _match_bans(self, obj):
-		retList = []
-		for ban in MatchBan.objects.all().iterator():
-			retList.append(ban.chart)
-		return retList

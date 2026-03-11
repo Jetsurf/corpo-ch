@@ -109,8 +109,8 @@ class CorpoDbot(commands.Bot):
 		await self.retrieveOwners()
 		print("Loading on-going matches")
 		from corpoch.dbot.cogs.tourneycmds import DiscordMatch
-		from corpoch.models import TournamentMatchOngoing
-		async for match in TournamentMatchOngoing.objects.exclude(channel=None):
+		from corpoch.models import Match
+		async for match in Match.objects.exclude(channel=None).filter(finished=False):
 			if not match.message:
 				continue
 			print(f"Got ongoing match {match.id}")

@@ -7,7 +7,7 @@ from asgiref.sync import sync_to_async
 from corpoch.dbot import settings
 from corpoch.providers import CHStegTool
 from corpoch.types import StegScreenshot, TB_RULESETS, PICK_RULESETS, BAN_RULESETS
-from corpoch.models import Tournament, Chart, TournamentMatchOngoing, MatchRound, TournamentBracket, BracketGroup, TournamentPlayer, TournamentMatchCompleted, GroupSeed, MatchRound, MatchBan
+from corpoch.models import Tournament, Chart, Match, MatchRound, TournamentPlayer, MatchRound, MatchBan
 from corpoch.dbot.models import CHEmoji
 from corpoch.dbot.view.helpers import get_chart_emoji
 
@@ -53,7 +53,7 @@ class BanSelect(discord.ui.Select):
 				seed = self.match.seeding[0]
 			else:
 				seed = self.match.seeding[1]
-		newBan = MatchBan(num=len(self.match.bans), player=seed, chart=chart, ongoing_match=self.match.matchDb)
+		newBan = MatchBan(num=len(self.match.bans), player=seed, chart=chart, match=self.match.matchDb)
 		await newBan.asave()
 		self.match.bans.append(newBan)
 		await self.match.showTool(interaction)
@@ -147,7 +147,7 @@ class BracketSelect(discord.ui.Select):
 
 	async def init(self):
 		brackets = []
-		async for bracket in self.match.tourney.brackets.all().filter(is_active=True):
+		async for bracket in self.match.tourney.brackets.select_related().all().filter(is_active=True):
 			self.retOpts[bracket.name] = bracket
 			brackets.append(discord.SelectOption(label=bracket.name))
 		super().__init__(max_values=1, options=brackets, custom_id="bracket_sel")
@@ -165,16 +165,17 @@ class GroupSelect(discord.ui.Select):
 
 	async def init(self):
 		groups = []
-		async for group in self.match.bracket.groups.all():
+		async for group in self.match.bracket.groups.select_related().all():
 			self.retOpts[group.name] = group
 			groups.append(discord.SelectOption(label=group.name))
 		super().__init__(max_values=1, options=groups, custom_id="group_sel")
 
 	async def callback(self, interaction: discord.Integration):
 		self.match.group = self.retOpts[self.values[0]]
-		self.match.matchDb = TournamentMatchOngoing(id=uuid.uuid1(), group=self.match.group)
+		self.match.matchDb = Match(id=uuid.uuid1(), group=self.match.group)
 		await self.match.matchDb.asave()
-		print(f"REF: {self.match.ref.global_name} starting match {self.match.matchDb.id}")
+		self.match.setlist = await sync_to_async(lambda: self.match.bracket.setlist)()
+		print(f"REF: {self.match.referee.global_name} starting match {self.match.matchDb.id}")
 		await self.match.showTool(interaction)
 
 class PlayerSelect(discord.ui.Select):
@@ -226,9 +227,9 @@ class PlayerSelect(discord.ui.Select):
 		seeding = []
 		async for seed in self.match.group.seeding.select_related('player').all().exclude(id__in=id_list):
 			if seed.player.is_active:
-				self.retOpts[seed.player.ch_name] = seed
+				self.retOpts[str(seed.player.user)] = seed
 				mem = await self.match.guild.fetch_member(seed.player.user)
-				seeding.append(discord.SelectOption(label=f"{seed.player.ch_name} ({seed.seed})", value=seed.player.ch_name, description=f"@{mem.display_name}"))
+				seeding.append(discord.SelectOption(label=f"{seed.player.ch_name} ({seed.seed})", value=str(seed.player.user), description=f"@{mem.display_name}"))
 		super().__init__(placeholder=placeholder, max_values=1,	options=seeding, custom_id=self.cid, disabled=dis)
 
 	async def callback(self, interaction: discord.Interaction):
@@ -242,7 +243,7 @@ class DiscordMatchView(discord.ui.View):
 	def __init__(self, match):
 		super().__init__(timeout = None)
 		self.match = match
-		self.ref = match.ref
+		self.referee = match.referee
 
 		self.cancel = discord.ui.Button(label="Cancel", style=discord.ButtonStyle.red, custom_id="cancelBtn")
 		self.cancel.callback = self.cancelBtn
@@ -274,7 +275,7 @@ class DiscordMatchView(discord.ui.View):
 		self.add_item(plySel)
 
 	async def init(self):
-		if self.match.matchDb and self.match.matchDb.finished:
+		if self.match.matchDb and self.match.matchDb.complete:
 			self.add_item(self.upload)
 		else:
 			self.add_item(self.cancel)
@@ -301,7 +302,7 @@ class DiscordMatchView(discord.ui.View):
 			sel = BanSelect(self.match)
 			await sel.init()
 			self.add_item(sel)
-		elif not self.match.matchDb.finished:
+		elif not self.match.matchDb.complete:
 			self.add_item(self.back)
 			self.add_item(self.submit)
 			if len(self.match.bans) == self.match.bracket.ruleset.total_bans and len(self.match.rounds) == 0:
@@ -324,11 +325,11 @@ class DiscordMatchView(discord.ui.View):
 				self.submit.disabled = False
 
 	async def interaction_check(self, interaction: discord.Interaction):
-		if isinstance(self.match.matchDb, TournamentMatchOngoing) and self.match.matchDb.finished:
-			async for seed in self.match.matchDb.match_players.select_related('player'):
+		if isinstance(self.match.matchDb, Match) and self.match.matchDb.complete:
+			async for seed in self.match.matchDb.players.select_related('player'):
 				if seed.player.user == interaction.user.id:
 					return True
-		if interaction.user.id == self.match.ref.id:
+		if interaction.user.id == self.match.referee.id:
 			return True
 		else:
 			await interaction.response.send_message("You are not the ref or player for this match", ephemeral=True, delete_after=10)
@@ -381,7 +382,7 @@ class DiscordMatchView(discord.ui.View):
 			tool = CHStegTool()
 			try:
 				steg = await tool.getStegInfo(screen)
-				rnd = await MatchRound.objects.select_related('chart').aget(ongoing_match__id=self.match.matchDb.id, chart__md5=steg.checksum)
+				rnd = await MatchRound.objects.select_related('chart').aget(match__id=self.match.matchDb.id, chart__md5=steg.checksum)
 				playedChart = rnd.chart
 			except MatchRound.DoesNotExist:
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} was for a setlist chart not played in this match")
@@ -421,7 +422,7 @@ class DiscordMatchView(discord.ui.View):
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} already submitted")
 		done = True
 		retRnds = []
-		async for rnd in MatchRound.objects.select_related('picked', 'chart', 'winner', 'loser').all().filter(ongoing_match=self.match.matchDb):
+		async for rnd in MatchRound.objects.select_related('picked', 'chart', 'winner', 'loser').all().filter(match=self.match.matchDb):
 			retRnds.append(rnd)
 			if not rnd.steg:
 				done = False
@@ -432,6 +433,9 @@ class DiscordMatchView(discord.ui.View):
 			await self.match.showTool(interaction)
 
 	async def submitBtn(self, interaction: discord.Interaction):
-		self.match.matchDb.finished = True
+		self.match.matchDb.winner = self.match.rounds[-1].winner
+		self.match.matchDb.loser = self.match.rounds[-1].loser
+		self.match.matchDb.ended_on = datetime.now()
+		self.match.matchDb.complete = True
 		await self.match.matchDb.asave()
 		await self.match.showTool(interaction)
