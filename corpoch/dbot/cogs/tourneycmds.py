@@ -83,7 +83,7 @@ class DiscordMatch():
 		self.bracket.tournament.config = self.bracket.tournament.config
 		self.setlist = self.matchDb.bracket.setlist
 		self.players = self.matchDb.players
-		self.seeding = list(self.matchDb.group.seeding.select_related('group', 'player').filter(id__in=self.matchDb.players.all().only('id')))
+		self.seeding = list(self.matchDb.players.select_related('group', 'player').all())
 		self.bans = list(self.matchDb.bans.select_related('chart', 'player').all())
 		self.rounds = list(self.matchDb.rounds.select_related('chart', 'picked', 'winner', 'loser').all())
 		self.chart = self.rounds[-1].chart if len(self.rounds) > 0 else None
@@ -102,9 +102,18 @@ class DiscordMatch():
 			self.bracket.tournament.config = self.bracket.tournament.config
 
 	async def showTool(self, interaction):
-		if isinstance(interaction, discord.Message):
+		is_message = isinstance(interaction, discord.Message)
+		is_ctx = hasattr(interaction, 'interaction') and hasattr(interaction, 'command')
+
+		if is_message:
 			self.msg = interaction
+		elif is_ctx:
+			if not interaction.interaction.response.is_done():
+				await interaction.defer()
+			self.msg = await interaction.interaction.original_response()
 		else:
+			if not interaction.response.is_done():
+				await interaction.response.defer()
 			self.msg = interaction.message
 
 		await self.save_match()
@@ -114,7 +123,13 @@ class DiscordMatch():
 		if self.matchDb and self.matchDb.complete:
 			embeds.append(await self.genScreenEmbed())
 
-		await interaction.edit(embeds=embeds, content=None, view=view)
+		if is_message:
+			await interaction.edit(embeds=embeds, content=None, view=view)
+		elif is_ctx:
+			await interaction.interaction.edit_original_response(embeds=embeds, content=None, view=view)
+		else:
+			await interaction.edit_original_response(embeds=embeds, content=None, view=view)
+
 
 	@property
 	def _score(self) -> list:

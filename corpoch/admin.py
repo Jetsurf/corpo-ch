@@ -267,7 +267,7 @@ class BansInline(SortableStackedInline):
 #TODO - Add match score to table
 @admin.register(Match)
 class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
-	list_display = ('__str__', 'finished', 'bracket_name', 'group', '_match_players', 'started_on', 'version')
+	list_display = ('__str__', 'finished', 'bracket_name', 'group', '_players', 'started_on', 'version')
 	inlines = [BansInline, RoundsInline]
 	list_per_page = 16
 	actions = ['set_unsubmitted',"reread_steg", "resubmit_gsheet"]
@@ -275,7 +275,7 @@ class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
 	def bracket_name(self, obj):
 		return obj.group.bracket.name
 
-	def _match_players(self, obj):
+	def _players(self, obj):
 		retList = []
 		for seed in obj.players.iterator():
 			retList.append(seed.player.ch_name)
