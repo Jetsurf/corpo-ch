@@ -330,6 +330,7 @@ class Match(models.Model):
 	group = models.ForeignKey(Group, related_name='matches', verbose_name="Group", on_delete=models.CASCADE)#limit_options_to groups in bracket somehow?
 	started_on = models.DateTimeField(verbose_name="Match Start Time", auto_now_add=True)
 	ended_on = models.DateTimeField(verbose_name="Match End Time", null=True, blank=True)
+	complete = models.BooleanField(verbose_name="Match 'Complete'", default=False)
 	finished = models.BooleanField(verbose_name="Finished", default=False) #Flag to match in-progress as complete, start triggers to move to completed
 	submitted = models.BooleanField(verbose_name="Uploaded to GSheet", default=False)
 	channel = models.BigIntegerField(verbose_name="Ref-Tool Discord Channel ID", null=True, blank=True)

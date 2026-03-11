@@ -104,6 +104,7 @@ class StegScreenshot(pydantic.BaseModel):
 	artist_name : str = "None"
 	band_score : int = 0
 	band_stars : int = 0
+	song_name : str = "None"
 	checksum : str = "None"
 	charter_name : str = "None"
 	game_version : str = CH_VERSIONS[0][0]

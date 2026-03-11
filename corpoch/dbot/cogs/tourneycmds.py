@@ -111,7 +111,7 @@ class DiscordMatch():
 		view = DiscordMatchView(self)
 		await view.init()
 		embeds = [await self.genMatchEmbed()]
-		if self.matchDb and self.matchDb.finished:
+		if self.matchDb and self.matchDb.complete:
 			embeds.append(await self.genScreenEmbed())
 
 		await interaction.edit(embeds=embeds, content=None, view=view)

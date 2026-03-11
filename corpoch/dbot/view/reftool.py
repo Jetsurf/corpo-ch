@@ -53,7 +53,7 @@ class BanSelect(discord.ui.Select):
 				seed = self.match.seeding[0]
 			else:
 				seed = self.match.seeding[1]
-		newBan = MatchBan(num=len(self.match.bans), player=seed, chart=chart, ongoing_match=self.match.matchDb)
+		newBan = MatchBan(num=len(self.match.bans), player=seed, chart=chart, match=self.match.matchDb)
 		await newBan.asave()
 		self.match.bans.append(newBan)
 		await self.match.showTool(interaction)
@@ -174,6 +174,7 @@ class GroupSelect(discord.ui.Select):
 		self.match.group = self.retOpts[self.values[0]]
 		self.match.matchDb = Match(id=uuid.uuid1(), group=self.match.group)
 		await self.match.matchDb.asave()
+		self.match.setlist = await sync_to_async(lambda: self.match.bracket.setlist)()
 		print(f"REF: {self.match.referee.global_name} starting match {self.match.matchDb.id}")
 		await self.match.showTool(interaction)
 
@@ -274,7 +275,7 @@ class DiscordMatchView(discord.ui.View):
 		self.add_item(plySel)
 
 	async def init(self):
-		if self.match.matchDb and self.match.matchDb.finished:
+		if self.match.matchDb and self.match.matchDb.complete:
 			self.add_item(self.upload)
 		else:
 			self.add_item(self.cancel)
@@ -301,7 +302,7 @@ class DiscordMatchView(discord.ui.View):
 			sel = BanSelect(self.match)
 			await sel.init()
 			self.add_item(sel)
-		elif not self.match.matchDb.finished:
+		elif not self.match.matchDb.complete:
 			self.add_item(self.back)
 			self.add_item(self.submit)
 			if len(self.match.bans) == self.match.bracket.ruleset.total_bans and len(self.match.rounds) == 0:
@@ -324,7 +325,7 @@ class DiscordMatchView(discord.ui.View):
 				self.submit.disabled = False
 
 	async def interaction_check(self, interaction: discord.Interaction):
-		if isinstance(self.match.matchDb, Match) and self.match.matchDb.finished:
+		if isinstance(self.match.matchDb, Match) and self.match.matchDb.complete:
 			async for seed in self.match.matchDb.players.select_related('player'):
 				if seed.player.user == interaction.user.id:
 					return True
@@ -381,7 +382,7 @@ class DiscordMatchView(discord.ui.View):
 			tool = CHStegTool()
 			try:
 				steg = await tool.getStegInfo(screen)
-				rnd = await MatchRound.objects.select_related('chart').aget(ongoing_match__id=self.match.matchDb.id, chart__md5=steg.checksum)
+				rnd = await MatchRound.objects.select_related('chart').aget(match__id=self.match.matchDb.id, chart__md5=steg.checksum)
 				playedChart = rnd.chart
 			except MatchRound.DoesNotExist:
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} was for a setlist chart not played in this match")
@@ -421,7 +422,7 @@ class DiscordMatchView(discord.ui.View):
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} already submitted")
 		done = True
 		retRnds = []
-		async for rnd in MatchRound.objects.select_related('picked', 'chart', 'winner', 'loser').all().filter(ongoing_match=self.match.matchDb):
+		async for rnd in MatchRound.objects.select_related('picked', 'chart', 'winner', 'loser').all().filter(match=self.match.matchDb):
 			retRnds.append(rnd)
 			if not rnd.steg:
 				done = False
@@ -432,6 +433,9 @@ class DiscordMatchView(discord.ui.View):
 			await self.match.showTool(interaction)
 
 	async def submitBtn(self, interaction: discord.Interaction):
-		self.match.matchDb.finished = True
+		self.match.matchDb.winner = self.match.rounds[-1].winner
+		self.match.matchDb.loser = self.match.rounds[-1].loser
+		self.match.matchDb.ended_on = datetime.now()
+		self.match.matchDb.complete = True
 		await self.match.matchDb.asave()
 		await self.match.showTool(interaction)
