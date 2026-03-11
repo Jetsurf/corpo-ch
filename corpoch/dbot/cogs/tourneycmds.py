@@ -5,7 +5,7 @@ from discord.enums import ComponentType, InputTextStyle
 from asgiref.sync import sync_to_async
 
 from corpoch import settings
-from corpoch.models import Tournament, Chart, TournamentMatchOngoing, MatchRound, TournamentBracket, BracketGroup, TournamentPlayer, TournamentMatchCompleted, GroupSeed, MatchRound, MatchBan
+from corpoch.models import Tournament, Chart, Match, MatchRound, Bracket, Group, GroupSeed, TournamentPlayer, MatchRound, MatchBan
 from corpoch.dbot.models import CHEmoji
 from corpoch.dbot.view.reftool import DiscordMatchView
 from corpoch.types import TB_RULESETS, PICK_RULESETS, BAN_RULESETS
@@ -16,7 +16,7 @@ class DiscordMatch():
 		self.bot = bot
 		self.msg = message
 		self.guild = message.guild if message else None
-		self.ref = message.user if hasattr(message, 'user') else None
+		self.referee = message.user if hasattr(message, 'user') else None
 		self.channel = message.channel if hasattr(message, 'channel') else None
 		self.tourney = None
 		self.bracket = None
@@ -34,7 +34,7 @@ class DiscordMatch():
 			await self.load_match()
 			#Finish loading async
 			self.msg = await self.channel.fetch_message(self.matchDb.message)
-			self.ref = await self.guild.fetch_member(self.matchDb.ref)
+			self.referee = await self.guild.fetch_member(self.matchDb.referee)
 			for seed in self.seeding:
 				self.seeding_discord.append(await self.guild.fetch_member(seed.player.user))
 			if not await self.isFinished() and len(self.bans) > 0 and (len(self.rounds) == 0 or self.rounds[-1].winner):
@@ -46,8 +46,8 @@ class DiscordMatch():
 			return
 
 		try:
-			self.bracket = await TournamentBracket.objects.aget(score_log=self.msg.channel.id)
-		except TournamentBracket.DoesNotExist: 
+			self.bracket = await Bracket.objects.aget(score_log=self.msg.channel.id)
+		except Bracket.DoesNotExist: 
 			await self.msg.respond("Channel is not a score log channel - please use this command in a match reporting channel.", ephemeral=True)
 			return
 
@@ -58,23 +58,21 @@ class DiscordMatch():
 
 	@sync_to_async
 	def complete_match(self):
-		finishedMatch = TournamentMatchCompleted(id=self.matchDb.id)
+		finishedMatch = Match(id=self.matchDb.id)
 		finishedMatch.group = self.matchDb.group
 		plys = []
 		for seed in self.seeding:
 			plys.append(seed.player)
-		finishedMatch.match_players.set(list(self.group.seeding.select_related('group', 'player').filter(player__in=plys)))
+		finishedMatch.players.set(list(self.group.seeding.select_related('group', 'player').filter(player__in=plys)))
 		finishedMatch.winner = self.rounds[-1].winner
 		finishedMatch.loser = self.rounds[-1].loser
-		#finishedMatch.match_players.set self.matchDb.match_players
+		#finishedMatch.players.set self.matchDb.players
 		finishedMatch.save()
 		for ban in self.bans:
-			ban.completed_match = finishedMatch
-			ban.ongoing_match = None
+			ban.match = finishedMatch
 			ban.save()
 		for rnd in self.rounds:
-			rnd.completed_match = finishedMatch
-			rnd.ongoing_match = None
+			rnd.match = finishedMatch
 			rnd.save()
 		finishedMatch.save()
 		self.matchDb.delete()
@@ -94,7 +92,7 @@ class DiscordMatch():
 
 	@sync_to_async
 	def load_match(self):
-		self.matchDb = TournamentMatchOngoing.objects.select_related().get(id=self.matchDb)
+		self.matchDb = Match.objects.select_related().get(id=self.matchDb)
 		self.channel = self.bot.get_channel(self.matchDb.channel)
 		self.guild = self.channel.guild
 		self.group = self.matchDb.group
@@ -103,8 +101,8 @@ class DiscordMatch():
 		self.bracket.tournament = self.bracket.tournament
 		self.bracket.tournament.config = self.bracket.tournament.config
 		self.setlist = self.matchDb.bracket.setlist
-		self.match_players = self.matchDb.match_players
-		self.seeding = list(self.matchDb.group.seeding.select_related('group', 'player').filter(id__in=self.matchDb.match_players.all().only('id')))
+		self.players = self.matchDb.players
+		self.seeding = list(self.matchDb.group.seeding.select_related('group', 'player').filter(id__in=self.matchDb.players.all().only('id')))
 		self.bans = list(self.matchDb.ongoing_bans.select_related('chart', 'player').all())
 		self.rounds = list(self.matchDb.ongoing_rounds.select_related('chart', 'picked', 'winner', 'loser').all())
 		self.chart = self.rounds[-1].chart if len(self.rounds) > 0 else None
@@ -114,10 +112,10 @@ class DiscordMatch():
 	def save_match(self):
 		if self.group:
 			self.matchDb.group = self.group
-			self.matchDb.match_players.set(self.seeding)
+			self.matchDb.players.set(self.seeding)
 			self.matchDb.message = self.msg.id if self.msg else None
 			self.matchDb.channel = self.channel.id
-			self.matchDb.ref = self.ref.id
+			self.matchDb.referee = self.referee.id
 			self.matchDb.save()
 			self.bracket.tournament = self.bracket.tournament
 			self.bracket.tournament.config = self.bracket.tournament.config
@@ -210,7 +208,7 @@ class DiscordMatch():
 
 	async def genMatchEmbed(self):
 		embed = discord.Embed(colour=0x3FFF33)
-		embed.set_author(name=f"Ref: {self.ref.display_name}", icon_url=self.ref.avatar.url)
+		embed.set_author(name=f"Ref: {self.referee.display_name}", icon_url=self.referee.avatar.url)
 
 		if not self.bracket:
 			embed.title = f"{self.tourney.short_name}"
@@ -255,7 +253,7 @@ class DiscordMatch():
 				outStr += f" - {rnd.winner.ch_name} wins!"
 			outStr+= "\n"
 
-		if isinstance(self.matchDb, TournamentMatchCompleted) or (self.matchDb and self.matchDb.finished):
+		if (self.matchDb and self.matchDb.finished):
 			outStr += f"\n**{self.rounds[-1].winner} WINS!**"
 		embed.add_field(name="Rounds", value=outStr, inline=False)
 		if self.matchDb:

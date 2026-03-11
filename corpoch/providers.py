@@ -9,7 +9,7 @@ from django.db import models
 
 from corpoch import __user_agent__
 from corpoch import settings
-from corpoch.models import GSheetAPI, Chart, Tournament, TournamentMatchCompleted, TournamentMatchOngoing, Qualifier, QualifierSubmission, CH_DIFFICULTIES, CH_INSTRUMENTS
+from corpoch.models import GSheetAPI, Chart, Tournament, Match, Qualifier, QualifierSubmission, CH_DIFFICULTIES, CH_INSTRUMENTS
 from corpoch.utils.hydra.hydra.hyutil import analyze_chart_bytes_chart, analyze_chart_bytes_mid
 from corpoch.types import StegScreenshot
 
@@ -667,13 +667,13 @@ class GSheets():
 		if not self._gc:
 			raise RuntimeError("Gsheels API: API Key invalid/failed to login")
 
-	def set_submission(self, submission: typing.Union[TournamentMatchOngoing, TournamentMatchCompleted, Qualifier]):
+	def set_submission(self, submission: typing.Union[Match, Qualifier]):
 		self._submission = submission
 		if isinstance(self._submission, QualifierSubmission):
 			self._tourney = self._submission.qualifier.tournament
 			self._bracket = self._submission.qualifier.bracket
 			self._url = self._submission.qualifier.gsheet
-		elif isinstance(self._submission, TournamentMatchCompleted):
+		elif isinstance(self._submission, Match):
 			self._tourney = self._submission.group.bracket.tournament
 			self._bracket = self._submission.group.bracket
 			self._url = self._tourney.config.gsheet
@@ -692,7 +692,7 @@ class GSheets():
 					ws = self._sheet.worksheet((f"{self._submission.qualifier} - Final Top Scores"))
 			except gspread.exceptions.WorksheetNotFound:
 				ws = self.setup_qualifier_sheet()
-		elif isinstance(self._submission, TournamentMatchCompleted):
+		elif isinstance(self._submission, Match):
 			try:
 				ws = self._sheet.worksheet((f"{self._submission.tournament.short_name} - Match Data"))
 			except gspread.exceptions.WorksheetNotFound:

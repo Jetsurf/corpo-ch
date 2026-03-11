@@ -10,7 +10,7 @@ from asgiref.sync import sync_to_async
 from django.utils import timezone
 from django.core.files.base import ContentFile
 
-from corpoch.models import Tournament, TournamentBracket, TournamentPlayer, Qualifier, QualifierSubmission, Chart
+from corpoch.models import Tournament, Bracket, TournamentPlayer, Qualifier, QualifierSubmission, Chart
 from corpoch.providers import CHOpt, CHStegTool
 
 class QualifierSelect(discord.ui.Select):

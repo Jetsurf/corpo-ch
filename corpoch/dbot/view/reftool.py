@@ -7,7 +7,7 @@ from asgiref.sync import sync_to_async
 from corpoch.dbot import settings
 from corpoch.providers import CHStegTool
 from corpoch.types import StegScreenshot, TB_RULESETS, PICK_RULESETS, BAN_RULESETS
-from corpoch.models import Tournament, Chart, TournamentMatchOngoing, MatchRound, TournamentBracket, BracketGroup, TournamentPlayer, TournamentMatchCompleted, GroupSeed, MatchRound, MatchBan
+from corpoch.models import Tournament, Chart, Match, MatchRound, TournamentPlayer, MatchRound, MatchBan
 from corpoch.dbot.models import CHEmoji
 from corpoch.dbot.view.helpers import get_chart_emoji
 
@@ -172,9 +172,9 @@ class GroupSelect(discord.ui.Select):
 
 	async def callback(self, interaction: discord.Integration):
 		self.match.group = self.retOpts[self.values[0]]
-		self.match.matchDb = TournamentMatchOngoing(id=uuid.uuid1(), group=self.match.group)
+		self.match.matchDb = Match(id=uuid.uuid1(), group=self.match.group)
 		await self.match.matchDb.asave()
-		print(f"REF: {self.match.ref.global_name} starting match {self.match.matchDb.id}")
+		print(f"REF: {self.match.referee.global_name} starting match {self.match.matchDb.id}")
 		await self.match.showTool(interaction)
 
 class PlayerSelect(discord.ui.Select):
@@ -242,7 +242,7 @@ class DiscordMatchView(discord.ui.View):
 	def __init__(self, match):
 		super().__init__(timeout = None)
 		self.match = match
-		self.ref = match.ref
+		self.referee = match.referee
 
 		self.cancel = discord.ui.Button(label="Cancel", style=discord.ButtonStyle.red, custom_id="cancelBtn")
 		self.cancel.callback = self.cancelBtn
@@ -324,11 +324,11 @@ class DiscordMatchView(discord.ui.View):
 				self.submit.disabled = False
 
 	async def interaction_check(self, interaction: discord.Interaction):
-		if isinstance(self.match.matchDb, TournamentMatchOngoing) and self.match.matchDb.finished:
-			async for seed in self.match.matchDb.match_players.select_related('player'):
+		if isinstance(self.match.matchDb, Match) and self.match.matchDb.finished:
+			async for seed in self.match.matchDb.players.select_related('player'):
 				if seed.player.user == interaction.user.id:
 					return True
-		if interaction.user.id == self.match.ref.id:
+		if interaction.user.id == self.match.referee.id:
 			return True
 		else:
 			await interaction.response.send_message("You are not the ref or player for this match", ephemeral=True, delete_after=10)

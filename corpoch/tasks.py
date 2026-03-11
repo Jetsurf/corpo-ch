@@ -3,7 +3,7 @@ from celery.schedules import crontab
 from django.db import close_old_connections, connection
 from django.utils import timezone
 
-from corpoch.models import TournamentPlayer, Qualifier, QualifierSubmission, TournamentMatchOngoing, TournamentMatchCompleted
+from corpoch.models import TournamentPlayer, Qualifier, QualifierSubmission, Match
 from corpoch.providers import GSheets
 from corpoch.dbot import tasks
 
@@ -36,12 +36,12 @@ def upload_qualifiers_gsheet(base=ConnectionRefreshingTask):
 @app.task
 def upload_completed_match_gsheet(base=ConnectionRefreshingTask):
 	close_old_connections()
-	matches = TournamentMatchCompleted.objects.all().filter(processed=False)
+	matches = Match.objects.all().filter(finished=True).filter(processed=False)
 	sheet = GSheets()
 	sheet.login()
 	print(f"GSHEETS: Running gsheets upload for completed matches")
 	for match in matches:
-		if len(match.match_players.all()) > 0:
+		if len(match.players.all()) > 0:
 			print(f"GSHEETS: Uploading completed match {match.id} to tourney config sheet")
 			sheet.set_submission(match)
 			sheet.submit_completed()

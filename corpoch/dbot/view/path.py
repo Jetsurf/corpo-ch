@@ -5,7 +5,7 @@ from discord.enums import ComponentType, InputTextStyle
 from asgiref.sync import sync_to_async
 
 from corpoch.providers import CHOpt, EncoreClient, CHStegTool, Hydra
-from corpoch.models import Tournament, TournamentBracket, Chart
+from corpoch.models import Tournament, Chart
 from corpoch.types import CH_INSTRUMENTS, CH_DIFFICULTIES
 from corpoch.dbot.models import CHEmoji
 from corpoch.dbot.view.helpers import get_chart_emoji
