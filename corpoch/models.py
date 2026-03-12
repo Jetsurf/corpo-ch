@@ -440,13 +440,11 @@ class Match(models.Model):
 		pass
 		
 	def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
-		if self.screenshot and not self.steg:
-			from corpoch.providers import CHStegTool
-			tool = CHStegTool()
-			self.steg = tool.getStegInfoSync(self.screenshot)
-			for i, ply in enumerate(self.steg.players):
-				if not self.player.check_ch_name(ply.profile_name):
-					self.steg.players.pop(i)
+		for rnd in self.rounds:
+			if rnd.screenshot and (not rnd.steg or len(rnd.steg.players) == 0):
+				from corpoch.providers import CHStegTool
+				tool = CHStegTool()
+				rnd.steg = tool.getStegInfoSync(rnd.screenshot)
 		super().save()
 
 class MatchRound(models.Model):
