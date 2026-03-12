@@ -345,15 +345,19 @@ class Match(models.Model):
 
 	@property
 	def ongoing(self):
-		return self.finished == False
+		return self.complete == False
 
 	@property
 	def high_seed(self):
-		return self.players.all()[0]
+		return self.players.first()
 
 	@property
 	def low_seed(self):
-		return self.players.all()[1]
+		players = self.players.all()
+
+		if players.count() > 1:
+			return players[1]
+		return None
 	
 	@property
 	def bans(self):
@@ -361,11 +365,17 @@ class Match(models.Model):
 	
 	@property
 	def high_seed_bans(self):
-		return [ban for ban in self.bans if ban.player.player_id == self.high_seed.player_id]
+		if self.high_seed:
+			return [ban for ban in self.bans if ban.player.player_id == self.high_seed.player_id]
+		else:
+			return []
 
 	@property
 	def low_seed_bans(self):
-		return [ban for ban in self.bans if ban.player.player_id == self.low_seed.player_id]
+		if self.low_seed:
+			return [ban for ban in self.bans if ban.player.player_id == self.low_seed.player_id]
+		else:
+			return []
 	
 	@property
 	def rounds(self):
@@ -385,16 +395,19 @@ class Match(models.Model):
 
 	@property
 	def score(self):
-		score1 = 0
-		score2 = 0
-		for round in self.rounds:
-			if round.winner_id:
-				if round.winner_id == self.high_seed.player_id:
-					score1 += 1
-				else:
-					score2 += 1
+		if self.high_seed and self.low_seed:
+			score1 = 0
+			score2 = 0
+			for round in self.rounds:
+				if round.winner_id:
+					if round.winner_id == self.high_seed.player_id:
+						score1 += 1
+					else:
+						score2 += 1
 
-		return f"{score1} - {score2}"
+			return f"{score1} - {score2}"
+		else:
+			return "0 - 0"
 
 	@property
 	def full_name(self):

@@ -8,13 +8,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "corpoch"
-version = "1.2.0"
+version = "1.2.1"
 description = "Corpo CH Tournament Bot"
 readme = "README.md"
 license = {file = "LICENSE"}
 requires-python = ">=3.11"
 authors = [
-    { name = "AaronKable", email = "aaronkable@gmail.com"}
+    { name = "Connor Meade", email = "crmeade@mtu.edu"}
 ]
 keywords = [
     "clonehero",
