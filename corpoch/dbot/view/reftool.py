@@ -3,7 +3,7 @@ from discord.ext import commands
 from discord.ui import *
 from discord.enums import ComponentType, InputTextStyle
 from asgiref.sync import sync_to_async
-from datetime import datetime
+from django.utils import timezone
 
 from corpoch.dbot import settings
 from corpoch.providers import CHStegTool
@@ -436,7 +436,7 @@ class DiscordMatchView(discord.ui.View):
 	async def submitBtn(self, interaction: discord.Interaction):
 		self.match.matchDb.winner = self.match.rounds[-1].winner
 		self.match.matchDb.loser = self.match.rounds[-1].loser
-		self.match.matchDb.ended_on = datetime.now()
+		self.match.matchDb.ended_on = timezone.now()
 		self.match.matchDb.complete = True
 		await self.match.matchDb.asave()
 		await self.match.showTool(interaction)
