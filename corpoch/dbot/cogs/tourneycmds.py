@@ -59,6 +59,7 @@ class DiscordMatch():
 	@sync_to_async
 	def complete_match(self):
 		self.matchDb.finished = True
+		self.matchDb.save()
 
 	async def finishMatch(self, interaction):
 		print(f"Finishing match {self.matchDb.id}")
