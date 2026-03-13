@@ -267,28 +267,20 @@ class BansInline(SortableStackedInline):
 #TODO - Add match score to table
 @admin.register(Match)
 class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
-	list_display = ('__str__', 'finished', 'bracket_name', 'group', '_match_players', 'started_on', 'version')
+	list_display = ('__str__', 'group', '_match_players', 'score', 'started_on', 'ended_on', 'complete', 'finished')
 	inlines = [BansInline, RoundsInline]
 	list_per_page = 16
 	actions = ['set_unsubmitted',"reread_steg", "resubmit_gsheet"]
 
-	def bracket_name(self, obj):
-		return obj.group.bracket.name
-
 	def _match_players(self, obj):
 		retList = []
 		for seed in obj.players.iterator():
-			retList.append(seed.player.ch_name)
-		return retList
+			retList.append(str(seed))
+		return " - ".join(retList)
 
-	def _match_bans(self, obj):
-		retList = []
-		for ban in MatchBan.objects.all().iterator():
-			retList.append(ban.chart)
-		return retList
-
-	def version(self, obj):
-		return obj.group.bracket.tournament.config.version
+	def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
+		if db_field.name == "players":
+			db_field.related_model.objects.all()
 
 	@admin.action(description="Mark Match GSheet Unsent")
 	def set_unsubmitted(modeladmin, request, queryset):

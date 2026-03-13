@@ -323,10 +323,10 @@ class QualifierSubmission(models.Model):
 
 class Match(models.Model):
 	id = models.CharField(primary_key=True, verbose_name="Match ID", max_length=40, default=uuid.uuid1)
-	defer = models.BooleanField(verbose_name="Deferral Used", default=False)
 	players = models.ManyToManyField(GroupSeed, related_name="match_players", verbose_name="Players", blank=True)
 	loser = models.ForeignKey(TournamentPlayer, related_name="matches_lost", null=True, blank=True, on_delete=models.SET_NULL)
 	winner = models.ForeignKey(TournamentPlayer, related_name="matches_won", null=True, blank=True, on_delete=models.SET_NULL)
+	defer = models.BooleanField(verbose_name="Deferral Used", default=False)
 	group = models.ForeignKey(Group, related_name='matches', verbose_name="Group", on_delete=models.CASCADE)#limit_options_to groups in bracket somehow?
 	started_on = models.DateTimeField(verbose_name="Match Start Time", auto_now_add=True)
 	ended_on = models.DateTimeField(verbose_name="Match End Time", null=True, blank=True)
