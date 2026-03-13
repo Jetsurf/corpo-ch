@@ -270,17 +270,13 @@ class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
 	list_display = ('__str__', 'group', '_match_players', 'score', 'started_on', 'ended_on', 'complete', 'finished')
 	inlines = [BansInline, RoundsInline]
 	list_per_page = 16
-	actions = ['set_unsubmitted',"reread_steg", "resubmit_gsheet"]
+	actions = ['set_unsubmitted',"reread_steg", "resubmit_gsheet", "resubmit_discord"]
 
 	def _match_players(self, obj):
 		retList = []
 		for seed in obj.players.iterator():
 			retList.append(str(seed))
 		return " - ".join(retList)
-
-	def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
-		if db_field.name == "players":
-			db_field.related_model.objects.all()
 
 	@admin.action(description="Mark Match GSheet Unsent")
 	def set_unsubmitted(modeladmin, request, queryset):
@@ -302,3 +298,8 @@ class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
 		for quali in queryset:
 			sheet.set_submission(quali)
 			sheet.update_match()
+
+	@admin.action(description="Refresh Discord Message")
+	def resubmit_discord(modeladmin, request, queryset):
+		for match in queryset:
+			corpoch.dbot.tasks.refresh_match_message(match.id)
