@@ -143,7 +143,7 @@ class BracketAdmin(admin.ModelAdmin):
 			for group in bracket.groups.all():
 				for seed in group.seeding.all():
 					ply = seed.player.user
-					corpoch.dbot.tasks.set_group_role(ply, guild, role)	
+					corpoch.dbot.tasks.set_group_role(ply, guild, role)
 
 @admin.register(TournamentPlayer)
 class TournamentPlayerAdmin(admin.ModelAdmin):
@@ -202,7 +202,7 @@ class GroupAdmin(SortableAdminBase, admin.ModelAdmin):
 			guild = tourney.guild
 			for seed in group.seeding.all():
 				ply = seed.player.user
-				corpoch.dbot.tasks.set_group_role(ply, guild, role)	
+				corpoch.dbot.tasks.set_group_role(ply, guild, role)
 
 @admin.register(QualifierSubmission)
 class QualifierSubmissionAdmin(admin.ModelAdmin):

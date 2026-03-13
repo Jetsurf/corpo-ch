@@ -43,7 +43,7 @@ class CHIcon(models.Model):
 	@property
 	def emote(self):
 		return self.discord if self.discord else None
-	
+
 class Chart(models.Model):
 	id = models.AutoField(primary_key=True)
 	name = models.CharField(verbose_name="Chart Name", max_length=256, blank=True)
@@ -171,7 +171,7 @@ class Bracket(models.Model):
 
 	def __str__(self):
 		return f"{self.tournament.short_name} - {self.name}"
-	
+
 	def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
 		is_new = self.pk is None
 		super().save()
@@ -217,7 +217,7 @@ class Group(models.Model):
 
 	def __str__(self):
 		return f"{self.tournament.short_name} - {self.bracket.name} - {self.name}"
-	
+
 class TournamentPlayer(models.Model): #TODO: This should be broken up a bit? Model fields for discord should move to dbot app
 	id = models.AutoField(primary_key=True)
 	user = models.BigIntegerField(verbose_name="Player Discord ID", db_index=True)
@@ -241,7 +241,7 @@ class TournamentPlayer(models.Model): #TODO: This should be broken up a bit? Mod
 
 	def check_ch_name(self, testname):
 		return True if testname.replace(" ", "").replace("♡", "") in self.ch_name.replace(" ", "").replace("♡", "") else False#Might be good to move the replaces here to a type of CH_NAME_IGNORE_CHARS
-	
+
 class GroupSeed(models.Model):
 	id = models.AutoField(primary_key=True)
 	seed = models.PositiveIntegerField(blank=False, null=False)
@@ -358,11 +358,11 @@ class Match(models.Model):
 		if players.count() > 1:
 			return players[1]
 		return None
-	
+
 	@property
 	def bans(self):
 		return self.match_bans.all()
-	
+
 	@property
 	def high_seed_bans(self):
 		if self.high_seed:
@@ -376,7 +376,7 @@ class Match(models.Model):
 			return [ban for ban in self.bans if ban.player.player_id == self.low_seed.player_id]
 		else:
 			return []
-	
+
 	@property
 	def rounds(self):
 		return self.match_rounds.all()
@@ -418,7 +418,7 @@ class Match(models.Model):
 			elif i == 1:
 				outStr += f" vs {ply.player_ch_name}({ply.seed})" 
 		return outStr
-	
+
 	@property
 	def short_name(self):
 		outStr = ""
@@ -428,17 +428,17 @@ class Match(models.Model):
 			elif i == 1:
 				outStr += f" vs {ply.player_ch_name}({ply.seed})"
 		return outStr
-	
+
 	def __str__(self):
 		outStr = f"{self.tournament.short_name} - {self.bracket.name} - Group {self.group.name}"
 		seeds = [seed for seed in self.players.all()]
 		if len(seeds) > 1:#Not going to work 3+ players
 			outStr += f" - {seeds[0].player.ch_name} ({seeds[0].seed}) vs {seeds[1].player.ch_name} ({seeds[1].seed})"
 		return outStr
-	
+
 	def complete_match(self):
 		pass
-		
+
 	def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
 		for rnd in self.rounds:
 			if rnd.screenshot and (not rnd.steg or len(rnd.steg.players) == 0):

@@ -123,7 +123,7 @@ class DiscordQualifierView(discord.ui.View):
 			except TournamentPlayer.DoesNotExist:
 				self.ply = TournamentPlayer(user=self.ctx.user.id, tournament=self.tourney, ch_name="</Null>")
 				self.num_subs = 0
-		
+
 			embeds.append(self.buildRulesEmbed())
 		if self.num_subs > 0:
 			embeds.append(self.buildSubmissionsEmbed())
@@ -137,7 +137,7 @@ class DiscordQualifierView(discord.ui.View):
 					embeds.append(self.buildNoticeEmbed())
 				embeds.append(self.buildSubmitEmbed())
 				self.submit.disabled = False
-			
+
 		if init:
 			await self.ctx.respond(embeds=embeds, view=self)
 		else:

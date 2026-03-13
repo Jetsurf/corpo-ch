@@ -11,11 +11,11 @@ app = Celery()
 
 class ConnectionRefreshingTask(Task):
 	abstract = True
- 
+
 	def before_start(self, task_id, args, kwargs):
 		self.refresh_connection()
 		super().before_start(task_id, args, kwargs)
- 
+
 	def refresh_connection(self):
 		if not connection.is_usable():
 			connection.close()
@@ -56,5 +56,5 @@ def send_qualifier_discord_dms(base=ConnectionRefreshingTask):
 		for ply in TournamentPlayer.objects.all().filter(tournament=qualifier.tournament):
 			submissions = QualifierSubmission.objects.all().filter(player=ply)
 			if len(submissions) < qualifier.required_submissions:
-				tasks.send_qualifier_discord_dms(ply, str(qualifier), qualifier.required_submissions, qualifier.end_time, qualifier.tournament.guild, len(submissions))	
+				tasks.send_qualifier_discord_dms(ply, str(qualifier), qualifier.required_submissions, qualifier.end_time, qualifier.tournament.guild, len(submissions))
 	close_old_connections()

@@ -89,7 +89,7 @@ class DiscordMatch():
 		self.rounds = list(self.matchDb.rounds.select_related('chart', 'picked', 'winner', 'loser').all())
 		self.chart = self.rounds[-1].chart if len(self.rounds) > 0 else None
 		print(f"Reattached to on-going match {self.matchDb}")
-		
+
 	@sync_to_async
 	def save_match(self):
 		if self.group:

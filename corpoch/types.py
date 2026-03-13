@@ -90,7 +90,7 @@ class StegScreenshotPlayer(pydantic.BaseModel):
 	notes_hit : int = 0
 	profile_name : str = "Some Player"
 	remote_network_player : bool = False
-	score : int = 0 
+	score : int = 0
 	solo_bonus_total : int = 0
 	sp_phrases_earned : int = 0
 	sp_phrases_total : int = 0

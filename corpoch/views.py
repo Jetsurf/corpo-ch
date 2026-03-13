@@ -8,49 +8,47 @@ def null(request: HttpRequest):
   return redirect("home")
 
 def home(request: HttpRequest):
-  if request.method == "POST":
-    try:
-      del request.session["access_token"]
-    except KeyError:
-      pass
-    
-  return render(request, "home.html", context={"auth_url" : auth_url_discord})
+	if request.method == "POST":
+		try:
+			del request.session["access_token"]
+		except KeyError:
+			pass
+
+	return render(request, "home.html", context={"auth_url" : auth_url_discord})
 
 def auth(request: HttpRequest):
-  code = request.GET.get("code")
+	code = request.GET.get("code")
 
-  if code:# if code is valid
-    OAuth = Auth(code=code)
-    request.session["access_token"] = OAuth.token
+	if code:# if code is valid
+		OAuth = Auth(code=code)
+		request.session["access_token"] = OAuth.token
 
-  else:
-    access_token = request.session.get("access_token")
-    if not access_token:#if token is not exists and not valid
-      return redirect(auth_url_discord)# redirect to discord
+	else:
+		access_token = request.session.get("access_token")
+	if not access_token:#if token is not exists and not valid
+		return redirect(auth_url_discord)# redirect to discord
 
-  return redirect("user")
+	return redirect("user")
 
 def user(request: HttpRequest):
-  access_token = request.session.get("access_token")
-  if access_token:#if token is valid
-    OAuth = Auth()
-    try:
-      context = {
-        "user" : User(OAuth.user(access_token)),
-      }
-    except AuthError:
-      return redirect(auth_url_discord)
+	access_token = request.session.get("access_token")
+	if access_token:#if token is valid
+		OAuth = Auth()
+		try:
+			context = { "user" : User(OAuth.user(access_token)), }
+		except AuthError:
+			return redirect(auth_url_discord)
 
-  else:
-    url  = request.build_absolute_uri().split("/")
-    url.pop()
-    return redirect("/".join([i for i in url]))
+	else:
+		url  = request.build_absolute_uri().split("/")
+		url.pop()
+		return redirect("/".join([i for i in url]))
 
-  return render(request, "user.html", context=context)
+	return render(request, "user.html", context=context)
 
 def livematches(request: HttpRequest):
-  return render(request, "livematches.html")
+	return render(request, "livematches.html")
 
 def update_livematches(request: HttpRequest):
-  matches = list(filter(lambda match: match.ongoing, Match.objects.all()))
-  return render(request, 'partials/livematchesdata.html', {'matches': matches})
+	matches = list(filter(lambda match: match.ongoing, Match.objects.all()))
+	return render(request, 'partials/livematchesdata.html', {'matches': matches})
