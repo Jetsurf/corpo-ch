@@ -117,7 +117,7 @@ class DiscordQualifierView(discord.ui.View):
 			try:
 				self.ply = await TournamentPlayer.objects.aget(user=self.ctx.user.id)
 				self.prev_subs = []
-				async for qual in QualifierSubmission.objects.select_related().all().filter(player=self.ply):
+				async for qual in QualifierSubmission.objects.select_related().all().filter(player=self.ply, qualifier=self.qualifier):
 					self.prev_subs.append(qual)
 				self.num_subs = len(self.prev_subs)
 			except TournamentPlayer.DoesNotExist:
@@ -240,7 +240,7 @@ class DiscordQualifierView(discord.ui.View):
 			retStr += "No current submissions!"
 		else:
 			for i, sub in enumerate(self.prev_subs):
-				retStr += f"Submission {i + 1}: {sub.steg.players[0].score}"
+				retStr += f"Submission {i + 1}: {sub.steg.players[0].score}\n"
 		embed.add_field(name="Scores", value=retStr, inline=False)
 		return embed
 
