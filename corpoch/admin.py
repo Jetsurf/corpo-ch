@@ -258,11 +258,11 @@ class QualifierSubmissionAdmin(admin.ModelAdmin):
 class RoundsInline(SortableStackedInline):
 	model = MatchRound
 	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
-	extra = 1
+	extra = 0
 
 class BansInline(SortableStackedInline):
 	model = MatchBan
-	extra = 1
+	extra = 0
 
 #TODO - Add match score to table
 @admin.register(Match)
