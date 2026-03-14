@@ -417,7 +417,7 @@ class DiscordMatchView(discord.ui.View):
 				continue
 			if not rnd.screenshot:
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} accepted")
-				screen.filename = re.sub(r'[^a-zA-Z0-9-_.]', '', screen.filename)
+				screen.filename = f"{uuid.uuid1()}.png"
 				await sync_to_async(rnd.screenshot.save)(screen.filename, open(tool.img_path, 'rb'))
 				rnd.steg = steg
 				await rnd.asave()

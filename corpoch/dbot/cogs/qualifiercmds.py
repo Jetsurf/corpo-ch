@@ -114,16 +114,10 @@ class DiscordQualifierView(discord.ui.View):
 
 		if self.qualifier:
 			self.upload.disabled = False
-			try:
-				self.ply = await TournamentPlayer.objects.aget(user=self.ctx.user.id)
-				self.prev_subs = []
-				async for qual in QualifierSubmission.objects.select_related().all().filter(player=self.ply, qualifier=self.qualifier):
-					self.prev_subs.append(qual)
-				self.num_subs = len(self.prev_subs)
-			except TournamentPlayer.DoesNotExist:
-				self.ply = TournamentPlayer(user=self.ctx.user.id, tournament=self.tourney, ch_name="</Null>")
-				self.num_subs = 0
-
+			self.ply = await TournamentPlayer.objects.aget_or_create(user=self.ctx.user.id, tournament=self.tourney)
+			async for qual in QualifierSubmission.objects.select_related().all().filter(player=self.ply, qualifier=self.qualifier):
+				self.prev_subs.append(qual)
+			self.num_subs = len(self.prev_subs)
 			embeds.append(self.buildRulesEmbed())
 		if self.num_subs > 0:
 			embeds.append(self.buildSubmissionsEmbed())
