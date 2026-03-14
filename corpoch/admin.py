@@ -173,6 +173,15 @@ class SeedingInline(SortableStackedInline):
 	model = GroupSeed
 	extra = 1
 
+	def formfield_for_foreignkey(self, db_field, request, **kwargs):
+		if db_field.name == "player":
+			if 'object_id' in request.resolver_match.kwargs:
+				group = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs["queryset"] = group.tournament.players
+			else:
+				kwargs["queryset"] = GroupSeed.objects.none()
+		return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
 @admin.register(Group)
 class GroupAdmin(SortableAdminBase, admin.ModelAdmin):
 	list_display = ('name', 'tournament', 'bracket_name')#, 'group_players')
@@ -294,10 +303,9 @@ class BansInline(SortableStackedInline):
 				kwargs["queryset"] = GroupSeed.objects.none()
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
-#TODO - Add match score to table
 @admin.register(Match)
 class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
-	list_display = ('__str__', 'group', '_match_players', 'score', 'started_on', 'ended_on', 'complete', 'finished')
+	list_display = ('__str__', 'group', '_match_players', 'score', 'started_on', 'ended_on', 'complete', 'finished', 'submitted')
 	inlines = [BansInline, RoundsInline]
 	list_per_page = 16
 	actions = ['set_unsubmitted',"reread_steg", "resubmit_gsheet", "resubmit_discord"]
@@ -306,7 +314,7 @@ class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
 		retList = []
 		for seed in obj.players.iterator():
 			retList.append(str(seed))
-		return " - ".join(retList)
+		return " vs ".join(retList)
 
 	def formfield_for_manytomany(self, db_field, request, **kwargs):
 		if db_field.name == "players":
