@@ -115,6 +115,8 @@ class DiscordQualifierView(discord.ui.View):
 		if self.qualifier:
 			self.upload.disabled = False
 			self.ply = await TournamentPlayer.objects.aget_or_create(user=self.ctx.user.id, tournament=self.tourney)
+			if self.ply.ch_name == "New Player":
+				self.ply.ch_name = "</Null>"
 			async for qual in QualifierSubmission.objects.select_related().all().filter(player=self.ply, qualifier=self.qualifier):
 				self.prev_subs.append(qual)
 			self.num_subs = len(self.prev_subs)
