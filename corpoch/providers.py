@@ -521,7 +521,8 @@ class CHOpt:
 		try:
 			subprocess.run(choptCall, check=True, shell=True, stdout=subprocess.DEVNULL)
 		except Exception as e:
-			print(f"CHOpt call failed with exception: {e}")
+			print(f"CHOPT: died on chart {chart.name}")
+			print(f"CHOpt: call failed with exception: {e}")
 
 		try:
 			self.img = Image.open(self._out_png)

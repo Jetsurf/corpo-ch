@@ -156,6 +156,15 @@ class TournamentQualifierAdmin(admin.ModelAdmin):
 	list_filter = ['tournament']
 	actions = ['submit_final_scores']
 
+	def formfield_for_foreignkey(self, db_field, request, **kwargs):
+		if db_field.name == "player":
+			if 'object_id' in request.resolver_match.kwargs:
+				group = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs["queryset"] = group.tournament.players
+			else:
+				kwargs["queryset"] = GroupSeed.objects.none()
+		return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
 	@admin.action(description="Submit Final Top Scores")
 	def submit_final_scores(modeladmin, request, queryset):
 		sheet = GSheets(fin=True)
@@ -273,9 +282,9 @@ class RoundsInline(SortableStackedInline):
 		if db_field.name == "winner" or db_field.name == "loser" or db_field.name == 'picked':
 			if 'object_id' in request.resolver_match.kwargs:
 				match = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
-				kwargs["queryset"] = match.players.all()
+				kwargs['queryset'] = match.players.all().only("player")
 			else:
-				kwargs["queryset"] = GroupSeed.objects.none()
+				kwargs["queryset"] = TournamentPlayer.objects.none()
 		if db_field.name == 'chart':
 			if 'object_id' in request.resolver_match.kwargs:
 				match = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
@@ -292,7 +301,7 @@ class BansInline(SortableStackedInline):
 		if db_field.name == "player":
 			if 'object_id' in request.resolver_match.kwargs:
 				match = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
-				kwargs["queryset"] = match.players.all()
+				kwargs['queryset'] = match.players.all().only("player")
 			else:
 				kwargs["queryset"] = GroupSeed.objects.none()
 		if db_field.name == 'chart':
@@ -300,7 +309,7 @@ class BansInline(SortableStackedInline):
 				match = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
 				kwargs["queryset"] = match.bracket.setlist.all()
 			else:
-				kwargs["queryset"] = GroupSeed.objects.none()
+				kwargs["queryset"] = TournamentPlayer.objects.none()
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 @admin.register(Match)
@@ -320,18 +329,18 @@ class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
 		if db_field.name == "players":
 			if 'object_id' in request.resolver_match.kwargs:
 				match = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
-				kwargs["queryset"] = match.group.seeding.all()
+				kwargs['queryset'] = match.players.all().only("player")
 			else:
-				kwargs["queryset"] = GroupSeed.objects.none()
+				kwargs["queryset"] = TournamentPlayer.objects.none()
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 	def formfield_for_foreignkey(self, db_field, request, **kwargs):
 		if db_field.name == "winner" or db_field.name == "loser":
 			if 'object_id' in request.resolver_match.kwargs:
 				match = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
-				kwargs["queryset"] = match.players.all()
+				kwargs['queryset'] =  match.players.all().only("player")
 			else:
-				kwargs["queryset"] = GroupSeed.objects.none()
+				kwargs["queryset"] = TournamentPlayer.objects.none()
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 	@admin.action(description="Mark Match GSheet Unsent")
