@@ -282,7 +282,7 @@ class RoundsInline(SortableStackedInline):
 		if db_field.name == "winner" or db_field.name == "loser" or db_field.name == 'picked':
 			if 'object_id' in request.resolver_match.kwargs:
 				match = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
-				kwargs['queryset'] = match.players.all().only("player")
+				kwargs['queryset'] = TournamentPlayer.objects.all().filter(id__in=match.players.all().values("player"))
 			else:
 				kwargs["queryset"] = TournamentPlayer.objects.none()
 		if db_field.name == 'chart':
@@ -301,7 +301,7 @@ class BansInline(SortableStackedInline):
 		if db_field.name == "player":
 			if 'object_id' in request.resolver_match.kwargs:
 				match = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
-				kwargs['queryset'] = match.players.all().only("player")
+				kwargs['queryset'] = match.players.all()
 			else:
 				kwargs["queryset"] = GroupSeed.objects.none()
 		if db_field.name == 'chart':
@@ -329,16 +329,16 @@ class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
 		if db_field.name == "players":
 			if 'object_id' in request.resolver_match.kwargs:
 				match = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
-				kwargs['queryset'] = match.players.all().only("player")
+				kwargs['queryset'] = match.players.all()
 			else:
-				kwargs["queryset"] = TournamentPlayer.objects.none()
+				kwargs["queryset"] = GroupSeed.objects.none()
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 	def formfield_for_foreignkey(self, db_field, request, **kwargs):
 		if db_field.name == "winner" or db_field.name == "loser":
 			if 'object_id' in request.resolver_match.kwargs:
 				match = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
-				kwargs['queryset'] =  match.players.all().only("player")
+				kwargs['queryset'] = TournamentPlayer.objects.all().filter(id__in=match.players.all().values("player"))
 			else:
 				kwargs["queryset"] = TournamentPlayer.objects.none()
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
