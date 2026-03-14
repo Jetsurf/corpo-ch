@@ -264,6 +264,18 @@ class BansInline(SortableStackedInline):
 	model = MatchBan
 	extra = 0
 
+	def formfield_for_foreignkey(self, db_field, request, **kwargs):
+		if db_field.name == "player":
+			match = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+			if match:
+				plys = []
+				for seed in match.players.all():
+					plys.append(seed.player)
+				kwargs["queryset"] = GroupSeed.objects.filter(player__in=plys)
+			else:
+				kwargs["queryset"] = GroupSeed.objects.none()
+		return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
 #TODO - Add match score to table
 @admin.register(Match)
 class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
