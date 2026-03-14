@@ -224,7 +224,7 @@ class TournamentPlayer(models.Model): #TODO: This should be broken up a bit? Mod
 	name = models.CharField(verbose_name="Discord Name", max_length=128, null=True, blank=True)
 	tournament = models.ForeignKey(Tournament, related_name="players", verbose_name="Tournament", on_delete=models.CASCADE)
 	is_active = models.BooleanField(verbose_name="Player Active", default=False)
-	ch_name = models.CharField(verbose_name="Clone Hero Name", max_length=128, default="New Player")
+	ch_name = models.CharField(verbose_name="Clone Hero Name", max_length=128, default="</Null>")
 	config = models.JSONField(verbose_name="Player Configuration", default=dict, blank=True)
 
 	class Meta:
