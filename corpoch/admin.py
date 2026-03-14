@@ -143,7 +143,7 @@ class BracketAdmin(admin.ModelAdmin):
 			for group in bracket.groups.all():
 				for seed in group.seeding.all():
 					ply = seed.player.user
-					corpoch.dbot.tasks.set_group_role(ply, guild, role)	
+					corpoch.dbot.tasks.set_group_role(ply, guild, role)
 
 @admin.register(TournamentPlayer)
 class TournamentPlayerAdmin(admin.ModelAdmin):
@@ -155,6 +155,15 @@ class TournamentQualifierAdmin(admin.ModelAdmin):
 	list_display = ('id', 'tournament')
 	list_filter = ['tournament']
 	actions = ['submit_final_scores']
+
+	def formfield_for_foreignkey(self, db_field, request, **kwargs):
+		if db_field.name == "player":
+			if 'object_id' in request.resolver_match.kwargs:
+				group = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs["queryset"] = group.tournament.players
+			else:
+				kwargs["queryset"] = GroupSeed.objects.none()
+		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 	@admin.action(description="Submit Final Top Scores")
 	def submit_final_scores(modeladmin, request, queryset):
@@ -172,6 +181,15 @@ class TournamentQualifierAdmin(admin.ModelAdmin):
 class SeedingInline(SortableStackedInline):
 	model = GroupSeed
 	extra = 1
+
+	def formfield_for_foreignkey(self, db_field, request, **kwargs):
+		if db_field.name == "player":
+			if 'object_id' in request.resolver_match.kwargs:
+				group = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs["queryset"] = group.tournament.players
+			else:
+				kwargs["queryset"] = GroupSeed.objects.none()
+		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 @admin.register(Group)
 class GroupAdmin(SortableAdminBase, admin.ModelAdmin):
@@ -202,7 +220,7 @@ class GroupAdmin(SortableAdminBase, admin.ModelAdmin):
 			guild = tourney.guild
 			for seed in group.seeding.all():
 				ply = seed.player.user
-				corpoch.dbot.tasks.set_group_role(ply, guild, role)	
+				corpoch.dbot.tasks.set_group_role(ply, guild, role)
 
 @admin.register(QualifierSubmission)
 class QualifierSubmissionAdmin(admin.ModelAdmin):
@@ -258,37 +276,72 @@ class QualifierSubmissionAdmin(admin.ModelAdmin):
 class RoundsInline(SortableStackedInline):
 	model = MatchRound
 	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
-	extra = 1
+	extra = 0
+
+	def formfield_for_foreignkey(self, db_field, request, **kwargs):
+		if db_field.name == "winner" or db_field.name == "loser" or db_field.name == 'picked':
+			if 'object_id' in request.resolver_match.kwargs:
+				match = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs['queryset'] = TournamentPlayer.objects.all().filter(id__in=match.players.all().values("player"))
+			else:
+				kwargs["queryset"] = TournamentPlayer.objects.none()
+		if db_field.name == 'chart':
+			if 'object_id' in request.resolver_match.kwargs:
+				match = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs["queryset"] = match.bracket.setlist.all()
+			else:
+				kwargs["queryset"] = GroupSeed.objects.none()
+		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 class BansInline(SortableStackedInline):
 	model = MatchBan
-	extra = 1
+	extra = 0
 
-#TODO - Add match score to table
+	def formfield_for_foreignkey(self, db_field, request, **kwargs):
+		if db_field.name == "player":
+			if 'object_id' in request.resolver_match.kwargs:
+				match = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs['queryset'] = match.players.all()
+			else:
+				kwargs["queryset"] = GroupSeed.objects.none()
+		if db_field.name == 'chart':
+			if 'object_id' in request.resolver_match.kwargs:
+				match = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs["queryset"] = match.bracket.setlist.all()
+			else:
+				kwargs["queryset"] = TournamentPlayer.objects.none()
+		return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
 @admin.register(Match)
 class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
-	list_display = ('__str__', 'finished', 'bracket_name', 'group', '_match_players', 'started_on', 'version')
+	list_display = ('__str__', 'group', '_match_players', 'score', 'started_on', 'ended_on', 'complete', 'finished', 'submitted')
 	inlines = [BansInline, RoundsInline]
 	list_per_page = 16
-	actions = ['set_unsubmitted',"reread_steg", "resubmit_gsheet"]
-
-	def bracket_name(self, obj):
-		return obj.group.bracket.name
+	actions = ['set_unsubmitted',"reread_steg", "resubmit_gsheet", "resubmit_discord"]
 
 	def _match_players(self, obj):
 		retList = []
 		for seed in obj.players.iterator():
-			retList.append(seed.player.ch_name)
-		return retList
+			retList.append(str(seed))
+		return " vs ".join(retList)
 
-	def _match_bans(self, obj):
-		retList = []
-		for ban in MatchBan.objects.all().iterator():
-			retList.append(ban.chart)
-		return retList
+	def formfield_for_manytomany(self, db_field, request, **kwargs):
+		if db_field.name == "players":
+			if 'object_id' in request.resolver_match.kwargs:
+				match = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs['queryset'] = match.players.all()
+			else:
+				kwargs["queryset"] = GroupSeed.objects.none()
+		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
-	def version(self, obj):
-		return obj.group.bracket.tournament.config.version
+	def formfield_for_foreignkey(self, db_field, request, **kwargs):
+		if db_field.name == "winner" or db_field.name == "loser":
+			if 'object_id' in request.resolver_match.kwargs:
+				match = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs['queryset'] = TournamentPlayer.objects.all().filter(id__in=match.players.all().values("player"))
+			else:
+				kwargs["queryset"] = TournamentPlayer.objects.none()
+		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 	@admin.action(description="Mark Match GSheet Unsent")
 	def set_unsubmitted(modeladmin, request, queryset):
@@ -310,3 +363,8 @@ class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
 		for quali in queryset:
 			sheet.set_submission(quali)
 			sheet.update_match()
+
+	@admin.action(description="Refresh Discord Message")
+	def resubmit_discord(modeladmin, request, queryset):
+		for match in queryset:
+			corpoch.dbot.tasks.refresh_match_message(match.id)

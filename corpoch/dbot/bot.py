@@ -1,4 +1,4 @@
-import sys, os, discord, asyncio, time, json, logging, aiohttp, logging, time
+import sys, os, discord, asyncio, time, json, logging, logging, time
 from discord.ext import commands, tasks
 
 #Django
@@ -27,7 +27,6 @@ class CorpoDbot(commands.Bot):
 		intents = discord.Intents.default()
 		intents.members = True
 		self.client = super().__init__(intents=intents, chunk_guilds_at_startup=False)
-		self.session = aiohttp.ClientSession(loop=self.loop)
 		self.redis = self.loop.run_until_complete(aioredis.from_url(settings.CELERY_BROKER_URL, encoding="utf-8", decode_responses=True))
 		self.message_connection = Connection(settings.CELERY_BROKER_URL)
 		self.message_consumer = Consumer(self.message_connection, [Queue("corpoch.dbot")], callbacks=[self.on_queue_message])#, channel=self.chan)

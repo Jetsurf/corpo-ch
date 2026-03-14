@@ -43,7 +43,7 @@ class CHIcon(models.Model):
 	@property
 	def emote(self):
 		return self.discord if self.discord else None
-	
+
 class Chart(models.Model):
 	id = models.AutoField(primary_key=True)
 	name = models.CharField(verbose_name="Chart Name", max_length=256, blank=True)
@@ -171,7 +171,7 @@ class Bracket(models.Model):
 
 	def __str__(self):
 		return f"{self.tournament.short_name} - {self.name}"
-	
+
 	def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
 		is_new = self.pk is None
 		super().save()
@@ -217,14 +217,14 @@ class Group(models.Model):
 
 	def __str__(self):
 		return f"{self.tournament.short_name} - {self.bracket.name} - {self.name}"
-	
+
 class TournamentPlayer(models.Model): #TODO: This should be broken up a bit? Model fields for discord should move to dbot app
 	id = models.AutoField(primary_key=True)
 	user = models.BigIntegerField(verbose_name="Player Discord ID", db_index=True)
 	name = models.CharField(verbose_name="Discord Name", max_length=128, null=True, blank=True)
 	tournament = models.ForeignKey(Tournament, related_name="players", verbose_name="Tournament", on_delete=models.CASCADE)
 	is_active = models.BooleanField(verbose_name="Player Active", default=False)
-	ch_name = models.CharField(verbose_name="Clone Hero Name", max_length=128, default="New Player")
+	ch_name = models.CharField(verbose_name="Clone Hero Name", max_length=128, default="</Null>")
 	config = models.JSONField(verbose_name="Player Configuration", default=dict, blank=True)
 
 	class Meta:
@@ -241,7 +241,7 @@ class TournamentPlayer(models.Model): #TODO: This should be broken up a bit? Mod
 
 	def check_ch_name(self, testname):
 		return True if testname.replace(" ", "").replace("♡", "") in self.ch_name.replace(" ", "").replace("♡", "") else False#Might be good to move the replaces here to a type of CH_NAME_IGNORE_CHARS
-	
+
 class GroupSeed(models.Model):
 	id = models.AutoField(primary_key=True)
 	seed = models.PositiveIntegerField(blank=False, null=False)
@@ -323,16 +323,16 @@ class QualifierSubmission(models.Model):
 
 class Match(models.Model):
 	id = models.CharField(primary_key=True, verbose_name="Match ID", max_length=40, default=uuid.uuid1)
-	defer = models.BooleanField(verbose_name="Deferral Used", default=False)
-	players = models.ManyToManyField(GroupSeed, related_name="players", verbose_name="Players", blank=True)
+	players = models.ManyToManyField(GroupSeed, related_name="match_players", verbose_name="Players", blank=True)
 	loser = models.ForeignKey(TournamentPlayer, related_name="matches_lost", null=True, blank=True, on_delete=models.SET_NULL)
 	winner = models.ForeignKey(TournamentPlayer, related_name="matches_won", null=True, blank=True, on_delete=models.SET_NULL)
+	defer = models.BooleanField(verbose_name="Deferral Used", default=False)
 	group = models.ForeignKey(Group, related_name='matches', verbose_name="Group", on_delete=models.CASCADE)#limit_options_to groups in bracket somehow?
 	started_on = models.DateTimeField(verbose_name="Match Start Time", auto_now_add=True)
 	ended_on = models.DateTimeField(verbose_name="Match End Time", null=True, blank=True)
-	complete = models.BooleanField(verbose_name="Match 'Complete'", default=False)
+	complete = models.BooleanField(verbose_name="'Complete'", default=False)
 	finished = models.BooleanField(verbose_name="Finished", default=False) #Flag to match in-progress as complete, start triggers to move to completed
-	submitted = models.BooleanField(verbose_name="Uploaded to GSheet", default=False)
+	submitted = models.BooleanField(verbose_name="GSheet", default=False)
 	channel = models.BigIntegerField(verbose_name="Ref-Tool Discord Channel ID", null=True, blank=True)
 	message = models.BigIntegerField(verbose_name="Ref-Tool Discord Message ID", null=True, blank=True)
 	referee = models.BigIntegerField(verbose_name="Discord Ref ID", null=True, blank=True)
@@ -358,11 +358,11 @@ class Match(models.Model):
 		if players.count() > 1:
 			return players[1]
 		return None
-	
+
 	@property
 	def bans(self):
 		return self.match_bans.all()
-	
+
 	@property
 	def high_seed_bans(self):
 		if self.high_seed:
@@ -376,7 +376,7 @@ class Match(models.Model):
 			return [ban for ban in self.bans if ban.player.player_id == self.low_seed.player_id]
 		else:
 			return []
-	
+
 	@property
 	def rounds(self):
 		return self.match_rounds.all()
@@ -418,7 +418,7 @@ class Match(models.Model):
 			elif i == 1:
 				outStr += f" vs {ply.player_ch_name}({ply.seed})" 
 		return outStr
-	
+
 	@property
 	def short_name(self):
 		outStr = ""
@@ -428,17 +428,17 @@ class Match(models.Model):
 			elif i == 1:
 				outStr += f" vs {ply.player_ch_name}({ply.seed})"
 		return outStr
-	
+
 	def __str__(self):
 		outStr = f"{self.tournament.short_name} - {self.bracket.name} - Group {self.group.name}"
 		seeds = [seed for seed in self.players.all()]
 		if len(seeds) > 1:#Not going to work 3+ players
 			outStr += f" - {seeds[0].player.ch_name} ({seeds[0].seed}) vs {seeds[1].player.ch_name} ({seeds[1].seed})"
 		return outStr
-	
+
 	def complete_match(self):
 		pass
-		
+
 	def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
 		for rnd in self.rounds:
 			if rnd.screenshot and (not rnd.steg or len(rnd.steg.players) == 0):

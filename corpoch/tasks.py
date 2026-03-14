@@ -11,11 +11,11 @@ app = Celery()
 
 class ConnectionRefreshingTask(Task):
 	abstract = True
- 
+
 	def before_start(self, task_id, args, kwargs):
 		self.refresh_connection()
 		super().before_start(task_id, args, kwargs)
- 
+
 	def refresh_connection(self):
 		if not connection.is_usable():
 			connection.close()
@@ -36,7 +36,7 @@ def upload_qualifiers_gsheet(base=ConnectionRefreshingTask):
 @app.task
 def upload_completed_match_gsheet(base=ConnectionRefreshingTask):
 	close_old_connections()
-	matches = Match.objects.all().filter(finished=True).filter(processed=False)
+	matches = Match.objects.all().filter(finished=True).filter(submitted=False)
 	sheet = GSheets()
 	sheet.login()
 	print(f"GSHEETS: Running gsheets upload for completed matches")
@@ -45,7 +45,7 @@ def upload_completed_match_gsheet(base=ConnectionRefreshingTask):
 			print(f"GSHEETS: Uploading completed match {match.id} to tourney config sheet")
 			sheet.set_submission(match)
 			sheet.submit_completed()
-			match.processed = True
+			match.submitted = True
 			match.save()
 	close_old_connections()
 
@@ -56,5 +56,5 @@ def send_qualifier_discord_dms(base=ConnectionRefreshingTask):
 		for ply in TournamentPlayer.objects.all().filter(tournament=qualifier.tournament):
 			submissions = QualifierSubmission.objects.all().filter(player=ply)
 			if len(submissions) < qualifier.required_submissions:
-				tasks.send_qualifier_discord_dms(ply, str(qualifier), qualifier.required_submissions, qualifier.end_time, qualifier.tournament.guild, len(submissions))	
+				tasks.send_qualifier_discord_dms(ply, str(qualifier), qualifier.required_submissions, qualifier.end_time, qualifier.tournament.guild, len(submissions))
 	close_old_connections()

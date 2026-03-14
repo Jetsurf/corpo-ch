@@ -114,16 +114,10 @@ class DiscordQualifierView(discord.ui.View):
 
 		if self.qualifier:
 			self.upload.disabled = False
-			try:
-				self.ply = await TournamentPlayer.objects.aget(user=self.ctx.user.id)
-				self.prev_subs = []
-				async for qual in QualifierSubmission.objects.select_related().all().filter(player=self.ply):
-					self.prev_subs.append(qual)
-				self.num_subs = len(self.prev_subs)
-			except TournamentPlayer.DoesNotExist:
-				self.ply = TournamentPlayer(user=self.ctx.user.id, tournament=self.tourney, ch_name="</Null>")
-				self.num_subs = 0
-		
+			self.ply = await TournamentPlayer.objects.aget_or_create(user=self.ctx.user.id, tournament=self.tourney)
+			async for qual in QualifierSubmission.objects.select_related().all().filter(player=self.ply, qualifier=self.qualifier):
+				self.prev_subs.append(qual)
+			self.num_subs = len(self.prev_subs)
 			embeds.append(self.buildRulesEmbed())
 		if self.num_subs > 0:
 			embeds.append(self.buildSubmissionsEmbed())
@@ -137,7 +131,7 @@ class DiscordQualifierView(discord.ui.View):
 					embeds.append(self.buildNoticeEmbed())
 				embeds.append(self.buildSubmitEmbed())
 				self.submit.disabled = False
-			
+
 		if init:
 			await self.ctx.respond(embeds=embeds, view=self)
 		else:
@@ -240,7 +234,7 @@ class DiscordQualifierView(discord.ui.View):
 			retStr += "No current submissions!"
 		else:
 			for i, sub in enumerate(self.prev_subs):
-				retStr += f"Submission {i + 1}: {sub.steg.players[0].score}"
+				retStr += f"Submission {i + 1}: {sub.steg.players[0].score}\n"
 		embed.add_field(name="Scores", value=retStr, inline=False)
 		return embed
 

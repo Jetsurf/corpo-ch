@@ -521,7 +521,8 @@ class CHOpt:
 		try:
 			subprocess.run(choptCall, check=True, shell=True, stdout=subprocess.DEVNULL)
 		except Exception as e:
-			print(f"CHOpt call failed with exception: {e}")
+			print(f"CHOPT: died on chart {chart.name}")
+			print(f"CHOpt: call failed with exception: {e}")
 
 		try:
 			self.img = Image.open(self._out_png)
@@ -775,6 +776,7 @@ class GSheets():
 				excess = ply.excess_hits
 				ghosts = ply.frets_ghosted
 				phrases = ply.sp_phrases_earned
+				ts = f"{self._submission.ended_on.strftime('%Y-%m-%d %H:%M:%S')}-UTC"
 				link = f'=HYPERLINK("https://{settings.BASE_URL}{rnd.screenshot.url}", "Screenshot Link")'
 				retLines.append([matchId, bracket, group, match, picked, song, chName, score, wl, missed, hit, excess, ghosts, phrases, ts, link])
 		return retLines

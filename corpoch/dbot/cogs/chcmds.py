@@ -96,7 +96,7 @@ class Path():
 		if isinstance(self.chart, Chart):
 			return f"{self.emoji.mention} {self.chart.tournament_name}\n\nArtist: {self.chart.artist}\nAlbum: {self.chart.album}\nCharter: {self.chart.charter}\nInstrument: {self.chart.instrument}"
 		else:
-			return f"{self.emoji.mention} {self.chart["name"]}\n\nArtist: {self.chart["artist"]}\nAlbum: {self.chart["album"]}\nCharter: {self.chart["charter"]}\nInstrument {self.chopt.opts.instrument}"		
+			return f"{self.emoji.mention} {self.chart["name"]}\n\nArtist: {self.chart["artist"]}\nAlbum: {self.chart["album"]}\nCharter: {self.chart["charter"]}\nInstrument {self.chopt.opts.instrument}"
 
 	def genHydraResultEmbed(self) -> discord.Embed:
 		embed = self.genEmbedBase()
@@ -147,7 +147,7 @@ class CHCmds(commands.Cog):
 		if len(msg.attachments) > 1:
 			await ctx.respond("Only getting first screenshot data from this message", embed=embed)
 		else:
-			await ctx.respond(embed=embed)	
+			await ctx.respond(embed=embed)
 
 def setup(bot):
 	bot.add_cog(CHCmds(bot))
