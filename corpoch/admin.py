@@ -260,18 +260,36 @@ class RoundsInline(SortableStackedInline):
 	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
 	extra = 0
 
+	def formfield_for_foreignkey(self, db_field, request, **kwargs):
+		if db_field.name == "winner" or db_field.name == "loser" or db_field.name == 'picked':
+			if 'object_id' in request.resolver_match.kwargs:
+				match = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs["queryset"] = match.players.all()
+			else:
+				kwargs["queryset"] = GroupSeed.objects.none()
+		if db_field.name == 'chart':
+			if 'object_id' in request.resolver_match.kwargs:
+				match = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs["queryset"] = match.bracket.setlist.all()
+			else:
+				kwargs["queryset"] = GroupSeed.objects.none()
+		return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
 class BansInline(SortableStackedInline):
 	model = MatchBan
 	extra = 0
 
 	def formfield_for_foreignkey(self, db_field, request, **kwargs):
 		if db_field.name == "player":
-			match = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
-			if match:
-				plys = []
-				for seed in match.players.all():
-					plys.append(seed.player)
-				kwargs["queryset"] = GroupSeed.objects.filter(player__in=plys)
+			if 'object_id' in request.resolver_match.kwargs:
+				match = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs["queryset"] = match.players.all()
+			else:
+				kwargs["queryset"] = GroupSeed.objects.none()
+		if db_field.name == 'chart':
+			if 'object_id' in request.resolver_match.kwargs:
+				match = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs["queryset"] = match.bracket.setlist.all()
 			else:
 				kwargs["queryset"] = GroupSeed.objects.none()
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
@@ -289,6 +307,24 @@ class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
 		for seed in obj.players.iterator():
 			retList.append(str(seed))
 		return " - ".join(retList)
+
+	def formfield_for_manytomany(self, db_field, request, **kwargs):
+		if db_field.name == "players":
+			if 'object_id' in request.resolver_match.kwargs:
+				match = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs["queryset"] = match.group.seeding.all()
+			else:
+				kwargs["queryset"] = GroupSeed.objects.none()
+		return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+	def formfield_for_foreignkey(self, db_field, request, **kwargs):
+		if db_field.name == "winner" or db_field.name == "loser":
+			if 'object_id' in request.resolver_match.kwargs:
+				match = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs["queryset"] = match.players.all()
+			else:
+				kwargs["queryset"] = GroupSeed.objects.none()
+		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 	@admin.action(description="Mark Match GSheet Unsent")
 	def set_unsubmitted(modeladmin, request, queryset):
