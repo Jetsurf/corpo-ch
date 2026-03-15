@@ -13,3 +13,5 @@ CELERY_RESULT_BACKEND = settings.CELERY_RESULT_BACKEND
 
 COGS_ENABLED = os.getenv("COGS_ENABLED").split(',')
 HOME_GUILD_ID = os.getenv("HOME_GUILD_ID")
+
+os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"

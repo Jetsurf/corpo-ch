@@ -21,7 +21,6 @@ class DiscordMatch():
 		self.tourney = None
 		self.bracket = None
 		self.group = None
-		self.setlist = None
 		self.seeding = []
 		self.seeding_discord = []
 		self.bans = []
@@ -82,7 +81,6 @@ class DiscordMatch():
 		self.bracket.ruleset = self.bracket.ruleset
 		self.bracket.tournament = self.bracket.tournament
 		self.bracket.tournament.config = self.bracket.tournament.config
-		self.setlist = self.matchDb.bracket.setlist
 		self.players = self.matchDb.players
 		self.seeding = list(self.matchDb.players.select_related('group', 'player').all())
 		self.bans = list(self.matchDb.bans.select_related('chart', 'player').all())
@@ -131,6 +129,12 @@ class DiscordMatch():
 		else:
 			await interaction.edit_original_response(embeds=embeds, content=None, view=view)
 
+	@property
+	def setlist(self) -> list:
+		if self.bracket:
+			return self.bracket.setlist
+		else:
+			return None
 
 	@property
 	def _score(self) -> list:
