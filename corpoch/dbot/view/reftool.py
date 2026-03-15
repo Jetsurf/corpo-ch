@@ -385,7 +385,7 @@ class DiscordMatchView(discord.ui.View):
 				playedChart = rnd.chart
 			except MatchRound.DoesNotExist:
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} was for a setlist chart not played in this match")
-				await interaction.followup.send(f"Screenshot {screen.filename} is for a chart that wasn't played this match.")
+				await interaction.followup.send(f"Screenshot {screen.filename} is for a chart that wasn't played this match.", ephemeral=True, delete_after=10)
 				continue
 			except Exception as e:
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot upload failed {screen.filename} to parse: {e}")
