@@ -13,21 +13,17 @@ def home(request: HttpRequest):
 			del request.session["access_token"]
 		except KeyError:
 			pass
-
 	return render(request, "home.html", context={"auth_url" : auth_url_discord})
 
 def auth(request: HttpRequest):
 	code = request.GET.get("code")
-
 	if code:# if code is valid
 		OAuth = Auth(code=code)
 		request.session["access_token"] = OAuth.token
-
 	else:
 		access_token = request.session.get("access_token")
 	if not access_token:#if token is not exists and not valid
 		return redirect(auth_url_discord)# redirect to discord
-
 	return redirect("user")
 
 def user(request: HttpRequest):
@@ -38,12 +34,10 @@ def user(request: HttpRequest):
 			context = { "user" : User(OAuth.user(access_token)), }
 		except AuthError:
 			return redirect(auth_url_discord)
-
 	else:
 		url  = request.build_absolute_uri().split("/")
 		url.pop()
 		return redirect("/".join([i for i in url]))
-
 	return render(request, "user.html", context=context)
 
 def livematches(request: HttpRequest):

@@ -93,3 +93,4 @@ async def refresh_match_message(bot, match_id):
 	from corpoch.dbot.cogs.tourneycmds import DiscordMatch
 	view = DiscordMatch(bot, uuid=match.id)
 	await view.init()
+	await view.finishMatch(view.msg)

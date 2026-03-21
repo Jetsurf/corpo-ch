@@ -127,8 +127,9 @@ class PlayerRoundSelect(discord.ui.Select):
 	async def init(self):
 		opts = []
 		for i, seed in enumerate(self.match.seeding):
-			self.retOpts[seed.player.ch_name] = seed
-			opts.append(discord.SelectOption(label=f"{seed.player.ch_name} ({seed.seed})", value=seed.player.ch_name, description=f"@{self.match.seeding_discord[i].display_name}"))
+			auuid = str(uuid.uuid1())
+			self.retOpts[auuid] = seed
+			opts.append(discord.SelectOption(label=f"{seed.player.ch_name} ({seed.seed})", value=auuid, description=f"@{self.match.seeding_discord[i].display_name}"))
 		super().__init__(placeholder="Round Winner", max_values=1, options=opts, custom_id="roundwin_sel", disabled=self.dis)
 
 	async def callback(self, interaction: discord.Integration):

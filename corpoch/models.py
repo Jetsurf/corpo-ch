@@ -131,9 +131,9 @@ class Tournament(models.Model):
 				return True
 		return False
 
-	def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
+	def save(self):
 		is_new = self.pk is None
-		super().save(force_insert, force_update, using, update_fields)
+		super().save()
 		TournamentConfig.objects.get_or_create(tournament=self) if is_new else None
 
 class TournamentConfig(models.Model):
@@ -284,6 +284,7 @@ class Qualifier(models.Model):
 	rules = models.TextField(verbose_name="Rules", max_length=1024, default="Placeholder rules")
 	channel = models.BigIntegerField(verbose_name="Submission Discord Channel ID", db_index=True, blank=True, null=True)
 	gsheet = models.URLField(verbose_name="Submissions Google Sheet", null=True, blank=True)
+	output = models.BooleanField(verbose_name="Discord msg on submissiom", default=True)
 
 	class Meta:
 		verbose_name = "Qualifier"
