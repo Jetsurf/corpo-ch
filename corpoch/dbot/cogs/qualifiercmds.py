@@ -116,8 +116,8 @@ class DiscordQualifierView(discord.ui.View):
 		if self.qualifier:
 			self.upload.disabled = False
 			try:
-				self.ply = await TournamentPlayer.objects.aget(user=self.ctx.user.id)
-				async for qual in QualifierSubmission.objects.select_related().all().filter(player=self.ply):
+				self.ply = await TournamentPlayer.objects.aget(user=self.ctx.user.id, tournament=self.qualifier.tournament)
+				async for qual in QualifierSubmission.objects.select_related().all().filter(player=self.ply, qualifier=self.qualifier):
 					self.prev_subs.append(qual)
 				self.num_subs = len(self.prev_subs)
 			except TournamentPlayer.DoesNotExist:
@@ -161,7 +161,7 @@ class DiscordQualifierView(discord.ui.View):
 		plySteg = []
 		for i, ply in enumerate(steg.output.players):
 			try:
-				otherPly = await TournamentPlayer.objects.aget(ch_name=ply.profile_name)
+				otherPly = await TournamentPlayer.objects.aget(ch_name=ply.profile_name, tournament=self.qualifier.tournament)
 				if self.ply and self.ply != otherPly:
 					print(f"QUALIFIER: Removing player {ply.profile_name} already in tournament {self.tourney.short_name}")
 					continue
@@ -205,9 +205,7 @@ class DiscordQualifierView(discord.ui.View):
 		await sync_to_async(quali.screenshot.save)(f'{uuid.uuid1()}.png', open(self.steg.img_path, 'rb'))
 		await quali.asave()
 		await self.ctx.interaction.delete_original_response()
-		tmp = await sync_to_async(lambda: self.qualifier.tournament)()
-		if self.qualifier.output:
-			await interaction.followup.send(f"{self.ctx.user.mention} submitted a qualifier for {self.qualifier}!", ephemeral=False)
+		await interaction.followup.send(f"{self.ctx.user.mention} submitted a qualifier for {self.qualifier}!", ephemeral=not self.qualifier.output)
 
 	def buildQualiSelEmbed(self) -> discord.Embed:
 		embed = discord.Embed(colour=0xFF8000)
