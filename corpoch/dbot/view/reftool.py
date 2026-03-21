@@ -127,8 +127,9 @@ class PlayerRoundSelect(discord.ui.Select):
 	async def init(self):
 		opts = []
 		for i, seed in enumerate(self.match.seeding):
-			self.retOpts[seed.player.ch_name] = seed
-			opts.append(discord.SelectOption(label=f"{seed.player.ch_name} ({seed.seed})", value=seed.player.ch_name, description=f"@{self.match.seeding_discord[i].display_name}"))
+			auuid = str(uuid.uuid1())
+			self.retOpts[auuid] = seed
+			opts.append(discord.SelectOption(label=f"{seed.player.ch_name} ({seed.seed})", value=auuid, description=f"@{self.match.seeding_discord[i].display_name}"))
 		super().__init__(placeholder="Round Winner", max_values=1, options=opts, custom_id="roundwin_sel", disabled=self.dis)
 
 	async def callback(self, interaction: discord.Integration):
@@ -148,15 +149,13 @@ class BracketSelect(discord.ui.Select):
 
 	async def init(self):
 		brackets = []
-		async for bracket in self.match.tourney.brackets.select_related().all().filter(is_active=True):
+		async for bracket in self.match.tourney.brackets.select_related('ruleset').all().filter(is_active=True):
 			self.retOpts[bracket.name] = bracket
 			brackets.append(discord.SelectOption(label=bracket.name))
 		super().__init__(max_values=1, options=brackets, custom_id="bracket_sel")
 
 	async def callback(self, interaction: discord.Integration):
 		self.match.bracket = self.retOpts[self.values[0]]
-		self.match.bracket.ruleset = await sync_to_async(lambda: self.match.bracket.ruleset)()
-		self.match.setlist = self.match.bracket.setlist
 		await self.match.showTool(interaction)
 
 class GroupSelect(discord.ui.Select):
@@ -175,7 +174,6 @@ class GroupSelect(discord.ui.Select):
 		self.match.group = self.retOpts[self.values[0]]
 		self.match.matchDb = Match(id=uuid.uuid1(), group=self.match.group)
 		await self.match.matchDb.asave()
-		self.match.setlist = await sync_to_async(lambda: self.match.bracket.setlist)()
 		print(f"REF: {self.match.referee.global_name} starting match {self.match.matchDb.id}")
 		await self.match.showTool(interaction)
 
@@ -380,7 +378,6 @@ class DiscordMatchView(discord.ui.View):
 		modal = MatchScreenModal(self.match)
 		await interaction.response.send_modal(modal)
 		await modal.wait()
-		print("Returning from modal")
 		for screen in modal.screens:
 			tool = CHStegTool()
 			try:
@@ -389,6 +386,7 @@ class DiscordMatchView(discord.ui.View):
 				playedChart = rnd.chart
 			except MatchRound.DoesNotExist:
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} was for a setlist chart not played in this match")
+				await interaction.followup.send(f"Screenshot {screen.filename} is for a chart that wasn't played this match.", ephemeral=True, delete_after=10)
 				continue
 			except Exception as e:
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot upload failed {screen.filename} to parse: {e}")

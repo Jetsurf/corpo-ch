@@ -21,7 +21,6 @@ class DiscordMatch():
 		self.tourney = None
 		self.bracket = None
 		self.group = None
-		self.setlist = None
 		self.seeding = []
 		self.seeding_discord = []
 		self.bans = []
@@ -82,7 +81,6 @@ class DiscordMatch():
 		self.bracket.ruleset = self.bracket.ruleset
 		self.bracket.tournament = self.bracket.tournament
 		self.bracket.tournament.config = self.bracket.tournament.config
-		self.setlist = self.matchDb.bracket.setlist
 		self.players = self.matchDb.players
 		self.seeding = list(self.matchDb.players.select_related('group', 'player').all())
 		self.bans = list(self.matchDb.bans.select_related('chart', 'player').all())
@@ -131,6 +129,12 @@ class DiscordMatch():
 		else:
 			await interaction.edit_original_response(embeds=embeds, content=None, view=view)
 
+	@property
+	def setlist(self) -> list:
+		if self.bracket:
+			return self.bracket.setlist
+		else:
+			return None
 
 	@property
 	def _score(self) -> list:
@@ -205,7 +209,7 @@ class DiscordMatch():
 
 	async def genMatchEmbed(self):
 		embed = discord.Embed(colour=0x3FFF33)
-		embed.set_author(name=f"Ref: {self.referee.display_name}", icon_url=self.referee.avatar.url)
+		embed.set_author(name=f"Ref: {self.referee.display_name}", icon_url=self.referee.display_avatar.url)
 
 		if not self.bracket:
 			embed.title = f"{self.tourney.short_name}"

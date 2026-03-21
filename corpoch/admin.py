@@ -329,7 +329,7 @@ class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
 		if db_field.name == "players":
 			if 'object_id' in request.resolver_match.kwargs:
 				match = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
-				kwargs['queryset'] = match.players.all()
+				kwargs['queryset'] = match.group.seeding.all()
 			else:
 				kwargs["queryset"] = GroupSeed.objects.none()
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)

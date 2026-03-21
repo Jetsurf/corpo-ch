@@ -67,6 +67,7 @@ class DiscordQualifierView(discord.ui.View):
 		self.ctx = ctx
 		self.qualifier = None
 		self.qualifiers = []
+		self.prev_subs = []
 		self.tourney = None
 		self.steg = None
 		self.screen = None
@@ -114,9 +115,14 @@ class DiscordQualifierView(discord.ui.View):
 
 		if self.qualifier:
 			self.upload.disabled = False
-			self.ply = await TournamentPlayer.objects.aget_or_create(user=self.ctx.user.id, tournament=self.tourney)
-			async for qual in QualifierSubmission.objects.select_related().all().filter(player=self.ply, qualifier=self.qualifier):
-				self.prev_subs.append(qual)
+			try:
+				self.ply = await TournamentPlayer.objects.aget(user=self.ctx.user.id)
+				async for qual in QualifierSubmission.objects.select_related().all().filter(player=self.ply):
+					self.prev_subs.append(qual)
+				self.num_subs = len(self.prev_subs)
+			except TournamentPlayer.DoesNotExist:
+				self.ply = TournamentPlayer(user=self.ctx.user.id, tournament=self.tourney, ch_name="</Null>")
+				self.num_subs = 0
 			self.num_subs = len(self.prev_subs)
 			embeds.append(self.buildRulesEmbed())
 		if self.num_subs > 0:
@@ -151,6 +157,7 @@ class DiscordQualifierView(discord.ui.View):
 		if not steg.output:
 			print(f"QUALIFIER: {self.ctx.user.display_name} upload not valid CH screenshot")
 			await interaction.followup.send("Screenshot is not a valid in-game screenshot. Please use a screenshot taken with the select button on the results screen or from using auto-screenshots!", ephemeral=True, delete_after=10)
+			return
 		plySteg = []
 		for i, ply in enumerate(steg.output.players):
 			try:
@@ -199,7 +206,8 @@ class DiscordQualifierView(discord.ui.View):
 		await quali.asave()
 		await self.ctx.interaction.delete_original_response()
 		tmp = await sync_to_async(lambda: self.qualifier.tournament)()
-		await interaction.followup.send(f"{self.ctx.user.mention} submitted a qualifier for {self.qualifier}!", ephemeral=False)
+		if self.qualifier.output:
+			await interaction.followup.send(f"{self.ctx.user.mention} submitted a qualifier for {self.qualifier}!", ephemeral=False)
 
 	def buildQualiSelEmbed(self) -> discord.Embed:
 		embed = discord.Embed(colour=0xFF8000)
