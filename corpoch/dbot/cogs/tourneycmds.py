@@ -209,7 +209,7 @@ class DiscordMatch():
 
 	async def genMatchEmbed(self):
 		embed = discord.Embed(colour=0x3FFF33)
-		embed.set_author(name=f"Ref: {self.referee.display_name}", icon_url=self.referee.avatar.url)
+		embed.set_author(name=f"Ref: {self.referee.display_name}", icon_url=self.referee.display_avatar.url)
 
 		if not self.bracket:
 			embed.title = f"{self.tourney.short_name}"
