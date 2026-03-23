@@ -262,7 +262,7 @@ class QualifierSubmissionAdmin(admin.ModelAdmin):
 		return obj.steg.players[0].notes_hit if len(obj.steg.players) > 0 else '-'
 
 	def _excess(self, obj):
-		return obj.steg.players[0].excess_hits if len(obj.steg.players) > 0 else '-'
+		return obj.steg.players[0].excess_hits if len(obj.steg.players) > 0 and obj.steg.players[0].excess_hits > -1 else '-'
 
 	def _ghosts(self, obj):
 		return obj.steg.players[0].frets_ghosted if len(obj.steg.players) > 0 else '-'
