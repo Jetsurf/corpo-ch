@@ -149,6 +149,23 @@ class BracketAdmin(admin.ModelAdmin):
 class TournamentPlayerAdmin(admin.ModelAdmin):
 	list_display = ('user', 'tournament', 'ch_name', 'is_active')
 	list_filter = ['tournament']
+	actions = ["set_tournament_roles"]
+
+	@admin.action(description="Set tournament roles")
+	def set_tournament_roles(modeladmin, request, queryset):
+		for ply in queryset:
+			tourney = ply.tournament
+			for seed in ply.group_seeding.all():
+				grole = seed.group.role
+				brole = seed.group.bracket.role
+				trole = tourney.role
+				print(f"Setting group roles for {ply.ch_name} {grole} - {brole} = {trole}")
+				if grole is not None:
+					corpoch.dbot.tasks.set_group_role(ply.user, ply.tournament.guild, grole)
+				if brole is not None:
+					corpoch.dbot.tasks.set_group_role(ply.user, ply.tournament.guild, brole)
+				if trole is not None:
+					corpoch.dbot.tasks.set_group_role(ply.user, ply.tournament.guild, trole)
 
 @admin.register(Qualifier)
 class TournamentQualifierAdmin(admin.ModelAdmin):
