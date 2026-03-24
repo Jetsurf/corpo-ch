@@ -9,7 +9,7 @@ from encrypted_fields.fields import EncryptedJSONField
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.exceptions import ValidationError
 from django.utils import timezone
-from django.contrib.auth.models import AbstractUser, Group
+from django.contrib.auth.models import AbstractUser
 
 from corpoch import settings
 from corpoch.validators import validate_chart_file
@@ -33,13 +33,15 @@ class GSheetAPI(models.Model):
 class DiscordUser(AbstractUser):
 	objects = DiscordOAuth2Manager()
 	id = models.BigIntegerField(primary_key=True)
-	discord_tag = models.CharField(max_length=255)
+	discord_tag = models.CharField(max_length=255, unique=True)
 	public_flags = models.IntegerField()
 	flags = models.IntegerField()
 	avatar = models.CharField(max_length=255)
 	locale = models.CharField(max_length=255)
 	mfa_enabled = models.BooleanField()
 	last_login = models.DateTimeField(null=True, blank=True)
+
+	USERNAME_FIELD = 'discord_tag'
 
 class CHIcon(models.Model):
 	name = models.CharField(verbose_name="Name", blank=False, max_length=32, default="newicon", primary_key=True)

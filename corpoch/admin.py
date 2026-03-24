@@ -7,7 +7,7 @@ from django.contrib import admin
 from django_jsonform.widgets import JSONFormWidget
 from django.contrib.contenttypes.models import ContentType
 from corpoch.models import Chart, Tournament, TournamentConfig, BracketRules, Bracket, Qualifier, TournamentPlayer, GroupSeed, MatchRound, CHIcon
-from corpoch.models import Match, Group, QualifierSubmission, CH_MODIFIERS, MatchBan, GSheetAPI
+from corpoch.models import Match, Group, QualifierSubmission, CH_MODIFIERS, MatchBan, GSheetAPI, DiscordUser
 from corpoch.providers import EncoreClient, GSheets
 from django.utils.html import mark_safe
 import corpoch.dbot.tasks
@@ -15,6 +15,17 @@ import corpoch.dbot.tasks
 @admin.register(GSheetAPI)
 class GSheetAPIAdmin(admin.ModelAdmin):
 	pass
+
+@admin.register(DiscordUser)
+class DiscordUserAdmin(admin.ModelAdmin):
+	model = DiscordUser
+	list_display = ('_avatar', 'id', 'discord_tag')
+	readonly_fields = ['discord_tag', 'mfa_enabled', 'id', 'avatar', 'locale', 'flags', 'public_flags']
+	exclude = ['password', 'first_name', 'last_name', 'email', 'username']
+
+	@mark_safe
+	def _avatar(self, obj):
+		return f'<img src="{obj.avatar}" width="24" height="24"'
 
 @admin.register(Chart)
 class ChartAdmin(admin.ModelAdmin):
