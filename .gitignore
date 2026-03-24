@@ -3,6 +3,7 @@ gsheets-key.json
 corpoch/utils/**/*.png
 *.err
 *.log
+*.log.*
 
 #This needs to be disabled eventually - things are NOT settled enough to be managing this now
 **/migrations/**

@@ -36,7 +36,7 @@ def auth(request: HttpRequest):
 
 def user(request: HttpRequest):
 	access_token = request.session.get("access_token")
-	if access_token:#if token is valid
+	if access_token:
 		OAuth = Auth()
 		try:
 			context = { "user" : User(OAuth.user(access_token)), }
