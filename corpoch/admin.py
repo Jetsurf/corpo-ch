@@ -19,9 +19,12 @@ class GSheetAPIAdmin(admin.ModelAdmin):
 @admin.register(DiscordUser)
 class DiscordUserAdmin(admin.ModelAdmin):
 	model = DiscordUser
-	list_display = ('_avatar', 'id', 'discord_tag')
-	readonly_fields = ['discord_tag', 'mfa_enabled', 'id', 'avatar', 'locale', 'flags', 'public_flags']
+	list_display = ('_avatar', 'id', 'global_name')
+	readonly_fields = ['global_name', 'mfa_enabled', '_id', 'avatar', 'locale', 'flags', 'public_flags']
 	exclude = ['password', 'first_name', 'last_name', 'email', 'username']
+
+	def _id(self, obj):
+		return str(obj.id)
 
 	@mark_safe
 	def _avatar(self, obj):
