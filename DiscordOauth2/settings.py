@@ -23,6 +23,8 @@ ALLOWED_HOSTS = [ BASE_URL ]
 CSRF_TRUSTED_ORIGINS=[f"https://{BASE_URL}"]
 SALT_KEY = os.getenv("DB_CRYPT_KEY")
 SECRET_KEY = os.getenv("BOT_SECRET")
+AUTH_URL_DISCORD = os.getenv("AUTH_URL_DISCORD")
+
 DEBUG = os.getenv("DEBUG")
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND")
@@ -86,6 +88,13 @@ DATABASES = {
         "CONN_MAX_AGE" : None
     }
 }
+
+# settings.py
+AUTH_USER_MODEL = 'corpoch.DiscordUser'
+
+AUTHENTICATION_BACKENDS = (
+        'corpoch.auth.DiscordBackend',
+)
 
 AUTH_PASSWORD_VALIDATORS = [
     {

@@ -9,10 +9,11 @@ from encrypted_fields.fields import EncryptedJSONField
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from django.contrib.auth.models import AbstractUser, Group
 
 from corpoch import settings
 from corpoch.validators import validate_chart_file
-
+from corpoch.managers import DiscordOAuth2Manager
 from corpoch.types import CH_INSTRUMENTS, CH_DIFFICULTIES, CH_MODIFIERS, CH_VERSIONS, CHART_CATEGORIES, TB_RULESETS, PICK_RULESETS, BAN_RULESETS, StegScreenshot
 
 def steg_upload_dir(self, filename):
@@ -28,6 +29,17 @@ class GSheetAPI(models.Model):
 
 	class Meta:
 		verbose_name = "Google Sheets API"
+
+class DiscordUser(AbstractUser):
+	objects = DiscordOAuth2Manager()
+	id = models.BigIntegerField(primary_key=True)
+	discord_tag = models.CharField(max_length=255)
+	public_flags = models.IntegerField()
+	flags = models.IntegerField()
+	avatar = models.CharField(max_length=255)
+	locale = models.CharField(max_length=255)
+	mfa_enabled = models.BooleanField()
+	last_login = models.DateTimeField(null=True, blank=True)
 
 class CHIcon(models.Model):
 	name = models.CharField(verbose_name="Name", blank=False, max_length=32, default="newicon", primary_key=True)

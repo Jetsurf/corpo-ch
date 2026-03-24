@@ -4,10 +4,10 @@ import os
 
 load_dotenv()
 
-client_id = os.getenv("client_id")
-client_secret =  os.getenv("client_secret")
-auth_url_discord = os.getenv("auth_url_discord")
-redirect_uri = os.getenv("redirect_uri")
+client_id = os.getenv("BOT_ID")
+client_secret =  os.getenv("BOT_SECRET")
+auth_url_discord = os.getenv("AUTH_URL_DISCORD")
+redirect_uri = os.getenv("REDIRECT_URI")
 default_icon_avatar = "https://cdn.discordapp.com/embed/avatars/0.png"
 
 class AuthError(Exception):

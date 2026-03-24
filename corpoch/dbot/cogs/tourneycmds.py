@@ -10,9 +10,8 @@ from corpoch.dbot.models import CHEmoji
 from corpoch.dbot.view.reftool import DiscordMatchView
 from corpoch.types import TB_RULESETS, PICK_RULESETS, BAN_RULESETS
 
-#This class is being written with the assumption of official tournament matches - exhibition can be made to extend this with custom logging/rules
 class DiscordMatch():
-	def __init__(self, bot, message=None, uuid=None):
+	def __init__(self, bot, message=None, uuid=None, exhibition=False):
 		self.bot = bot
 		self.msg = message
 		self.guild = message.guild if message else None
@@ -26,6 +25,7 @@ class DiscordMatch():
 		self.bans = []
 		self.rounds = []
 		self.matchDb = uuid
+		self.exhibition = exhibition
 		self.confirmCancel = False
 
 	async def init(self):
@@ -223,6 +223,7 @@ class DiscordMatch():
 		else:
 			embed.title = f"{self.tourney.short_name} - {self.bracket.name} - Group {self.group.name}\n{self.seeding[0].player.ch_name}({self.seeding[0].seed}) vs {self.seeding[1].player.ch_name} ({self.seeding[1].seed})"
 			embed.add_field(name="Match VS", value=f"{self.seeding_discord[0].mention} vs {self.seeding_discord[1].mention}")
+			embed.add_field(name="Score", value=" - ".join(await self.getScore()), inline=False)
 			outStr = ""
 			for i, seed in enumerate(self.seeding):
 				outStr += f"**{seed.player.ch_name} Bans**\n"
@@ -266,6 +267,10 @@ class TourneyCmds(commands.Cog):
 		self.bot = bot
 
 	tourney = discord.SlashCommandGroup('tourney','Clone Hero Tournament Commands')
+
+	@tourney.command(name="exhibition", description="Reftool for Exhibition Matches", integration_types={discord.IntegrationType.guild_install})
+	async def discordExhibMatchCmd(self, ctx):
+		pass
 
 	@tourney.command(name='match',description='Match reporting done within discord', integration_types={discord.IntegrationType.guild_install})
 	async def discordMatchCmd(self, ctx):
