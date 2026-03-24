@@ -1,4 +1,4 @@
-import pydantic, typing
+import pydantic, typing, pydantic.alias_generators
 from datetime import datetime
 
 CH_MODIFIERS = (
@@ -112,3 +112,136 @@ class StegScreenshot(pydantic.BaseModel):
 	playback_speed : int = 100
 	players : list[StegScreenshotPlayer] = []
 	score_timestamp: datetime = datetime.now()
+
+
+class BaseEncoreModel(pydantic.BaseModel):
+	model_config = pydantic.ConfigDict(
+		alias_generator=pydantic.alias_generators.to_camel,
+		populate_by_name=True,
+		from_attributes=True
+	)
+
+class NoteCount(BaseEncoreModel):
+	instrument: str
+	difficulty: str
+	count: int
+
+class MaxNps(BaseEncoreModel):
+	instrument: str
+	difficulty: str
+	nps: float
+	time: typing.Optional[float] = None
+
+class TrackHash(BaseEncoreModel):
+	instrument: str
+	difficulty: str
+	hash: str
+
+class ChartIssues(BaseEncoreModel):
+	instrument: typing.Optional[str] = None
+	difficulty: typing.Optional[str] = None
+	note_issue: str
+	description: str
+
+class FolderIssues(BaseEncoreModel):
+	folder_issue: str
+	description: str
+
+class MetadataIssues(BaseEncoreModel):
+	metadata_issue: str
+	description: str
+
+class NotesData(BaseEncoreModel):
+	instruments: typing.List[str]
+	drum_type: typing.Optional[int] = None
+	has_solo_sections: bool
+	has_lyrics: bool
+	has_vocals: bool
+	has_forced_notes: bool
+	has_tap_notes: bool
+	has_open_notes: bool
+	has_2x_kick: bool = pydantic.Field(alias="has2xKick")
+	has_flex_lanes: bool
+	chart_issues: typing.Optional[typing.List[ChartIssues]] = None
+	note_counts: typing.List[NoteCount]
+	max_nps: typing.List[MaxNps]
+	track_hashes: typing.List[TrackHash]
+	tempo_map_hash: str
+	tempo_marker_count: int
+	effective_length: float
+
+class SongItem(BaseEncoreModel):
+	ordering: int
+	name: str
+	artist: str
+	album: str
+	genre: str
+	year: str
+	chart_name: typing.Optional[str] = None
+	chart_album: typing.Optional[str] = None
+	chart_genre: typing.Optional[str] = None
+	chart_year: typing.Optional[int] = None
+	chart_id: int
+	song_id: typing.Optional[int] = None
+	group_id: int
+	chart_drive_chart_id: int
+	album_art_md5: typing.Optional[str] = None
+	md5: str
+	chart_hash: str
+	version_group_id: int
+	charter: str
+	song_length: typing.Optional[int] = None
+	
+	diff_band: int
+	diff_guitar: int
+	diff_guitar_coop: int
+	diff_rhythm: int
+	diff_bass: int
+	diff_drums: int
+	diff_drums_real: int
+	diff_keys: int
+	diff_guitarghl: int
+	diff_guitar_coop_ghl: int
+	diff_rhythm_ghl: int
+	diff_bassghl: int
+	diff_vocals: int
+	
+	preview_start_time: int
+	icon: str
+	loading_phrase: str
+	album_track: int
+	playlist_track: int
+	modchart: bool
+	delay: int
+	chart_offset: float
+	hopo_frequency: int
+	eighthnote_hopo: bool
+	multiplier_note: int
+	sustain_cutoff_threshold: int
+	chord_snap_threshold: int
+	video_start_time: typing.Optional[int] = None
+	five_lane_drums: bool
+	pro_drums: bool
+	end_events: bool
+	notes_data: NotesData
+	folder_issues: typing.Optional[typing.List[FolderIssues]] = None
+	metadata_issues: typing.Optional[typing.List[MetadataIssues]] = None
+	has_video_background: bool
+	modified_time: datetime
+	application_drive_id: str
+	application_username: typing.Optional[str] = None
+	drums_reviewed: bool
+	pack_name: typing.Optional[str] = None
+	parent_folder_id: str
+	drive_path: str
+	drive_file_id: typing.Optional[str] = None
+	drive_file_name: typing.Optional[str] = None
+	drive_chart_is_pack: bool
+	internal_path: str
+
+class SearchResponse(BaseEncoreModel):
+	found: int
+	out_of: int
+	page: int
+	search_time_ms: int
+	data: typing.List[SongItem]
