@@ -18,10 +18,6 @@ def home(request: HttpRequest):
 			pass
 	return render(request, "home.html", context={"auth_url" : auth_url_discord})
 
-@login_required(login_url="/auth/login")
-def get_authenticated_user(request):
-    return JsonResponse({"user": "authenticated"})
-
 def auth(request: HttpRequest):
 	code = request.GET.get("code")
 	if code:# if code is valid
@@ -48,10 +44,8 @@ def user(request: HttpRequest):
 		return redirect("/".join([i for i in url]))
 
 	if context:
-		print(f"HAVE CONTEXT: {context}")
 		discord_user = authenticate(request, user=context['user'])
 		discord_user = list(discord_user).pop()
-		print(f"DISCORD USER {discord_user}")
 		login(request, discord_user, backend="corpoch.auth.DiscordBackend")
 
 	return render(request, "user.html", context=context)

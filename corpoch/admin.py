@@ -20,7 +20,7 @@ class GSheetAPIAdmin(admin.ModelAdmin):
 class DiscordUserAdmin(admin.ModelAdmin):
 	model = DiscordUser
 	list_display = ('_avatar', 'id', 'global_name')
-	readonly_fields = ['global_name', 'mfa_enabled', '_id', 'avatar', 'locale', 'flags', 'public_flags']
+	readonly_fields = ['global_name', 'mfa_enabled', '_id', 'avatar', 'locale', 'flags', 'public_flags', 'last_login', 'date_joined']
 	exclude = ['password', 'first_name', 'last_name', 'email', 'username']
 
 	def _id(self, obj):
