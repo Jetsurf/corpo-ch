@@ -173,8 +173,8 @@ class TournamentConfig(models.Model):
 class Bracket(models.Model):
 	id = models.AutoField(primary_key=True)
 	name = models.CharField(verbose_name="Bracket Name", max_length=128, default="New Bracket")
-	score_log = models.ForeignKey("dbot.Channels", verbose_name="Score Log Channel", on_delete=models.SET_NULL, null=True, blank=True)
 	tournament = models.ForeignKey(Tournament, related_name="brackets", on_delete=models.CASCADE, verbose_name="Tournament")
+	score_log = models.ForeignKey("dbot.Channels", verbose_name="Score Log Channel", on_delete=models.SET_NULL, null=True, blank=True)
 	is_active = models.BooleanField(verbose_name="Bracket Active", default=False)
 	revealed = models.BooleanField("Setlist Revealed", default=False)
 	role = models.ForeignKey("dbot.Roles", verbose_name="Bracket Role", null=True, on_delete=models.SET_NULL, blank=True, db_index=True)

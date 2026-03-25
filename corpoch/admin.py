@@ -10,6 +10,7 @@ from django.db.models import Count
 
 from corpoch.models import Chart, Tournament, TournamentConfig, BracketRules, Bracket, Qualifier, TournamentPlayer, GroupSeed, MatchRound, CHIcon
 from corpoch.models import Match, Group, QualifierSubmission, CH_MODIFIERS, MatchBan, GSheetAPI, DiscordUser
+from corpoch.dbot.models import Guilds, Channels, Roles
 from corpoch.providers import EncoreClient, GSheets
 from django.utils.html import mark_safe
 import corpoch.dbot.tasks
@@ -108,11 +109,35 @@ class TournamentConfigInline(admin.TabularInline):
 	model = TournamentConfig
 	extra = 0
 
+	def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
+		if db_field.name == "ref_role":
+			if 'object_id' in request.resolver_match.kwargs:
+				conf = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs['queryset'] = Roles.objects.all().filter(guild=conf.tournament.guild)
+			else:
+				kwargs["queryset"] = Roles.objects.none()
+		if db_field.name == "proof_channel":
+			if 'object_id' in request.resolver_match.kwargs:
+				conf = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs['queryset'] = Channels.objects.all().filter(guild=conf.tournament.guild)
+			else:
+				kwargs["queryset"] = Channels.objects.none()
+		return super(TournamentConfigInline, self).formfield_for_foreignkey(db_field, request, **kwargs)
+
 @admin.register(Tournament)
 class TournamentAdmin(admin.ModelAdmin):
 	list_display = ('name', 'guild', 'active')
 	inlines = [TournamentConfigInline]
 	actions = ['set_tournament_role', 'set_players_active']
+
+	def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
+		if db_field.name == "role":
+			if 'object_id' in request.resolver_match.kwargs:
+				tournament = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs['queryset'] = Roles.objects.all().filter(guild=tournament.guild)
+			else:
+				kwargs["queryset"] = Roles.objects.none()
+		return super(TournamentAdmin, self).formfield_for_foreignkey(db_field, request, **kwargs)
 
 	@admin.action(description="Set tournament role for players")
 	def set_tournament_role(modeladmin, request, queryset):
@@ -150,6 +175,21 @@ class BracketAdmin(admin.ModelAdmin):
 	def _name(self, obj):
 		return f"{obj}"
 
+	def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
+		if db_field.name == "role":
+			if 'object_id' in request.resolver_match.kwargs:
+				bracket = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs['queryset'] = Roles.objects.all().filter(guild=bracket.tournament.guild)
+			else:
+				kwargs["queryset"] = Roles.objects.none()
+		if db_field.name == "score_log":
+			if 'object_id' in request.resolver_match.kwargs:
+				bracket = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs['queryset'] = Channels.objects.all().filter(guild=bracket.tournament.guild)
+			else:
+				kwargs["queryset"] = Channels.objects.none()
+		return super(BracketAdmin, self).formfield_for_foreignkey(db_field, request, **kwargs)
+
 	@admin.action(description="Set bracket role for players")
 	def set_bracket_role(modeladmin, request, queryset):
 		for bracket in queryset:
@@ -173,7 +213,7 @@ class TournamentPlayerAdmin(admin.ModelAdmin):
 			tourney = ply.tournament
 			for seed in ply.group_seeding.all():
 				grole = seed.group.role.id if seed.group.role else None
-				brole = seed.group.bracket.role if seed.group.bracket.role else None
+				brole = seed.group.bracket.role.id if seed.group.bracket.role else None
 				trole = tourney.role.id if tourney.role.id else None
 				print(f"Setting group roles for {ply.ch_name} {grole} - {brole} - {trole}")
 				if grole is not None:
@@ -251,6 +291,12 @@ class GroupAdmin(SortableAdminBase, admin.ModelAdmin):
 	def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
 		if db_field.name == "group_players":
 			kwargs["queryset"] = Tournament.players.objects.all()
+		if db_field.name == "role":
+			if 'object_id' in request.resolver_match.kwargs:
+				group = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs['queryset'] = Roles.objects.all().filter(guild=group.tournament.guild)
+			else:
+				kwargs["queryset"] = Roles.objects.none()
 		return super(GroupAdmin, self).formfield_for_foreignkey(db_field, request, **kwargs)
 
 	@admin.action(description="Set group role for players")
@@ -382,6 +428,12 @@ class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
 				kwargs['queryset'] = TournamentPlayer.objects.all().filter(id__in=match.players.all().values("player"))
 			else:
 				kwargs["queryset"] = TournamentPlayer.objects.none()
+		if db_field.name == "channel":
+			if 'object_id' in request.resolver_match.kwargs:
+				match = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs['queryset'] = Channels.objects.all().filter(guild=match.tournament.guild)
+			else:
+				kwargs["queryset"] = Channels.objects.none()
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 	@admin.action(description="Mark Match GSheet Unsent")
