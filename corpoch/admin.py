@@ -398,6 +398,12 @@ class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
 	list_per_page = 16
 	actions = ['set_unsubmitted',"reread_steg", "resubmit_gsheet", "resubmit_discord"]
 
+	def get_queryset(self, request):
+		 qs = super().get_queryset(request)
+		 user = request.user
+		 print(f"MATCHADMIN: VARS{vars(user)}")
+		 return qs
+
 	def _match_players(self, obj):
 		retList = []
 		for seed in obj.players.iterator():

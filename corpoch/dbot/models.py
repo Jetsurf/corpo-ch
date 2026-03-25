@@ -29,7 +29,7 @@ class Channels(models.Model):
 	deleted = models.BooleanField(default=False)
 
 	def __str__(self):
-		return f'{self.name} in {self.guild.name}'
+		return f'#{self.name}'
 
 	class Meta:
 		verbose_name = 'Channel'

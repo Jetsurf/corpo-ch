@@ -1,20 +1,21 @@
-import uuid, typing, json, math
+import uuid, typing, json, math, io
 
 from django.db import models
 from django_pydantic_field import SchemaField
 from multiselectfield import MultiSelectField
 from django.contrib import admin
 from django.core.validators import MaxValueValidator, MinValueValidator
-from encrypted_fields.fields import EncryptedJSONField
+from encrypted_fields.fields import EncryptedJSONField, EncryptedTextField
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.contrib.auth.models import AbstractUser
-
+from django.core.files import File
 from corpoch import settings
 from corpoch.validators import validate_chart_file
 from corpoch.managers import DiscordOAuth2Manager
 from corpoch.types import CH_INSTRUMENTS, CH_DIFFICULTIES, CH_MODIFIERS, CH_VERSIONS, CHART_CATEGORIES, TB_RULESETS, PICK_RULESETS, BAN_RULESETS, StegScreenshot
+from corpoch.utils.snghandler import SNGHandler
 
 def steg_upload_dir(self, filename):
 	return f"matches/{str(self.match.group).replace(' ', '').replace(":", "")}/{self.match.id}/{filename}"
@@ -45,6 +46,14 @@ class DiscordUser(AbstractUser):
 
 	def __str__(self):
 		return self.global_name
+
+class DiscordToken(models.Model):
+	access_token = EncryptedTextField(max_length=255)
+	refresh_token = EncryptedTextField(max_length=255)
+	user = models.OneToOneField("DiscordUser", null=True, on_delete=models.CASCADE, related_name="token")
+	#This needs an expiry date field to trigger refreshes - refresh tokens need to be handled
+	def __str__(self):
+		return f"self.discord_user.global_name"
 
 class CHIcon(models.Model):
 	name = models.CharField(verbose_name="Name", blank=False, max_length=32, default="newicon", primary_key=True)
@@ -113,9 +122,6 @@ class Chart(models.Model):
 		return self.name
 
 	def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
-		from corpoch.utils.snghandler import SNGHandler
-		from django.core.files import File
-		import io
 		self.blake3 = self.blake3.upper() #Force these always upper
 		self.icon = CHIcon.objects.get(name="ch_default_icon") if self.icon == None else self.icon
 		self.md5 = self.md5.upper() #Steg is output as always upper

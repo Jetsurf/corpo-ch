@@ -9,9 +9,9 @@ from django.db import models
 
 from corpoch import __user_agent__
 from corpoch import settings
-from corpoch.models import GSheetAPI, Chart, Tournament, Match, Qualifier, QualifierSubmission, CH_DIFFICULTIES, CH_INSTRUMENTS
+from corpoch.models import GSheetAPI, Chart, Tournament, Match, Qualifier, QualifierSubmission
 from corpoch.utils.hydra.hydra.hyutil import analyze_chart_bytes_chart, analyze_chart_bytes_mid
-from corpoch.types import StegScreenshot, SearchResponse
+from corpoch.types import StegScreenshot, SearchResponse, CH_DIFFICULTIES, CH_INSTRUMENTS
 from corpoch.utils.snghandler import SNGHandler
 
 class EncoreClient:
