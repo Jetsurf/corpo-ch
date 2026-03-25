@@ -14,6 +14,5 @@ class DiscordOAuth2Manager(BaseUserManager):
 			mfa_enabled=user_data.mfa_enabled,
 			last_login=datetime.now(),
 		)
-		new_user.set_unusuable_password()
 		new_user.save()
 		return new_user

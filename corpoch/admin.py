@@ -6,6 +6,8 @@ from django_pydantic_field import fields
 from django.contrib import admin
 from django_jsonform.widgets import JSONFormWidget
 from django.contrib.contenttypes.models import ContentType
+from django.db.models import Count
+
 from corpoch.models import Chart, Tournament, TournamentConfig, BracketRules, Bracket, Qualifier, TournamentPlayer, GroupSeed, MatchRound, CHIcon
 from corpoch.models import Match, Group, QualifierSubmission, CH_MODIFIERS, MatchBan, GSheetAPI, DiscordUser
 from corpoch.providers import EncoreClient, GSheets
@@ -182,10 +184,18 @@ class TournamentPlayerAdmin(admin.ModelAdmin):
 					corpoch.dbot.tasks.set_group_role(ply.user, ply.tournament.guild, trole)
 
 @admin.register(Qualifier)
-class TournamentQualifierAdmin(admin.ModelAdmin):
-	list_display = ('id', 'tournament')
+class QualifierAdmin(admin.ModelAdmin):
+	list_display = ('id', 'tournament', '_players', '_submissions')
 	list_filter = ['tournament']
 	actions = ['submit_final_scores']
+
+	def _players(self, obj):
+		distinct = QualifierSubmission.objects.values('player').annotate(player_count=Count('player')).filter(player_count=1)
+		records = QualifierSubmission.objects.filter(player__in=[item['player'] for item in distinct])
+		return len(records)
+
+	def _submissions(self, obj):
+		return QualifierSubmission.objects.filter(qualifier=obj).count()
 
 	def formfield_for_foreignkey(self, db_field, request, **kwargs):
 		if db_field.name == "player":
