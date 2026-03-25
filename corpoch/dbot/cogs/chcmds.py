@@ -95,7 +95,7 @@ class Path():
 		if isinstance(self.chart, Chart):
 			return f"{self.emoji.mention} {self.chart.tournament_name}\n\nArtist: {self.chart.artist}\nAlbum: {self.chart.album}\nCharter: {self.chart.charter}\nInstrument: {self.chart.instrument}"
 		else:
-			return f"{self.emoji.mention} {self.chart["name"]}\n\nArtist: {self.chart["artist"]}\nAlbum: {self.chart["album"]}\nCharter: {self.chart["charter"]}\nInstrument {self.chopt.opts.instrument}"
+			return f"{self.emoji.mention} {self.chart.name}\n\nArtist: {self.chart.artist}\nAlbum: {self.chart.album}\nCharter: {self.chart.charter}\nInstrument {self.chopt.opts.instrument}"
 
 	def genHydraResultEmbed(self) -> discord.Embed:
 		embed = self.genEmbedBase()

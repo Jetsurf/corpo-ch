@@ -64,32 +64,24 @@ class ChartAdmin(admin.ModelAdmin):
 		encore = EncoreClient()
 		for chart in queryset:
 			search = encore.search(chart.encore_search_query)
-
-			if len(search) == 0:
-				print(f"Chart {chart.name} encore lookup with query {chart.encore_search_query} failed with {search}")
+			i = 0 
+			if len(search.data) == 0:
+				print(f"Chart {chart.name} encore lookup with query {chart.encore_search_query} failed with query {search}")
 				continue
-			if len(search) > 1:
+			if len(search.data) > 1:
 				print(f"Chart {chart.name} returned multiple results")
+				for j, cht in enumerate(search.data):
+					if chart.blake3 == cht.md5:
+						i = j
+						break
 
-			newChart = search[0]
-			try:
-				icon = CHIcon.objects.get(name=newChart['icon'])
-			except CHIcon.DoesNotExist:
-				icon = CHIcon.objects.get(name="ch_default_icon")
-
-			chart.url = encore.url(newChart)
-			chart.name = newChart['name']
-			chart.icon = icon
-			chart.blake3 = newChart['md5'] #Encore's md5 uses blake3
-			chart.md5 = encore.get_md5_from_chart(newChart)
-			chart.album = newChart['album']
-			chart.artist = newChart['artist']
-			chart.charter = newChart['charter']
+			encoreChart = search.data[i]
+			chart.sngfile.save(f"{encoreChart.name}.sng", encore.download_from_chart(encoreChart))
 			chart.save()
 
 	@admin.action(description="Import data from song.ini")
 	def import_song_ini(modeladmin, request, queryset):
-		from corpoch.providers import SNGHandler
+		from corpoch.utils.snghandler import SNGHandler
 		for chart in queryset:
 			song = SNGHandler(chart.sngfile.open(mode='rb').read())
 			songini = song.songini_model

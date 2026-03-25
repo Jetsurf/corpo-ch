@@ -113,7 +113,7 @@ class Chart(models.Model):
 		return self.name
 
 	def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
-		from corpoch.providers import SNGHandler
+		from corpoch.utils.snghandler import SNGHandler
 		from django.core.files import File
 		import io
 		self.blake3 = self.blake3.upper() #Force these always upper

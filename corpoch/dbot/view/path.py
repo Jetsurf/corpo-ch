@@ -128,7 +128,7 @@ class EncoreModal(discord.ui.DesignerModal):
 
 		await interaction.response.defer(invisible=True)
 		tmp = self.path.encore.search(retData)
-		self.path.charts = tmp
+		self.path.charts = tmp.data
 		await self.path.show()
 		self.stop()
 
@@ -192,8 +192,8 @@ class ChartSelect(discord.ui.Select):
 				self.retOpts[chart.md5] = chart
 				opts.append(discord.SelectOption(label=chart.tournament_name, emoji=emoji, value=chart.md5, description=f"{'TB - ' if chart.tiebreaker else ''}{chart.artist} - {chart.album} - {chart.charter}", default=True if self.path.chart == chart else False))
 			else:
-				opts.append(discord.SelectOption(label=chart['name'], emoji=emoji, value=chart['md5'], description=f"{chart['artist']} - {chart['album']} - {chart['charter']}", default=True if self.path.chart == chart else False))
-				self.retOpts[chart['md5']] = chart
+				opts.append(discord.SelectOption(label=chart.name, emoji=emoji, value=chart.md5, description=f"{chart.artist} - {chart.album} - {chart.charter}", default=True if self.path.chart == chart else False))
+				self.retOpts[chart.md5] = chart
 		super().__init__(placeholder="Select a chart", options=opts, max_values=1, custom_id="chart_sel")
 
 	async def callback(self, interaction: discord.Interaction):
