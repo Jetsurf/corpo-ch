@@ -54,6 +54,14 @@ class Auth(Session):
 		if response.status_code == 200:
 			return response.json()
 		raise AuthError("Failed to connect to discord API")
+
+	def guilds(self, token=None) -> list:
+		if not token:
+			token = self.token
+		response = self.get(self.BASE + "users/@me/guilds", headers={'Authorization': f'Bearer {token}'})
+		if response.status_code == 200:
+			return response.json()
+		raise AuthError("Failed to connect to discord API")
 		
 class User:
 	def __init__(self, user : dict) -> None:

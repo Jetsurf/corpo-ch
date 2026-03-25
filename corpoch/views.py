@@ -35,7 +35,7 @@ def user(request: HttpRequest):
 	if access_token:
 		OAuth = Auth()
 		try:
-			context = { "user" : User(OAuth.user(access_token)), }
+			context = { "user" : User(OAuth.user(access_token)), "guilds" : Guilds(OAuth.guilds(access_token)),}
 		except AuthError:
 			return redirect(auth_url_discord)
 	else:
