@@ -29,3 +29,8 @@ def send_qualifier_discord_dms(player, quali, req_subs, quali_end, guild, num_su
 def refresh_match_message(match_id):
 	print(f"Sending task to refresh match {match_id}")
 	refresh_match_message.apply_async(args=[match_id])
+
+@app.task
+def update_guild(guild_id):
+	print(f"Updating information for guild {guild_id}")
+	update_guild.apply_async(args=[guild_id])

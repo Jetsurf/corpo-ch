@@ -76,6 +76,21 @@ class User:
 	def avatar(self):
 		return f"https://cdn.discordapp.com/avatars/{self.__user['id']}/{self.__user['avatar']}" if self.__user['avatar'] else default_icon_avatar
 
+class Role:
+	def __init__(self, role: dict) -> None:
+		self.__role = role
+		for k, v in self.__role.items():
+			try:
+				setattr(self, k , v)
+			except AttributeError:
+				continue
+
+	def __repr__(self) -> str:
+		return repor(self.__role)
+
+	def __str__(self):
+		return self.name
+
 class Guilds:
 	def __init__(self, guilds : list) -> None:
 		self.__guilds = guilds
@@ -103,6 +118,10 @@ class Guild:
 		#Due to the annoyance of the discord in changing the permissions, I have to change it every time 😐
 		return self.__guild["permissions"] == '1099511627775'
 	
+	@property
+	def roles(self) -> list:
+		return list(Role(role) for role in self.__guild['roles'])
+
 	@property
 	def icon(self):
 		return f"https://cdn.discordapp.com/icons/{self.__guild['id']}/{self.__guild['icon']}.png" if self.__guild['icon'] else default_icon_avatar

@@ -94,3 +94,33 @@ async def refresh_match_message(bot, match_id):
 	view = DiscordMatch(bot, uuid=match.id)
 	await view.init()
 	await view.finishMatch(view.msg)
+
+async def update_guild(bot, guild_id):
+	print(f"Updating info for guild {guild_id}")
+	guild = bot.get_guild(guild_id)
+	from corpoch.dbot.models import Guilds
+	dbguild = Guilds.objects.get(id=guild_id)
+
+	if not guild:
+		print(f"Guild {guild_id} is no longer visible - marking deleted")
+		dbguild.deleted = True
+		await dbguild.asave()
+		return
+
+	dbguild.name = guild.name
+	if guild.icon:
+		dbguild.icon = guild.icon.url
+
+	for role in await guild.fetch_roles():
+		from corpoch.dbot.models import Roles
+		theRole, created = Roles.objects.get_or_create(id=role.id, guild=dbguild)
+		theRole.name = role.name
+		await theRole.asave()
+
+	for channel in await guild.fetch_channels():
+		from corpoch.dbot.models import Channels
+		theChannel, created = Channels.objects.get_or_create(id=channel.id, guild=dbguild)
+		theChannel.name = channel.name
+		await theChannel.asave()
+
+	await dbguild.asave()
