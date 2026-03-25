@@ -45,7 +45,8 @@ def user(request: HttpRequest):
 
 	if context:
 		discord_user = authenticate(request, user=context['user'])
-		discord_user = list(discord_user).pop()
+		if not isinstance(discord_user, DiscordUser):
+			discord_user = discord_user[0]
 		login(request, discord_user, backend="corpoch.auth.DiscordBackend")
 
 	return render(request, "user.html", context=context)
