@@ -126,10 +126,10 @@ class Chart(models.Model):
 
 class Tournament(models.Model):
 	id = models.AutoField(primary_key=True)
-	guild = models.BigIntegerField(verbose_name="Discord Server ID", db_index=True)
+	guild = models.ForeignKey("dbot.Guilds", verbose_name="Discord Guild", db_index=True, on_delete=models.SET_NULL, null=True)
 	name = models.CharField(verbose_name="Name", max_length=128, default="New Tournament")
 	short_name = models.CharField(verbose_name="Short Name", max_length=16, default="NT1")
-	role = models.BigIntegerField(verbose_name="Participant Role ID", null=True, blank=True, db_index=True)
+	role = models.ForeignKey("dbot.Roles", verbose_name="Participant Role", on_delete=models.SET_NULL, null=True, blank=True, db_index=True)
 	active = models.BooleanField(verbose_name="In-Progress", default=False)
 
 	class Meta:
@@ -157,8 +157,8 @@ class TournamentConfig(models.Model):
 	id = models.AutoField(primary_key=True)
 	tournament = models.OneToOneField(Tournament, related_name="config", verbose_name="Tournament Configuration", on_delete=models.CASCADE)
 	rules = models.TextField(verbose_name="Rules", max_length=1024, default="Some rules go here")
-	ref_role = models.BigIntegerField(verbose_name="Discord Ref Role ID", null=True, blank=True)
-	proof_channel = models.BigIntegerField(verbose_name="Discord Proof Channel ID", null=True, blank=True)
+	ref_role = models.ForeignKey("dbot.Roles", verbose_name="Discord Ref Role", on_delete=models.SET_NULL, null=True, blank=True)
+	proof_channel = models.ForeignKey("dbot.Channels", verbose_name="Discord Proof Channel", on_delete=models.SET_NULL, null=True, blank=True)#This isn't presently used
 	enable_gsheets = models.BooleanField(verbose_name="Gsheets Integration", default=True)
 	gsheet = models.URLField(verbose_name="Match Reporting Google Sheet", null=True, blank=True)
 	version = models.CharField(verbose_name="Clone Hero Version", choices=CH_VERSIONS, max_length=32, default=CH_VERSIONS[0][0])
@@ -173,11 +173,11 @@ class TournamentConfig(models.Model):
 class Bracket(models.Model):
 	id = models.AutoField(primary_key=True)
 	name = models.CharField(verbose_name="Bracket Name", max_length=128, default="New Bracket")
-	score_log = models.BigIntegerField(verbose_name="Score Log Channel ID", null=True, blank=True)
+	score_log = models.ForeignKey("dbot.Channels", verbose_name="Score Log Channel", on_delete=models.SET_NULL, null=True, blank=True)
 	tournament = models.ForeignKey(Tournament, related_name="brackets", on_delete=models.CASCADE, verbose_name="Tournament")
 	is_active = models.BooleanField(verbose_name="Bracket Active", default=False)
 	revealed = models.BooleanField("Setlist Revealed", default=False)
-	role = models.BigIntegerField(verbose_name="Bracket Role ID", null=True, blank=True, db_index=True)
+	role = models.ForeignKey("dbot.Roles", verbose_name="Bracket Role", null=True, on_delete=models.SET_NULL, blank=True, db_index=True)
 
 	class Meta:
 		verbose_name = "Bracket"
@@ -217,7 +217,7 @@ class BracketRules(models.Model):
 class Group(models.Model):
 	id = models.AutoField(primary_key=True, db_index=True)
 	name = models.CharField(verbose_name="Group Name", max_length=8, default="A")
-	role = models.BigIntegerField(verbose_name="Discord Role ID", null=True, blank=True, db_index=True)
+	role = models.ForeignKey("dbot.Roles", verbose_name="Group Role", on_delete=models.SET_NULL, null=True, blank=True, db_index=True)
 	bracket = models.ForeignKey(Bracket, related_name="groups", verbose_name="Bracket", on_delete=models.CASCADE)
 
 	class Meta:
@@ -299,9 +299,9 @@ class Qualifier(models.Model):
 	form_link = models.URLField(verbose_name="Google Form Link", null=True, blank=True)
 	end_time = models.DateTimeField(verbose_name="End Time", default=timezone.now)
 	rules = models.TextField(verbose_name="Rules", max_length=1024, default="Placeholder rules")
-	channel = models.BigIntegerField(verbose_name="Submission Discord Channel ID", db_index=True, blank=True, null=True)
+	channel = models.ForeignKey("dbot.Channels", verbose_name="Submission Discord Channel", on_delete=models.SET_NULL, db_index=True, blank=True, null=True)
 	gsheet = models.URLField(verbose_name="Submissions Google Sheet", null=True, blank=True)
-	output = models.BooleanField(verbose_name="Discord msg on submissiom", default=True)
+	output = models.BooleanField(verbose_name="Msg On Submissiom", default=True)
 
 	class Meta:
 		verbose_name = "Qualifier"
@@ -351,7 +351,7 @@ class Match(models.Model):
 	complete = models.BooleanField(verbose_name="'Complete'", default=False)
 	finished = models.BooleanField(verbose_name="Finished", default=False) #Flag to match in-progress as complete, start triggers to move to completed
 	submitted = models.BooleanField(verbose_name="GSheet", default=False)
-	channel = models.BigIntegerField(verbose_name="Ref-Tool Discord Channel ID", null=True, blank=True)
+	channel = models.ForeignKey("dbot.Channels", verbose_name="Ref-Tool Discord Channel", on_delete=models.SET_NULL, null=True, blank=True)
 	message = models.BigIntegerField(verbose_name="Ref-Tool Discord Message ID", null=True, blank=True)
 	referee = models.BigIntegerField(verbose_name="Discord Ref ID", null=True, blank=True)
 	exhibition = models.BooleanField(default=False)

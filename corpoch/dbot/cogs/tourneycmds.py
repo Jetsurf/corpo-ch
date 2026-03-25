@@ -6,7 +6,7 @@ from asgiref.sync import sync_to_async
 
 from corpoch import settings
 from corpoch.models import Tournament, Chart, Match, MatchRound, Bracket, Group, GroupSeed, TournamentPlayer, MatchRound, MatchBan
-from corpoch.dbot.models import CHEmoji
+from corpoch.dbot.models import CHEmoji, Channels
 from corpoch.dbot.view.reftool import DiscordMatchView
 from corpoch.types import TB_RULESETS, PICK_RULESETS, BAN_RULESETS
 
@@ -74,7 +74,7 @@ class DiscordMatch():
 	@sync_to_async
 	def load_match(self):
 		self.matchDb = Match.objects.select_related().get(id=self.matchDb)
-		self.channel = self.bot.get_channel(self.matchDb.channel)
+		self.channel = self.bot.get_channel(self.matchDb.channel.id)
 		self.guild = self.channel.guild
 		self.group = self.matchDb.group
 		self.bracket = self.matchDb.group.bracket
@@ -94,7 +94,7 @@ class DiscordMatch():
 			self.matchDb.group = self.group
 			self.matchDb.players.set(self.seeding)
 			self.matchDb.message = self.msg.id if self.msg else None
-			self.matchDb.channel = self.channel.id
+			self.matchDb.channel = Channels.objects.get(id=self.channel.id)
 			self.matchDb.referee = self.referee.id
 			self.matchDb.save()
 			self.bracket.tournament = self.bracket.tournament
@@ -223,7 +223,8 @@ class DiscordMatch():
 		else:
 			embed.title = f"{self.tourney.short_name} - {self.bracket.name} - Group {self.group.name}\n{self.seeding[0].player.ch_name}({self.seeding[0].seed}) vs {self.seeding[1].player.ch_name} ({self.seeding[1].seed})"
 			embed.add_field(name="Match VS", value=f"{self.seeding_discord[0].mention} vs {self.seeding_discord[1].mention}")
-			embed.add_field(name="Score", value=" - ".join(await self.getScore()), inline=False)
+			score = await self.getScore()
+			embed.add_field(name="Score", value=f"{score[0]} - {score[1]}", inline=False)
 			outStr = ""
 			for i, seed in enumerate(self.seeding):
 				outStr += f"**{seed.player.ch_name} Bans**\n"

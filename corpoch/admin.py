@@ -172,10 +172,10 @@ class TournamentPlayerAdmin(admin.ModelAdmin):
 		for ply in queryset:
 			tourney = ply.tournament
 			for seed in ply.group_seeding.all():
-				grole = seed.group.role
-				brole = seed.group.bracket.role
-				trole = tourney.role
-				print(f"Setting group roles for {ply.ch_name} {grole} - {brole} = {trole}")
+				grole = seed.group.role.id if seed.group.role else None
+				brole = seed.group.bracket.role if seed.group.bracket.role else None
+				trole = tourney.role.id if tourney.role.id else None
+				print(f"Setting group roles for {ply.ch_name} {grole} - {brole} - {trole}")
 				if grole is not None:
 					corpoch.dbot.tasks.set_group_role(ply.user, ply.tournament.guild, grole)
 				if brole is not None:
@@ -257,8 +257,8 @@ class GroupAdmin(SortableAdminBase, admin.ModelAdmin):
 	def set_group_role(modeladmin, request, queryset):
 		for group in queryset:
 			tourney = group.bracket.tournament
-			role = group.role
-			guild = tourney.guild
+			role = group.role.id
+			guild = tourney.guild.id
 			for seed in group.seeding.all():
 				ply = seed.player.user
 				corpoch.dbot.tasks.set_group_role(ply, guild, role)
