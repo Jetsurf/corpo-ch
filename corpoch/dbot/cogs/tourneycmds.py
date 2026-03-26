@@ -269,9 +269,9 @@ class TourneyCmds(commands.Cog):
 
 	tourney = discord.SlashCommandGroup('tourney','Clone Hero Tournament Commands')
 
-	@tourney.command(name="exhibition", description="Reftool for Exhibition Matches", integration_types={discord.IntegrationType.guild_install})
-	async def discordExhibMatchCmd(self, ctx):
-		pass
+	#@tourney.command(name="exhibition", description="Reftool for Exhibition Matches", integration_types={discord.IntegrationType.guild_install})
+	#async def discordExhibMatchCmd(self, ctx):
+	#	pass
 
 	@tourney.command(name='match',description='Match reporting done within discord', integration_types={discord.IntegrationType.guild_install})
 	async def discordMatchCmd(self, ctx):
