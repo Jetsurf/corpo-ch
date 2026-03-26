@@ -29,7 +29,6 @@ class Auth(Session):
 		response = self.post(self.BASE + "oauth2/token", data=self.__data, headers=self.HEADERS)
 		if response.status_code == 200:
 			json = response.json()
-			print(f"GOTJSON: {json}")
 			self.__token = json["access_token"]
 			self.__refresh_token = json["refresh_token"]
 			return self.__token
@@ -90,7 +89,7 @@ class Role:
 				continue
 
 	def __repr__(self) -> str:
-		return repor(self.__role)
+		return repr(self.__role)
 
 	def __str__(self):
 		return self.name
