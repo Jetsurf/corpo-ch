@@ -6,8 +6,11 @@ from django_pydantic_field import fields
 from django.contrib import admin
 from django_jsonform.widgets import JSONFormWidget
 from django.contrib.contenttypes.models import ContentType
+from django.db.models import Count
+
 from corpoch.models import Chart, Tournament, TournamentConfig, BracketRules, Bracket, Qualifier, TournamentPlayer, GroupSeed, MatchRound, CHIcon
-from corpoch.models import Match, Group, QualifierSubmission, CH_MODIFIERS, MatchBan, GSheetAPI
+from corpoch.models import Match, Group, QualifierSubmission, CH_MODIFIERS, MatchBan, GSheetAPI, DiscordUser
+from corpoch.dbot.models import Guilds, Channels, Roles
 from corpoch.providers import EncoreClient, GSheets
 from django.utils.html import mark_safe
 import corpoch.dbot.tasks
@@ -15,6 +18,20 @@ import corpoch.dbot.tasks
 @admin.register(GSheetAPI)
 class GSheetAPIAdmin(admin.ModelAdmin):
 	pass
+
+@admin.register(DiscordUser)
+class DiscordUserAdmin(admin.ModelAdmin):
+	model = DiscordUser
+	list_display = ('_avatar', 'id', 'global_name')
+	readonly_fields = ['global_name', 'mfa_enabled', '_id', 'avatar', 'locale', 'flags', 'public_flags', 'last_login', 'date_joined']
+	exclude = ['password', 'first_name', 'last_name', 'email', 'username']
+
+	def _id(self, obj):
+		return str(obj.id)
+
+	@mark_safe
+	def _avatar(self, obj):
+		return f'<img src="{obj.avatar}" width="24" height="24"'
 
 @admin.register(Chart)
 class ChartAdmin(admin.ModelAdmin):
@@ -47,32 +64,24 @@ class ChartAdmin(admin.ModelAdmin):
 		encore = EncoreClient()
 		for chart in queryset:
 			search = encore.search(chart.encore_search_query)
-
-			if len(search) == 0:
-				print(f"Chart {chart.name} encore lookup with query {chart.encore_search_query} failed with {search}")
+			i = 0 
+			if len(search.data) == 0:
+				print(f"Chart {chart.name} encore lookup with query {chart.encore_search_query} failed with query {search}")
 				continue
-			if len(search) > 1:
+			if len(search.data) > 1:
 				print(f"Chart {chart.name} returned multiple results")
+				for j, cht in enumerate(search.data):
+					if chart.blake3 == cht.md5:
+						i = j
+						break
 
-			newChart = search[0]
-			try:
-				icon = CHIcon.objects.get(name=newChart['icon'])
-			except CHIcon.DoesNotExist:
-				icon = CHIcon.objects.get(name="ch_default_icon")
-
-			chart.url = encore.url(newChart)
-			chart.name = newChart['name']
-			chart.icon = icon
-			chart.blake3 = newChart['md5'] #Encore's md5 uses blake3
-			chart.md5 = encore.get_md5_from_chart(newChart)
-			chart.album = newChart['album']
-			chart.artist = newChart['artist']
-			chart.charter = newChart['charter']
+			encoreChart = search.data[i]
+			chart.sngfile.save(f"{encoreChart.name}.sng", encore.download_from_chart(encoreChart))
 			chart.save()
 
 	@admin.action(description="Import data from song.ini")
 	def import_song_ini(modeladmin, request, queryset):
-		from corpoch.providers import SNGHandler
+		from corpoch.utils.snghandler import SNGHandler
 		for chart in queryset:
 			song = SNGHandler(chart.sngfile.open(mode='rb').read())
 			songini = song.songini_model
@@ -92,11 +101,35 @@ class TournamentConfigInline(admin.TabularInline):
 	model = TournamentConfig
 	extra = 0
 
+	def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
+		if db_field.name == "ref_role":
+			if 'object_id' in request.resolver_match.kwargs:
+				conf = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs['queryset'] = Roles.objects.all().filter(guild=conf.tournament.guild)
+			else:
+				kwargs["queryset"] = Roles.objects.none()
+		if db_field.name == "proof_channel":
+			if 'object_id' in request.resolver_match.kwargs:
+				conf = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs['queryset'] = Channels.objects.all().filter(guild=conf.tournament.guild)
+			else:
+				kwargs["queryset"] = Channels.objects.none()
+		return super(TournamentConfigInline, self).formfield_for_foreignkey(db_field, request, **kwargs)
+
 @admin.register(Tournament)
 class TournamentAdmin(admin.ModelAdmin):
 	list_display = ('name', 'guild', 'active')
 	inlines = [TournamentConfigInline]
 	actions = ['set_tournament_role', 'set_players_active']
+
+	def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
+		if db_field.name == "role":
+			if 'object_id' in request.resolver_match.kwargs:
+				tournament = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs['queryset'] = Roles.objects.all().filter(guild=tournament.guild)
+			else:
+				kwargs["queryset"] = Roles.objects.none()
+		return super(TournamentAdmin, self).formfield_for_foreignkey(db_field, request, **kwargs)
 
 	@admin.action(description="Set tournament role for players")
 	def set_tournament_role(modeladmin, request, queryset):
@@ -134,6 +167,21 @@ class BracketAdmin(admin.ModelAdmin):
 	def _name(self, obj):
 		return f"{obj}"
 
+	def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
+		if db_field.name == "role":
+			if 'object_id' in request.resolver_match.kwargs:
+				bracket = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs['queryset'] = Roles.objects.all().filter(guild=bracket.tournament.guild)
+			else:
+				kwargs["queryset"] = Roles.objects.none()
+		if db_field.name == "score_log":
+			if 'object_id' in request.resolver_match.kwargs:
+				bracket = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs['queryset'] = Channels.objects.all().filter(guild=bracket.tournament.guild)
+			else:
+				kwargs["queryset"] = Channels.objects.none()
+		return super(BracketAdmin, self).formfield_for_foreignkey(db_field, request, **kwargs)
+
 	@admin.action(description="Set bracket role for players")
 	def set_bracket_role(modeladmin, request, queryset):
 		for bracket in queryset:
@@ -149,12 +197,37 @@ class BracketAdmin(admin.ModelAdmin):
 class TournamentPlayerAdmin(admin.ModelAdmin):
 	list_display = ('user', 'tournament', 'ch_name', 'is_active')
 	list_filter = ['tournament']
+	actions = ["set_tournament_roles"]
+
+	@admin.action(description="Set tournament roles")
+	def set_tournament_roles(modeladmin, request, queryset):
+		for ply in queryset:
+			tourney = ply.tournament
+			for seed in ply.group_seeding.all():
+				grole = seed.group.role.id if seed.group.role else None
+				brole = seed.group.bracket.role.id if seed.group.bracket.role else None
+				trole = tourney.role.id if tourney.role.id else None
+				print(f"Setting group roles for {ply.ch_name} {grole} - {brole} - {trole}")
+				if grole is not None:
+					corpoch.dbot.tasks.set_group_role(ply.user, ply.tournament.guild, grole)
+				if brole is not None:
+					corpoch.dbot.tasks.set_group_role(ply.user, ply.tournament.guild, brole)
+				if trole is not None:
+					corpoch.dbot.tasks.set_group_role(ply.user, ply.tournament.guild, trole)
 
 @admin.register(Qualifier)
-class TournamentQualifierAdmin(admin.ModelAdmin):
-	list_display = ('id', 'tournament')
+class QualifierAdmin(admin.ModelAdmin):
+	list_display = ('id', 'tournament', '_players', '_submissions')
 	list_filter = ['tournament']
 	actions = ['submit_final_scores']
+
+	def _players(self, obj):
+		distinct = QualifierSubmission.objects.values('player').annotate(player_count=Count('player')).filter(player_count=1)
+		records = QualifierSubmission.objects.filter(player__in=[item['player'] for item in distinct])
+		return len(records)
+
+	def _submissions(self, obj):
+		return QualifierSubmission.objects.filter(qualifier=obj).count()
 
 	def formfield_for_foreignkey(self, db_field, request, **kwargs):
 		if db_field.name == "player":
@@ -210,14 +283,20 @@ class GroupAdmin(SortableAdminBase, admin.ModelAdmin):
 	def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
 		if db_field.name == "group_players":
 			kwargs["queryset"] = Tournament.players.objects.all()
+		if db_field.name == "role":
+			if 'object_id' in request.resolver_match.kwargs:
+				group = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs['queryset'] = Roles.objects.all().filter(guild=group.tournament.guild)
+			else:
+				kwargs["queryset"] = Roles.objects.none()
 		return super(GroupAdmin, self).formfield_for_foreignkey(db_field, request, **kwargs)
 
 	@admin.action(description="Set group role for players")
 	def set_group_role(modeladmin, request, queryset):
 		for group in queryset:
 			tourney = group.bracket.tournament
-			role = group.role
-			guild = tourney.guild
+			role = group.role.id
+			guild = tourney.guild.id
 			for seed in group.seeding.all():
 				ply = seed.player.user
 				corpoch.dbot.tasks.set_group_role(ply, guild, role)
@@ -245,7 +324,7 @@ class QualifierSubmissionAdmin(admin.ModelAdmin):
 		return obj.steg.players[0].notes_hit if len(obj.steg.players) > 0 else '-'
 
 	def _excess(self, obj):
-		return obj.steg.players[0].excess_hits if len(obj.steg.players) > 0 else '-'
+		return obj.steg.players[0].excess_hits if len(obj.steg.players) > 0 and obj.steg.players[0].excess_hits > -1 else '-'
 
 	def _ghosts(self, obj):
 		return obj.steg.players[0].frets_ghosted if len(obj.steg.players) > 0 else '-'
@@ -319,6 +398,12 @@ class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
 	list_per_page = 16
 	actions = ['set_unsubmitted',"reread_steg", "resubmit_gsheet", "resubmit_discord"]
 
+	def get_queryset(self, request):
+		 qs = super().get_queryset(request)
+		 user = request.user
+		 print(f"MATCHADMIN: VARS{vars(user)}")
+		 return qs
+
 	def _match_players(self, obj):
 		retList = []
 		for seed in obj.players.iterator():
@@ -341,6 +426,12 @@ class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
 				kwargs['queryset'] = TournamentPlayer.objects.all().filter(id__in=match.players.all().values("player"))
 			else:
 				kwargs["queryset"] = TournamentPlayer.objects.none()
+		if db_field.name == "channel":
+			if 'object_id' in request.resolver_match.kwargs:
+				match = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs['queryset'] = Channels.objects.all().filter(guild=match.tournament.guild)
+			else:
+				kwargs["queryset"] = Channels.objects.none()
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 	@admin.action(description="Mark Match GSheet Unsent")

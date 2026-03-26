@@ -15,7 +15,7 @@ BOT_SECRET = "**BOT SIGNING SECRET**"
 BOT_TOKEN = "**BOT TOKEN**"
 BASE_URL = "**DOMAIN NAME**"
 REDIRECT_URI = "https://${BASE_URL}/auth"
-AUTH_URL_DISCORD = "https://discord.com/oauth2/authorize?client_id=${client_id}&response_type=code&redirect_uri=https%3A%2F%2F${BASE_URL}%2Fauth&scope=identify"
+AUTH_URL_DISCORD = "https://discord.com/oauth2/authorize?client_id=${BOT_ID}&response_type=code&redirect_uri=https%3A%2F%2F${BASE_URL}%2Fauth&scope=identify+guilds"
 COGS_ENABLED = "chcmds,tourneycmds,qualifiercmds,ownercmds"
 
 #Corpo CH Settings

@@ -4,6 +4,7 @@ from django.db import close_old_connections, connection
 from django.utils import timezone
 
 from corpoch.models import TournamentPlayer, Qualifier, QualifierSubmission, Match
+from corpoch.dbot.models import Guilds
 from corpoch.providers import GSheets
 from corpoch.dbot import tasks
 
@@ -57,4 +58,11 @@ def send_qualifier_discord_dms(base=ConnectionRefreshingTask):
 			submissions = QualifierSubmission.objects.all().filter(player=ply)
 			if len(submissions) < qualifier.required_submissions:
 				tasks.send_qualifier_discord_dms(ply, str(qualifier), qualifier.required_submissions, qualifier.end_time, qualifier.tournament.guild, len(submissions))
+	close_old_connections()
+
+@app.task
+def update_all_guilds(base=ConnectionRefreshingTask):
+	close_old_connections()
+	for guild in Guilds.objects.all().filter(deleted=False):
+		tasks.update_guild(guild.id)
 	close_old_connections()

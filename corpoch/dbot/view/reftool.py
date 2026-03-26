@@ -178,64 +178,25 @@ class GroupSelect(discord.ui.Select):
 		await self.match.showTool(interaction)
 
 class PlayerSelect(discord.ui.Select):
-	def __init__(self, match, custom_id):
+	def __init__(self, match):
 		self.match = match
-		self.cid = custom_id
 		self.retOpts = {}
 
 	async def init(self):
-		dis = True
-		#I feel like this can come down, but not sure what's best
-		if 'player1' in self.cid:
-			if self.match.bracket.ruleset.num_players == 2:
-				placeholder = "High Seed"
-			else:
-				placeholder = "Player 1"
-
-			if len(self.match.seeding) > 0:
-				placeholder += f" - {self.match.seeding[0].player.ch_name}"
-			if len(self.match.seeding) == 0:
-				dis = False
-
-		elif 'player2' in self.cid:
-			if self.match.bracket.ruleset.num_players == 2:
-				placeholder = "Low Seed"
-			else:
-				placeholder = "Player 2"
-
-			if len(self.match.seeding) > 1:
-				placeholder += f" - {self.match.players[1].player.ch_name}"
-			if len(self.match.seeding) == 1:
-				dis = False
-		elif 'player3' in self.cid:
-			placeholder = "Player 3"
-			if len(self.match.players) > 2:
-				placeholder += f" - {self.match.players[2].ch_name}"
-			if len(self.match.players) == 2:
-				dis = False
-		elif 'player4' in self.cid:
-			placeholder = "Player 4"
-			if len(self.match.players) > 3:
-				placeholder += f" - {self.match.players[3].ch_name}"
-			if len(self.match.players) == 3:
-				dis = False
-		id_list = []
-		for seed in self.match.seeding:
-			id_list.append(seed.id)
-
 		seeding = []
-		async for seed in self.match.group.seeding.select_related('player').all().exclude(id__in=id_list):
+		async for seed in self.match.group.seeding.select_related('player').all():
 			if seed.player.is_active:
 				self.retOpts[str(seed.player.user)] = seed
 				mem = await self.match.guild.fetch_member(seed.player.user)
 				seeding.append(discord.SelectOption(label=f"{seed.player.ch_name} ({seed.seed})", value=str(seed.player.user), description=f"@{mem.display_name}"))
-		super().__init__(placeholder=placeholder, max_values=1,	options=seeding, custom_id=self.cid, disabled=dis)
+		plys = self.match.bracket.ruleset.num_players
+		super().__init__(placeholder="Players", min_values=plys, max_values=plys, options=seeding, custom_id="player_sel")
 
 	async def callback(self, interaction: discord.Interaction):
-		seed = self.retOpts[self.values[0]]
-		self.match.seeding.append(seed)
-		self.match.seeding = sorted(self.match.seeding, key=lambda x: x.seed)
-		self.match.seeding_discord.append(await self.match.guild.fetch_member(seed.player.user))
+		for ply in self.values:
+			seed = self.retOpts[ply]
+			self.match.seeding.append(seed)
+			self.match.seeding_discord.append(await self.match.guild.fetch_member(seed.player.user))
 		await self.match.showTool(interaction)
 
 class DiscordMatchView(discord.ui.View):
@@ -290,10 +251,9 @@ class DiscordMatchView(discord.ui.View):
 			self.add_item(sel)
 		elif len(self.match.seeding) < self.match.bracket.ruleset.num_players:
 			self.add_item(self.back)
-			for i in range(self.match.bracket.ruleset.num_players):
-				sel = PlayerSelect(self.match, f"player{i+1}_sel")
-				await sel.init()
-				self.add_item(sel)
+			sel = PlayerSelect(self.match)
+			await sel.init()
+			self.add_item(sel)
 		elif len(self.match.bans) < self.match.bracket.ruleset.total_bans:
 			self.add_item(self.back)
 			if 'defer' in self.match.bracket.ruleset.ban_ruleset:
@@ -351,7 +311,7 @@ class DiscordMatchView(discord.ui.View):
 			ban = self.match.bans.pop()
 			await ban.adelete()
 		elif len(self.match.seeding) > 0:
-			seed = self.match.seeding.pop()
+			self.match.seeding = []
 		elif self.match.group:
 			await self.match.matchDb.adelete()
 			self.match.group = None
@@ -362,7 +322,7 @@ class DiscordMatchView(discord.ui.View):
 
 	async def cancelBtn(self, interaction: discord.Interaction):
 		if self.match.confirmCancel:
-			await interaction.response.edit_message(content="Closing", embed=None, view=None, delete_after=5)
+			await interaction.response.edit_message(content="Closing", embed=None, view=None, delete_after=10)
 			if self.match.matchDb:
 				await self.match.matchDb.adelete()
 			self.stop()

@@ -1,19 +1,21 @@
-import uuid, typing, json, math
+import uuid, typing, json, math, io
 
 from django.db import models
 from django_pydantic_field import SchemaField
 from multiselectfield import MultiSelectField
 from django.contrib import admin
 from django.core.validators import MaxValueValidator, MinValueValidator
-from encrypted_fields.fields import EncryptedJSONField
+from encrypted_fields.fields import EncryptedJSONField, EncryptedTextField
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.exceptions import ValidationError
 from django.utils import timezone
-
+from django.contrib.auth.models import AbstractUser
+from django.core.files import File
 from corpoch import settings
 from corpoch.validators import validate_chart_file
-
+from corpoch.managers import DiscordOAuth2Manager
 from corpoch.types import CH_INSTRUMENTS, CH_DIFFICULTIES, CH_MODIFIERS, CH_VERSIONS, CHART_CATEGORIES, TB_RULESETS, PICK_RULESETS, BAN_RULESETS, StegScreenshot
+from corpoch.utils.snghandler import SNGHandler
 
 def steg_upload_dir(self, filename):
 	return f"matches/{str(self.match.group).replace(' ', '').replace(":", "")}/{self.match.id}/{filename}"
@@ -28,6 +30,30 @@ class GSheetAPI(models.Model):
 
 	class Meta:
 		verbose_name = "Google Sheets API"
+
+class DiscordUser(AbstractUser):
+	objects = DiscordOAuth2Manager()
+	id = models.BigIntegerField(primary_key=True, unique=True)
+	global_name = models.CharField(max_length=255)
+	public_flags = models.IntegerField()
+	flags = models.IntegerField()
+	avatar = models.CharField(max_length=255)
+	locale = models.CharField(max_length=255)
+	mfa_enabled = models.BooleanField()
+	last_login = models.DateTimeField(null=True, blank=True)
+
+	USERNAME_FIELD = 'id'
+
+	def __str__(self):
+		return self.global_name
+
+class DiscordToken(models.Model):
+	access_token = EncryptedTextField(max_length=255)
+	refresh_token = EncryptedTextField(max_length=255)
+	user = models.OneToOneField("DiscordUser", null=True, on_delete=models.CASCADE, related_name="token")
+	#This needs an expiry date field to trigger refreshes - refresh tokens need to be handled
+	def __str__(self):
+		return f"self.discord_user.global_name"
 
 class CHIcon(models.Model):
 	name = models.CharField(verbose_name="Name", blank=False, max_length=32, default="newicon", primary_key=True)
@@ -96,9 +122,6 @@ class Chart(models.Model):
 		return self.name
 
 	def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
-		from corpoch.providers import SNGHandler
-		from django.core.files import File
-		import io
 		self.blake3 = self.blake3.upper() #Force these always upper
 		self.icon = CHIcon.objects.get(name="ch_default_icon") if self.icon == None else self.icon
 		self.md5 = self.md5.upper() #Steg is output as always upper
@@ -109,10 +132,10 @@ class Chart(models.Model):
 
 class Tournament(models.Model):
 	id = models.AutoField(primary_key=True)
-	guild = models.BigIntegerField(verbose_name="Discord Server ID", db_index=True)
+	guild = models.ForeignKey("dbot.Guilds", verbose_name="Discord Guild", db_index=True, on_delete=models.SET_NULL, null=True)
 	name = models.CharField(verbose_name="Name", max_length=128, default="New Tournament")
 	short_name = models.CharField(verbose_name="Short Name", max_length=16, default="NT1")
-	role = models.BigIntegerField(verbose_name="Participant Role ID", null=True, blank=True, db_index=True)
+	role = models.ForeignKey("dbot.Roles", verbose_name="Participant Role", on_delete=models.SET_NULL, null=True, blank=True, db_index=True)
 	active = models.BooleanField(verbose_name="In-Progress", default=False)
 
 	class Meta:
@@ -140,8 +163,8 @@ class TournamentConfig(models.Model):
 	id = models.AutoField(primary_key=True)
 	tournament = models.OneToOneField(Tournament, related_name="config", verbose_name="Tournament Configuration", on_delete=models.CASCADE)
 	rules = models.TextField(verbose_name="Rules", max_length=1024, default="Some rules go here")
-	ref_role = models.BigIntegerField(verbose_name="Discord Ref Role ID", null=True, blank=True)
-	proof_channel = models.BigIntegerField(verbose_name="Discord Proof Channel ID", null=True, blank=True)
+	ref_role = models.ForeignKey("dbot.Roles", verbose_name="Discord Ref Role", on_delete=models.SET_NULL, null=True, blank=True)
+	proof_channel = models.ForeignKey("dbot.Channels", verbose_name="Discord Proof Channel", on_delete=models.SET_NULL, null=True, blank=True)#This isn't presently used
 	enable_gsheets = models.BooleanField(verbose_name="Gsheets Integration", default=True)
 	gsheet = models.URLField(verbose_name="Match Reporting Google Sheet", null=True, blank=True)
 	version = models.CharField(verbose_name="Clone Hero Version", choices=CH_VERSIONS, max_length=32, default=CH_VERSIONS[0][0])
@@ -156,11 +179,11 @@ class TournamentConfig(models.Model):
 class Bracket(models.Model):
 	id = models.AutoField(primary_key=True)
 	name = models.CharField(verbose_name="Bracket Name", max_length=128, default="New Bracket")
-	score_log = models.BigIntegerField(verbose_name="Score Log Channel ID", null=True, blank=True)
 	tournament = models.ForeignKey(Tournament, related_name="brackets", on_delete=models.CASCADE, verbose_name="Tournament")
+	score_log = models.ForeignKey("dbot.Channels", verbose_name="Score Log Channel", on_delete=models.SET_NULL, null=True, blank=True)
 	is_active = models.BooleanField(verbose_name="Bracket Active", default=False)
 	revealed = models.BooleanField("Setlist Revealed", default=False)
-	role = models.BigIntegerField(verbose_name="Bracket Role ID", null=True, blank=True, db_index=True)
+	role = models.ForeignKey("dbot.Roles", verbose_name="Bracket Role", null=True, on_delete=models.SET_NULL, blank=True, db_index=True)
 
 	class Meta:
 		verbose_name = "Bracket"
@@ -200,7 +223,7 @@ class BracketRules(models.Model):
 class Group(models.Model):
 	id = models.AutoField(primary_key=True, db_index=True)
 	name = models.CharField(verbose_name="Group Name", max_length=8, default="A")
-	role = models.BigIntegerField(verbose_name="Discord Role ID", null=True, blank=True, db_index=True)
+	role = models.ForeignKey("dbot.Roles", verbose_name="Group Role", on_delete=models.SET_NULL, null=True, blank=True, db_index=True)
 	bracket = models.ForeignKey(Bracket, related_name="groups", verbose_name="Bracket", on_delete=models.CASCADE)
 
 	class Meta:
@@ -282,9 +305,9 @@ class Qualifier(models.Model):
 	form_link = models.URLField(verbose_name="Google Form Link", null=True, blank=True)
 	end_time = models.DateTimeField(verbose_name="End Time", default=timezone.now)
 	rules = models.TextField(verbose_name="Rules", max_length=1024, default="Placeholder rules")
-	channel = models.BigIntegerField(verbose_name="Submission Discord Channel ID", db_index=True, blank=True, null=True)
+	channel = models.ForeignKey("dbot.Channels", verbose_name="Submission Discord Channel", on_delete=models.SET_NULL, db_index=True, blank=True, null=True)
 	gsheet = models.URLField(verbose_name="Submissions Google Sheet", null=True, blank=True)
-	output = models.BooleanField(verbose_name="Discord msg on submissiom", default=True)
+	output = models.BooleanField(verbose_name="Msg On Submissiom", default=True)
 
 	class Meta:
 		verbose_name = "Qualifier"
@@ -334,7 +357,7 @@ class Match(models.Model):
 	complete = models.BooleanField(verbose_name="'Complete'", default=False)
 	finished = models.BooleanField(verbose_name="Finished", default=False) #Flag to match in-progress as complete, start triggers to move to completed
 	submitted = models.BooleanField(verbose_name="GSheet", default=False)
-	channel = models.BigIntegerField(verbose_name="Ref-Tool Discord Channel ID", null=True, blank=True)
+	channel = models.ForeignKey("dbot.Channels", verbose_name="Ref-Tool Discord Channel", on_delete=models.SET_NULL, null=True, blank=True)
 	message = models.BigIntegerField(verbose_name="Ref-Tool Discord Message ID", null=True, blank=True)
 	referee = models.BigIntegerField(verbose_name="Discord Ref ID", null=True, blank=True)
 	exhibition = models.BooleanField(default=False)

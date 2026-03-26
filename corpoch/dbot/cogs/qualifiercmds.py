@@ -63,7 +63,7 @@ class QualiPlayerSel(discord.ui.Select):
 
 class DiscordQualifierView(discord.ui.View):
 	def __init__(self, ctx):
-		super().__init__(timeout = None)
+		super().__init__(timeout = 360, disable_on_timeout=True)
 		self.ctx = ctx
 		self.qualifier = None
 		self.qualifiers = []
@@ -116,8 +116,8 @@ class DiscordQualifierView(discord.ui.View):
 		if self.qualifier:
 			self.upload.disabled = False
 			try:
-				self.ply = await TournamentPlayer.objects.aget(user=self.ctx.user.id)
-				async for qual in QualifierSubmission.objects.select_related().all().filter(player=self.ply):
+				self.ply = await TournamentPlayer.objects.aget(user=self.ctx.user.id, tournament=self.qualifier.tournament)
+				async for qual in QualifierSubmission.objects.select_related().all().filter(player=self.ply, qualifier=self.qualifier):
 					self.prev_subs.append(qual)
 				self.num_subs = len(self.prev_subs)
 			except TournamentPlayer.DoesNotExist:
@@ -161,7 +161,7 @@ class DiscordQualifierView(discord.ui.View):
 		plySteg = []
 		for i, ply in enumerate(steg.output.players):
 			try:
-				otherPly = await TournamentPlayer.objects.aget(ch_name=ply.profile_name)
+				otherPly = await TournamentPlayer.objects.aget(ch_name=ply.profile_name, tournament=self.qualifier.tournament)
 				if self.ply and self.ply != otherPly:
 					print(f"QUALIFIER: Removing player {ply.profile_name} already in tournament {self.tourney.short_name}")
 					continue
@@ -185,7 +185,7 @@ class DiscordQualifierView(discord.ui.View):
 
 		if steg.output.game_version != self.tourney.config.version:
 			print(f"QUALIFIER: {self.qualifier}: {self.ctx.user.display_name} screenshot version {steg.output.game_version} does not match tourney version {self.tourney.config.version}")
-			await interaction.followup.send(f"Qualifier is not Clone Hero version {self.tourney.config.version}", ephemeral=True, delete_after=10)
+			await interaction.followup.send(f"Qualifier screenshot is not Clone Hero version {self.tourney.config.version}", ephemeral=True, delete_after=10)
 		elif steg.output.playback_speed != playedChart.speed:
 			print(f"QUALIFIER: {self.qualifier}: {self.ctx.user.display_name} screenshot speed {steg.output.playback_speed}% does not match speed of qualifier: {playedChart.speed}%")
 			await interaction.followup.send(f"Uploaded screenshot speed ({steg.output.playback_speed}%) does not match speed of qualifier: {playedChart.speed}%", ephemeral=True, delete_after=10)
@@ -205,9 +205,7 @@ class DiscordQualifierView(discord.ui.View):
 		await sync_to_async(quali.screenshot.save)(f'{uuid.uuid1()}.png', open(self.steg.img_path, 'rb'))
 		await quali.asave()
 		await self.ctx.interaction.delete_original_response()
-		tmp = await sync_to_async(lambda: self.qualifier.tournament)()
-		if self.qualifier.output:
-			await interaction.followup.send(f"{self.ctx.user.mention} submitted a qualifier for {self.qualifier}!", ephemeral=False)
+		await interaction.followup.send(f"{self.ctx.user.mention} submitted a qualifier for {self.qualifier}!", ephemeral=not self.qualifier.output)
 
 	def buildQualiSelEmbed(self) -> discord.Embed:
 		embed = discord.Embed(colour=0xFF8000)
