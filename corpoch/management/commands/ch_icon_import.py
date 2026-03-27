@@ -1,4 +1,4 @@
-import requests, tarfile, io, re, time, os
+import requests, tarfile, io, re, time, os, shutil
 from django.core.management.base import BaseCommand
 from corpoch.models import CHIcon, Chart
 from corpoch.dbot.models import CHEmoji
@@ -8,7 +8,22 @@ import corpoch.dbot.tasks
 class Command(BaseCommand):
 	help = 'Load CH Icons'
 
+	def add_arguments(self, parser):
+		parser.add_argument('-f', '--flush', action="store_true", help='Discord Guild ID of Tournament to make Users from TournamentPlayers for')
+
 	def handle(self, *args, **options):
+		flush = options['flush']
+		if flush:
+			print(f"Flushing DB of CHEmotes/Icons and re-importing")
+			for chart in Chart.objects.all():
+				chart.ch_icon = None
+				chart.save()
+			for emote in CHEmoji.objects.all():
+				emote.delete()
+			for icon in CHIcon.objects.all():
+				icon.delete()
+			shutil.rmtree(f"{settings.MEDIA_ROOT}chicons")
+
 		ch_default_icon_path = f"./corpoch/static/ch_default_icon.png"
 		if not os.path.isfile(ch_default_icon_path):
 			print(f"Error: File at {ch_default_icon_path} was not found.")

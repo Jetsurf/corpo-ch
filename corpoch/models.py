@@ -34,18 +34,21 @@ class GSheetAPI(models.Model):
 class DiscordUser(AbstractUser):
 	objects = DiscordOAuth2Manager()
 	id = models.BigIntegerField(primary_key=True, unique=True)
-	global_name = models.CharField(max_length=255)
-	public_flags = models.IntegerField()
-	flags = models.IntegerField()
-	avatar = models.CharField(max_length=255)
-	locale = models.CharField(max_length=255)
-	mfa_enabled = models.BooleanField()
+	global_name = models.CharField(max_length=255, null=True, blank=True)
+	public_flags = models.IntegerField(null=True, blank=True)
+	flags = models.IntegerField(null=True, blank=True)
+	avatar = models.CharField(max_length=255, null=True, blank=True)
+	locale = models.CharField(max_length=255, null=True, blank=True)
+	mfa_enabled = models.BooleanField(default=False)
 	last_login = models.DateTimeField(null=True, blank=True)
 
 	USERNAME_FIELD = 'id'
 
 	def __str__(self):
-		return self.global_name
+		if self.global_name:
+			return self.global_name
+		else:
+			return str(self.id)
 
 class DiscordToken(models.Model):
 	access_token = EncryptedTextField(max_length=255)
@@ -241,10 +244,11 @@ class Group(models.Model):
 	def __str__(self):
 		return f"{self.tournament.short_name} - {self.bracket.name} - {self.name}"
 
-class TournamentPlayer(models.Model): #TODO: This should be broken up a bit? Model fields for discord should move to dbot app
+class TournamentPlayer(models.Model):
 	id = models.AutoField(primary_key=True)
-	user = models.BigIntegerField(verbose_name="Player Discord ID", db_index=True)
-	name = models.CharField(verbose_name="Discord Name", max_length=128, null=True, blank=True)
+	#user = models.BigIntegerField(verbose_name="Player Discord ID", db_index=True)
+	user = models.ForeignKey(DiscordUser, verbose_name="User", on_delete=models.SET_NULL, db_index=True, blank=True, null=True)
+	name = models.CharField(verbose_name="Discord Name", max_length=128, null=True, blank=True) #This is the users tournament guild display name
 	tournament = models.ForeignKey(Tournament, related_name="players", verbose_name="Tournament", on_delete=models.CASCADE)
 	is_active = models.BooleanField(verbose_name="Player Active", default=False)
 	ch_name = models.CharField(verbose_name="Clone Hero Name", max_length=128, default="</Null>")
@@ -263,7 +267,7 @@ class TournamentPlayer(models.Model): #TODO: This should be broken up a bit? Mod
 		return self.tournament.brackets.objects.select_related('player').filter(players__id=self.id)
 
 	def check_ch_name(self, testname):
-		return True if testname.replace(" ", "").replace("♡", "") in self.ch_name.replace(" ", "").replace("♡", "") else False#Might be good to move the replaces here to a type of CH_NAME_IGNORE_CHARS
+		return True if testname.replace(" ", "").replace("☆", "") in self.ch_name.replace(" ", "").replace("♡", "") else False#Might be good to move the replaces here to a type of CH_NAME_IGNORE_CHARS
 
 class GroupSeed(models.Model):
 	id = models.AutoField(primary_key=True)
@@ -292,11 +296,10 @@ class GroupSeed(models.Model):
 		return f"{self.group.tournament.short_name} - {self.group.bracket.name} - Group {self.group.name} - Seed {self.seed}"
 
 	def check_ch_name(self, testname):
-		return True if testname in self.player.ch_name else False ## do more checks for formatting, testing now
+		return self.player.check_ch_name(testname)
 
 class Qualifier(models.Model):
 	id = models.AutoField(primary_key=True)
-	#Use either tournament or bracket+tourney - allows for multiple "main" brackets to have a single qualifier or a qualifier per bracket
 	tournament = models.ForeignKey(Tournament, related_name='qualifier', verbose_name="Tournament", on_delete=models.CASCADE)
 	bracket = models.ForeignKey(Bracket, related_name='qualifier', verbose_name="Bracket", blank=True, null=True, on_delete=models.CASCADE)
 	charts = models.ManyToManyField(Chart, related_name="charts", verbose_name="Qualifier Chart(s)")
@@ -483,6 +486,7 @@ class MatchRound(models.Model):
 	#l_points = models.PositiveIntegerField(verbose_name="Players", validators=[MinValueValidator(1), MaxValueValidator(5)], default=0)
 	steg = SchemaField(StegScreenshot, verbose_name="Steg Data", null=True, blank=True) #This is the players list in the steg data
 	screenshot = models.ImageField(upload_to=steg_upload_dir, verbose_name="Screenshot", null=True, blank=True)
+	created = models.DateTimeField(verbose_name="Created Time", auto_now_add=True, null=True, blank=True)
 
 	class Meta:
 		verbose_name = "Group Match Round"
@@ -516,6 +520,7 @@ class MatchBan(models.Model):
 	chart = models.ForeignKey(Chart, related_name="bans", verbose_name="Chart Banned", null=True, blank=True, on_delete=models.SET_NULL)
 	player = models.ForeignKey(GroupSeed, related_name="player_bans", verbose_name="Player", null=True, blank=True, on_delete=models.SET_NULL)
 	match = models.ForeignKey(Match, related_name="match_bans", verbose_name="Match ID", on_delete=models.CASCADE, null=True, blank=True)
+	created = models.DateTimeField(verbose_name="Created Time", auto_now_add=True, null=True, blank=True)
 
 	class Meta:
 		verbose_name = "Match Ban"

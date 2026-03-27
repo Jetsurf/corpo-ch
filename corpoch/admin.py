@@ -25,6 +25,7 @@ class DiscordUserAdmin(admin.ModelAdmin):
 	list_display = ('_avatar', 'id', 'global_name')
 	readonly_fields = ['global_name', 'mfa_enabled', '_id', 'avatar', 'locale', 'flags', 'public_flags', 'last_login', 'date_joined']
 	exclude = ['password', 'first_name', 'last_name', 'email', 'username']
+	actions = ['update_discord_user']
 
 	def _id(self, obj):
 		return str(obj.id)
@@ -32,6 +33,11 @@ class DiscordUserAdmin(admin.ModelAdmin):
 	@mark_safe
 	def _avatar(self, obj):
 		return f'<img src="{obj.avatar}" width="24" height="24"'
+
+	@admin.action(description="Update Discord Info")
+	def update_discord_user(modeladmin, request, queryset):
+		for user in queryset:
+			corpoch.dbot.tasks.update_user(user.id)
 
 @admin.register(Chart)
 class ChartAdmin(admin.ModelAdmin):
@@ -57,7 +63,10 @@ class ChartAdmin(admin.ModelAdmin):
 
 	@mark_safe
 	def _icon(self, obj):
-		return f'<img src="{obj.icon.img.url}" width="24" height="24"'
+		if obj.icon:
+			return f'<img src="{obj.icon.img.url}" width="24" height="24"'
+		else:
+			return "None"
 
 	@admin.action(description="Run Encore import")
 	def run_encore_import(modeladmin, request, queryset):
@@ -222,9 +231,7 @@ class QualifierAdmin(admin.ModelAdmin):
 	actions = ['submit_final_scores']
 
 	def _players(self, obj):
-		distinct = QualifierSubmission.objects.values('player').annotate(player_count=Count('player')).filter(player_count=1)
-		records = QualifierSubmission.objects.filter(player__in=[item['player'] for item in distinct])
-		return len(records)
+		return TournamentPlayer.objects.all().filter(tournament=obj.tournament).count()
 
 	def _submissions(self, obj):
 		return QualifierSubmission.objects.filter(qualifier=obj).count()
@@ -236,6 +243,12 @@ class QualifierAdmin(admin.ModelAdmin):
 				kwargs["queryset"] = group.tournament.players
 			else:
 				kwargs["queryset"] = GroupSeed.objects.none()
+		if db_field.name == "channel":
+			if 'object_id' in request.resolver_match.kwargs:
+				qualifier = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs['queryset'] = Channels.objects.all().filter(guild=qualifier.tournament.guild)
+			else:
+				kwargs["queryset"] = Channels.objects.none()
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 	@admin.action(description="Submit Final Top Scores")
@@ -355,6 +368,7 @@ class QualifierSubmissionAdmin(admin.ModelAdmin):
 class RoundsInline(SortableStackedInline):
 	model = MatchRound
 	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
+	readonly_fields = ['created']
 	extra = 0
 
 	def formfield_for_foreignkey(self, db_field, request, **kwargs):
@@ -374,6 +388,7 @@ class RoundsInline(SortableStackedInline):
 
 class BansInline(SortableStackedInline):
 	model = MatchBan
+	readonly_fields = ['created']
 	extra = 0
 
 	def formfield_for_foreignkey(self, db_field, request, **kwargs):

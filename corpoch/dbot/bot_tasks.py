@@ -111,11 +111,32 @@ async def update_guild(bot, guild_id):
 	if guild.icon:
 		dbguild.icon = guild.icon.url
 
+	from corpoch.dbot.models import Roles
+	for role in Roles.objects.all():
+		try:
+			grole = await guild.fetch_role(role.id)
+		except:
+			role.deleted = True
+		else:
+			role.name = grole.name
+		finally:
+			await role.asave()
+
 	for role in await guild.fetch_roles():
-		from corpoch.dbot.models import Roles
 		theRole, created = Roles.objects.get_or_create(id=role.id, guild=dbguild)
 		theRole.name = role.name
 		await theRole.asave()
+
+	from corpoch.dbot.models import Channels
+	for channel in Channels.objects.all():
+		try:
+			gchannel = await guild.fetch_channel(channel.id)
+		except:
+			channel.deleted = True
+		else:
+			channel.name = gchannel.name
+		finally:
+			await channel.asave()
 
 	for channel in await guild.fetch_channels():
 		from corpoch.dbot.models import Channels
@@ -124,3 +145,17 @@ async def update_guild(bot, guild_id):
 		await theChannel.asave()
 
 	await dbguild.asave()
+
+async def update_user(bot, user_id):
+	print(f"Updating info for user {user_id}")
+	from corpoch.models import DiscordUser
+	dbuser = DiscordUser.objects.get(id=user_id)
+	duser = await bot.fetch_user(dbuser.id)
+	if not duser:
+		print(f"User {user_id} is no longer visible")
+		return
+
+	dbuser.username = duser.global_name if duser.global_name else duser.display_name
+	dbuser.global_name = duser.global_name if duser.global_name else duser.display_name
+	dbuser.avatar = duser.display_avatar.url
+	await dbuser.asave()

@@ -5,6 +5,11 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "DiscordOauth2.settings")
 from django.apps import apps
 from django.conf import settings
 
+AUTHENTICATION_BACKENDS = [
+    'auth.DiscordBackend', 
+    'django.contrib.auth.backends.ModelBackend',
+]
+
 DEBUG = os.getenv("DEBUG")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
