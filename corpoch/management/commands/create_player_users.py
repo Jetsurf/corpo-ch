@@ -7,7 +7,7 @@ class Command(BaseCommand):
 	help = 'Create DiscordUsers from TournamentPlayers'
 
 	def add_arguments(self, parser):
-		parser.add_argument('-d', '--discord-id', type=int, help='Discord Guild ID of user to make Users from TournamentPlayers for')
+		parser.add_argument('-d', '--discord-id', type=int, help='Discord Guild ID of Tournament to make Users from TournamentPlayers for')
 
 	def handle(self, *args, **options):
 		gid = options['discord_id']

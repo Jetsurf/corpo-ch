@@ -244,10 +244,11 @@ class Group(models.Model):
 	def __str__(self):
 		return f"{self.tournament.short_name} - {self.bracket.name} - {self.name}"
 
-class TournamentPlayer(models.Model): #TODO: This should be broken up a bit? Model fields for discord should move to dbot app
+class TournamentPlayer(models.Model):
 	id = models.AutoField(primary_key=True)
 	user = models.BigIntegerField(verbose_name="Player Discord ID", db_index=True)
-	name = models.CharField(verbose_name="Discord Name", max_length=128, null=True, blank=True)
+	#user = models.ForeignKey(DiscordUser, verbose_name="User", on_delete=models.SET_NULL, db_index=True, blank=True, null=True)
+	name = models.CharField(verbose_name="Discord Name", max_length=128, null=True, blank=True) #This is the users tournament guild display name
 	tournament = models.ForeignKey(Tournament, related_name="players", verbose_name="Tournament", on_delete=models.CASCADE)
 	is_active = models.BooleanField(verbose_name="Player Active", default=False)
 	ch_name = models.CharField(verbose_name="Clone Hero Name", max_length=128, default="</Null>")
@@ -266,7 +267,7 @@ class TournamentPlayer(models.Model): #TODO: This should be broken up a bit? Mod
 		return self.tournament.brackets.objects.select_related('player').filter(players__id=self.id)
 
 	def check_ch_name(self, testname):
-		return True if testname.replace(" ", "").replace("♡", "") in self.ch_name.replace(" ", "").replace("♡", "") else False#Might be good to move the replaces here to a type of CH_NAME_IGNORE_CHARS
+		return True if testname.replace(" ", "").replace("☆", "") in self.ch_name.replace(" ", "").replace("♡", "") else False#Might be good to move the replaces here to a type of CH_NAME_IGNORE_CHARS
 
 class GroupSeed(models.Model):
 	id = models.AutoField(primary_key=True)
@@ -295,11 +296,10 @@ class GroupSeed(models.Model):
 		return f"{self.group.tournament.short_name} - {self.group.bracket.name} - Group {self.group.name} - Seed {self.seed}"
 
 	def check_ch_name(self, testname):
-		return True if testname in self.player.ch_name else False ## do more checks for formatting, testing now
+		return self.player.check_ch_name(testname)
 
 class Qualifier(models.Model):
 	id = models.AutoField(primary_key=True)
-	#Use either tournament or bracket+tourney - allows for multiple "main" brackets to have a single qualifier or a qualifier per bracket
 	tournament = models.ForeignKey(Tournament, related_name='qualifier', verbose_name="Tournament", on_delete=models.CASCADE)
 	bracket = models.ForeignKey(Bracket, related_name='qualifier', verbose_name="Bracket", blank=True, null=True, on_delete=models.CASCADE)
 	charts = models.ManyToManyField(Chart, related_name="charts", verbose_name="Qualifier Chart(s)")
