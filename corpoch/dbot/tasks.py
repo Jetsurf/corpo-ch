@@ -34,3 +34,8 @@ def refresh_match_message(match_id):
 def update_guild(guild_id):
 	print(f"Updating information for guild {guild_id}")
 	update_guild.apply_async(args=[guild_id])
+
+@app.task
+def update_user(user_id):
+	print(f"Updating information for user {user_id}")
+	update_user.apply_async(args=[user_id])

@@ -145,3 +145,17 @@ async def update_guild(bot, guild_id):
 		await theChannel.asave()
 
 	await dbguild.asave()
+
+async def update_user(bot, user_id):
+	print(f"Updating info for user {user_id}")
+	from corpoch.models import DiscordUser
+	dbuser = DiscordUser.objects.get(id=user_id)
+	duser = await bot.fetch_user(dbuser.id)
+	if not duser:
+		print(f"User {user_id} is no longer visible")
+		return
+
+	dbuser.username = duser.global_name if duser.global_name else duser.display_name
+	dbuser.global_name = duser.global_name if duser.global_name else duser.display_name
+	dbuser.avatar = duser.display_avatar.url
+	await dbuser.asave()

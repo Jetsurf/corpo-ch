@@ -3,7 +3,7 @@ from celery.schedules import crontab
 from django.db import close_old_connections, connection
 from django.utils import timezone
 
-from corpoch.models import TournamentPlayer, Qualifier, QualifierSubmission, Match
+from corpoch.models import TournamentPlayer, Qualifier, QualifierSubmission, Match, DiscordUser
 from corpoch.dbot.models import Guilds
 from corpoch.providers import GSheets
 from corpoch.dbot import tasks
@@ -66,3 +66,11 @@ def update_all_guilds(base=ConnectionRefreshingTask):
 	for guild in Guilds.objects.all().filter(deleted=False):
 		tasks.update_guild(guild.id)
 	close_old_connections()
+
+@app.task
+def update_all_users(base=ConnectionRefreshingTask):
+	close_old_connections()
+	for user in DiscordUser.objects.all():
+		tasks.update_user(user.id)
+	close_old_connections()
+
