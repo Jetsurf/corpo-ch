@@ -1,17 +1,19 @@
-from django.contrib.auth.backends import BaseBackend
+from django.contrib.auth.backends import ModelBackend
+from django.contrib.auth import get_user_model
 
-from .models import DiscordUser
-
-class DiscordBackend(BaseBackend):
+class DiscordBackend(ModelBackend):
 	def authenticate(self, request, user):
-		check_user = DiscordUser.objects.filter(id=user.id)
+		UserModel = get_user_model()
+		check_user = UserModel.objects.filter(id=user.id)
+
 		if not check_user:
-			new_user = DiscordUser.objects.create_new_discord_user(user)
+			new_user = UserModel.objects.create_new_discord_user(user)
 			return new_user
 		return check_user
 
-	def get_user(self, id):
+	def get_user(self, user_id):
+		UserModel = get_user_model()
 		try:
-			return DiscordUser.objects.get(id=id)
-		except DiscordUser.DoesNotExist:
+			return UserModel.objects.get(id=user_id)
+		except UserModel.DoesNotExist:
 			return None
