@@ -246,8 +246,7 @@ class Group(models.Model):
 
 class TournamentPlayer(models.Model):
 	id = models.AutoField(primary_key=True)
-	user = models.BigIntegerField(verbose_name="Player Discord ID", db_index=True)
-	#user = models.ForeignKey(DiscordUser, verbose_name="User", on_delete=models.SET_NULL, db_index=True, blank=True, null=True)
+	user = models.ForeignKey(DiscordUser, verbose_name="User", on_delete=models.SET_NULL, db_index=True, blank=True, null=True)
 	name = models.CharField(verbose_name="Discord Name", max_length=128, null=True, blank=True) #This is the users tournament guild display name
 	tournament = models.ForeignKey(Tournament, related_name="players", verbose_name="Tournament", on_delete=models.CASCADE)
 	is_active = models.BooleanField(verbose_name="Player Active", default=False)
