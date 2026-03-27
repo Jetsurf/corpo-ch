@@ -35,7 +35,7 @@ class DiscordMatch():
 			self.msg = await self.channel.fetch_message(self.matchDb.message)
 			self.referee = await self.guild.fetch_member(self.matchDb.referee)
 			for seed in self.seeding:
-				self.seeding_discord.append(await self.guild.fetch_member(seed.player.user))
+				self.seeding_discord.append(await self.guild.fetch_member(seed.player.user.id))
 			if not await self.isFinished() and len(self.bans) > 0 and (len(self.rounds) == 0 or self.rounds[-1].winner):
 				await self.add_round()
 		try:

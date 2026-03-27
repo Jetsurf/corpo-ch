@@ -186,9 +186,9 @@ class PlayerSelect(discord.ui.Select):
 		seeding = []
 		async for seed in self.match.group.seeding.select_related('player').all():
 			if seed.player.is_active:
-				self.retOpts[str(seed.player.user)] = seed
-				mem = await self.match.guild.fetch_member(seed.player.user)
-				seeding.append(discord.SelectOption(label=f"{seed.player.ch_name} ({seed.seed})", value=str(seed.player.user), description=f"@{mem.display_name}"))
+				self.retOpts[str(seed.player.user.id)] = seed
+				mem = await self.match.guild.fetch_member(seed.player.user.id)
+				seeding.append(discord.SelectOption(label=f"{seed.player.ch_name} ({seed.seed})", value=str(seed.player.user.id), description=f"@{mem.display_name}"))
 		plys = self.match.bracket.ruleset.num_players
 		super().__init__(placeholder="Players", min_values=plys, max_values=plys, options=seeding, custom_id="player_sel")
 
@@ -196,7 +196,7 @@ class PlayerSelect(discord.ui.Select):
 		for ply in self.values:
 			seed = self.retOpts[ply]
 			self.match.seeding.append(seed)
-			self.match.seeding_discord.append(await self.match.guild.fetch_member(seed.player.user))
+			self.match.seeding_discord.append(await self.match.guild.fetch_member(seed.player.user.id))
 		await self.match.showTool(interaction)
 
 class DiscordMatchView(discord.ui.View):
@@ -288,7 +288,7 @@ class DiscordMatchView(discord.ui.View):
 			return True
 		if isinstance(self.match.matchDb, Match) and self.match.matchDb.complete:
 			async for seed in self.match.matchDb.players.select_related('player'):
-				if seed.player.user == interaction.user.id:
+				if seed.player.user.id == interaction.user.id:
 					return True
 		if interaction.user.id == self.match.referee.id:
 			return True
