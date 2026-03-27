@@ -34,18 +34,21 @@ class GSheetAPI(models.Model):
 class DiscordUser(AbstractUser):
 	objects = DiscordOAuth2Manager()
 	id = models.BigIntegerField(primary_key=True, unique=True)
-	global_name = models.CharField(max_length=255)
-	public_flags = models.IntegerField()
-	flags = models.IntegerField()
-	avatar = models.CharField(max_length=255)
-	locale = models.CharField(max_length=255)
-	mfa_enabled = models.BooleanField()
+	global_name = models.CharField(max_length=255, null=True, blank=True)
+	public_flags = models.IntegerField(null=True, blank=True)
+	flags = models.IntegerField(null=True, blank=True)
+	avatar = models.CharField(max_length=255, null=True, blank=True)
+	locale = models.CharField(max_length=255, null=True, blank=True)
+	mfa_enabled = models.BooleanField(default=False)
 	last_login = models.DateTimeField(null=True, blank=True)
 
 	USERNAME_FIELD = 'id'
 
 	def __str__(self):
-		return self.global_name
+		if self.global_name:
+			return self.global_name
+		else:
+			return str(self.id)
 
 class DiscordToken(models.Model):
 	access_token = EncryptedTextField(max_length=255)
