@@ -243,6 +243,12 @@ class QualifierAdmin(admin.ModelAdmin):
 				kwargs["queryset"] = group.tournament.players
 			else:
 				kwargs["queryset"] = GroupSeed.objects.none()
+		if db_field.name == "channel":
+			if 'object_id' in request.resolver_match.kwargs:
+				qualifier = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs['queryset'] = Channels.objects.all().filter(guild=qualifier.tournament.guild)
+			else:
+				kwargs["queryset"] = Channels.objects.none()
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 	@admin.action(description="Submit Final Top Scores")

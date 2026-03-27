@@ -10,7 +10,7 @@ from asgiref.sync import sync_to_async
 from django.utils import timezone
 from django.core.files.base import ContentFile
 
-from corpoch.models import Tournament, Bracket, TournamentPlayer, Qualifier, QualifierSubmission, Chart
+from corpoch.models import Tournament, Bracket, TournamentPlayer, Qualifier, QualifierSubmission, Chart, DiscordUser
 from corpoch.providers import CHOpt, CHStegTool
 
 class QualifierSelect(discord.ui.Select):
@@ -71,6 +71,7 @@ class DiscordQualifierView(discord.ui.View):
 		self.tourney = None
 		self.steg = None
 		self.screen = None
+		self.user = None
 
 		cancel = discord.ui.Button(label="Cancel", style=discord.ButtonStyle.red, custom_id="cancelBtn")
 		cancel.callback = self.cancelBtn
@@ -116,13 +117,19 @@ class DiscordQualifierView(discord.ui.View):
 		if self.qualifier:
 			self.upload.disabled = False
 			try:
-				self.ply = await TournamentPlayer.objects.aget(user=self.ctx.user.id, tournament=self.qualifier.tournament)
+				self.user = await DiscordUser.objects.aget(id=self.ctx.user.id)
+			except:
+				self.user = DiscordUser(id=self.ctx.user.id)
+				await self.user.asave()
+			try:
+				self.ply = await TournamentPlayer.objects.aget(user=self.user, tournament=self.qualifier.tournament)
 				async for qual in QualifierSubmission.objects.select_related().all().filter(player=self.ply, qualifier=self.qualifier):
 					self.prev_subs.append(qual)
 				self.num_subs = len(self.prev_subs)
 			except TournamentPlayer.DoesNotExist:
-				self.ply = TournamentPlayer(user=self.ctx.user.id, tournament=self.tourney, ch_name="</Null>")
+				self.ply = TournamentPlayer(user=self.user, tournament=self.tourney, ch_name="</Null>")
 				self.num_subs = 0
+
 			self.num_subs = len(self.prev_subs)
 			embeds.append(self.buildRulesEmbed())
 		if self.num_subs > 0:
@@ -200,6 +207,7 @@ class DiscordQualifierView(discord.ui.View):
 		await interaction.response.defer()
 		self.ply.name = self.ctx.user.display_name
 		self.ply.ch_name = self.steg.output.players[0].profile_name
+		await self.user.asave()
 		await self.ply.asave()
 		quali = QualifierSubmission(player=self.ply, qualifier=self.qualifier, steg=self.steg.output)
 		await sync_to_async(quali.screenshot.save)(f'{uuid.uuid1()}.png', open(self.steg.img_path, 'rb'))
