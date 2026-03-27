@@ -356,6 +356,7 @@ class QualifierSubmissionAdmin(admin.ModelAdmin):
 class RoundsInline(SortableStackedInline):
 	model = MatchRound
 	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
+	readonly_fields = ['created']
 	extra = 0
 
 	def formfield_for_foreignkey(self, db_field, request, **kwargs):
@@ -375,6 +376,7 @@ class RoundsInline(SortableStackedInline):
 
 class BansInline(SortableStackedInline):
 	model = MatchBan
+	readonly_fields = ['created']
 	extra = 0
 
 	def formfield_for_foreignkey(self, db_field, request, **kwargs):

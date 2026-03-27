@@ -40,4 +40,14 @@ class Migration(migrations.Migration):
             name='public_flags',
             field=models.IntegerField(blank=True, null=True),
         ),
+        migrations.AddField(
+            model_name='matchban',
+            name='created',
+            field=models.DateTimeField(auto_now_add=True, null=True, verbose_name='Created Time'),
+        ),
+        migrations.AddField(
+            model_name='matchround',
+            name='created',
+            field=models.DateTimeField(auto_now_add=True, null=True, verbose_name='Created Time'),
+        ),
     ]

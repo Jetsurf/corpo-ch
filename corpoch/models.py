@@ -486,6 +486,7 @@ class MatchRound(models.Model):
 	#l_points = models.PositiveIntegerField(verbose_name="Players", validators=[MinValueValidator(1), MaxValueValidator(5)], default=0)
 	steg = SchemaField(StegScreenshot, verbose_name="Steg Data", null=True, blank=True) #This is the players list in the steg data
 	screenshot = models.ImageField(upload_to=steg_upload_dir, verbose_name="Screenshot", null=True, blank=True)
+	created = models.DateTimeField(verbose_name="Created Time", auto_now_add=True, null=True, blank=True)
 
 	class Meta:
 		verbose_name = "Group Match Round"
@@ -519,6 +520,7 @@ class MatchBan(models.Model):
 	chart = models.ForeignKey(Chart, related_name="bans", verbose_name="Chart Banned", null=True, blank=True, on_delete=models.SET_NULL)
 	player = models.ForeignKey(GroupSeed, related_name="player_bans", verbose_name="Player", null=True, blank=True, on_delete=models.SET_NULL)
 	match = models.ForeignKey(Match, related_name="match_bans", verbose_name="Match ID", on_delete=models.CASCADE, null=True, blank=True)
+	created = models.DateTimeField(verbose_name="Created Time", auto_now_add=True, null=True, blank=True)
 
 	class Meta:
 		verbose_name = "Match Ban"
