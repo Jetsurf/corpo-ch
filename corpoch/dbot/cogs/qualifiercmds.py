@@ -10,6 +10,7 @@ from asgiref.sync import sync_to_async
 from django.utils import timezone
 from django.core.files.base import ContentFile
 
+from corpoch.dbot.tasks import update_user
 from corpoch.models import Tournament, Bracket, TournamentPlayer, Qualifier, QualifierSubmission, Chart, DiscordUser
 from corpoch.providers import CHOpt, CHStegTool
 
@@ -121,6 +122,7 @@ class DiscordQualifierView(discord.ui.View):
 			except:
 				self.user = DiscordUser(id=self.ctx.user.id)
 				await self.user.asave()
+				update_user(self.ctx.user.id)
 			try:
 				self.ply = await TournamentPlayer.objects.aget(user=self.user, tournament=self.qualifier.tournament)
 				async for qual in QualifierSubmission.objects.select_related().all().filter(player=self.ply, qualifier=self.qualifier):

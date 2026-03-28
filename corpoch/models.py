@@ -267,7 +267,7 @@ class TournamentPlayer(models.Model):
 		return self.tournament.brackets.objects.select_related('player').filter(players__id=self.id)
 
 	def check_ch_name(self, testname):
-		return True if testname.replace(" ", "").replace("☆", "") in self.ch_name.replace(" ", "").replace("♡", "") else False#Might be good to move the replaces here to a type of CH_NAME_IGNORE_CHARS
+		return True if testname.replace(" ", "").replace("♡", "").replace("☆", "") in self.ch_name.replace(" ", "").replace("♡", "").replace("☆", "") else False#Might be good to move the replaces here to a type of CH_NAME_IGNORE_CHARS
 
 class GroupSeed(models.Model):
 	id = models.AutoField(primary_key=True)
