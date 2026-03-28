@@ -10,7 +10,7 @@ from asgiref.sync import sync_to_async
 from django.utils import timezone
 from django.core.files.base import ContentFile
 
-from corpoch.dbot.tasks import update_user
+from corpoch.dbot.bot_tasks import update_user
 from corpoch.models import Tournament, Bracket, TournamentPlayer, Qualifier, QualifierSubmission, Chart, DiscordUser
 from corpoch.providers import CHOpt, CHStegTool
 
@@ -63,8 +63,9 @@ class QualiPlayerSel(discord.ui.Select):
 		await self.quali.show()
 
 class DiscordQualifierView(discord.ui.View):
-	def __init__(self, ctx):
+	def __init__(self, handler, ctx):
 		super().__init__(timeout = 360, disable_on_timeout=True)
+		self._bot = handler.bot
 		self.ctx = ctx
 		self.qualifier = None
 		self.qualifiers = []
@@ -120,9 +121,9 @@ class DiscordQualifierView(discord.ui.View):
 			try:
 				self.user = await DiscordUser.objects.aget(id=self.ctx.user.id)
 			except:
-				self.user = DiscordUser(id=self.ctx.user.id)
+				self.user = DiscordUser(id=self.ctx.user.id, username=self.ctx.user.global_name if self.ctx.user.global_name else self.ctx.user.display_name, , username=self.ctx.user.global_name if self.ctx.user.global_name else self.ctx.user.display_name)
 				await self.user.asave()
-				update_user(self.ctx.user.id)
+				await update_user(self._bot, self.ctx.user.id)
 			try:
 				self.ply = await TournamentPlayer.objects.aget(user=self.user, tournament=self.qualifier.tournament)
 				async for qual in QualifierSubmission.objects.select_related().all().filter(player=self.ply, qualifier=self.qualifier):
@@ -199,7 +200,7 @@ class DiscordQualifierView(discord.ui.View):
 			print(f"QUALIFIER: {self.qualifier}: {self.ctx.user.display_name} screenshot speed {steg.output.playback_speed}% does not match speed of qualifier: {playedChart.speed}%")
 			await interaction.followup.send(f"Uploaded screenshot speed ({steg.output.playback_speed}%) does not match speed of qualifier: {playedChart.speed}%", ephemeral=True, delete_after=10)
 		else:
-			print(f"QUALIFIER: {self.ctx.user.display_name} screenshot {steg.img_path} accepted")
+			print(f"QUALIFIER: {self.ctx.user.display_name} screenshot {steg.img_name} accepted")
 			self.steg = steg
 			self.screen = modal.screen
 		await self.show()
@@ -273,11 +274,9 @@ class QualifierCmds(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
 
-		#TODO - add check to limit only one command run open at once - can cause multiple player object if ran 2x then submit through both
-
 	@commands.slash_command(name='qualifier', description='Submit a qualifier score for a tournament/bracket', integration_types={discord.IntegrationType.guild_install})
 	async def qualifierSubmitCmd(self, ctx):
-		view = DiscordQualifierView(ctx)
+		view = DiscordQualifierView(self, ctx)
 		await view.init()
 
 def setup(bot):
