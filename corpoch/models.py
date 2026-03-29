@@ -369,7 +369,7 @@ class Match(models.Model):
 	submitted = models.BooleanField(verbose_name="GSheet", default=False)
 	channel = models.ForeignKey("dbot.Channels", verbose_name="Ref-Tool Discord Channel", on_delete=models.SET_NULL, null=True, blank=True)
 	message = models.BigIntegerField(verbose_name="Ref-Tool Discord Message ID", null=True, blank=True)
-	referee = models.BigIntegerField(verbose_name="Discord Ref ID", null=True, blank=True)
+	referee = models.ForeignKey(DiscordUser, verbose_name="User", on_delete=models.SET_NULL, db_index=True, blank=True, null=True)
 	exhibition = models.BooleanField(default=False)
 
 	class Meta:
