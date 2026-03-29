@@ -190,17 +190,20 @@ class ChartSelect(discord.ui.Select):
 			emoji = await get_chart_emoji(self.path.bot, chart)
 			if isinstance(chart, Chart):
 				self.retOpts[chart.md5] = chart
-				opts.append(discord.SelectOption(label=chart.tournament_name, emoji=emoji, value=chart.md5, description=f"{'TB - ' if chart.tiebreaker else ''}{chart.artist} - {chart.album} - {chart.charter}", default=True if self.path.chart == chart else False))
+				opts.append(discord.SelectOption(label=chart.tournament_name, emoji=emoji, value=chart.md5, description=f"{'TB - ' if chart.tiebreaker else ''}{chart.artist} - {chart.album} - {chart.charter}"))
 			else:
-				opts.append(discord.SelectOption(label=chart.name, emoji=emoji, value=chart.md5, description=f"{chart.artist} - {chart.album} - {chart.charter}", default=True if self.path.chart == chart else False))
+				opts.append(discord.SelectOption(label=chart.name, emoji=emoji, value=chart.md5, description=f"{chart.artist} - {chart.album} - {chart.charter}"))
 				self.retOpts[chart.md5] = chart
-		super().__init__(placeholder="Select a chart", options=opts, max_values=1, custom_id="chart_sel")
+		super().__init__(placeholder="Select a chart", options=opts, min_values=1, max_values=len(opts), custom_id="chart_sel")
 
 	async def callback(self, interaction: discord.Interaction):
-		self.path.chart = self.retOpts[self.values[0]]
-		if isinstance(self.path.chart, Chart):
-			self.path.chopt.opts.instrument = self.path.chart.instrument
-			self.path.chopt.opts.speed = self.path.chart.speed
+		for retChart in self.values:
+			chart = self.retOpts[retChart]
+			self.path.chart_paths.append(chart)
+			if isinstance(chart, Chart):
+				self.path.chopt.opts.instrument = chart.instrument
+			self.path.chopt.opts.speed = chart.speed
+
 		await interaction.response.defer(ephemeral=True)
 		await self.path.show()
 
@@ -208,7 +211,7 @@ class PathView(discord.ui.View):
 	def __init__(self, path):
 		self.path = path
 		super().__init__(timeout = None)
-		if not self.path.chart:
+		if len(self.path.chart_paths) < 1:
 			self.get_item('submit').disabled = True
 			self.get_item('opts').disabled = True
 

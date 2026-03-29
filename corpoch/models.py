@@ -1,21 +1,24 @@
 import uuid, typing, json, math, io
 
-from django.db import models
-from django_pydantic_field import SchemaField
-from multiselectfield import MultiSelectField
 from django.contrib import admin
-from django.core.validators import MaxValueValidator, MinValueValidator
-from encrypted_fields.fields import EncryptedJSONField, EncryptedTextField
-from django.core.serializers.json import DjangoJSONEncoder
-from django.core.exceptions import ValidationError
-from django.utils import timezone
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
 from django.core.files import File
+from django.core.serializers.json import DjangoJSONEncoder
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import models
+from django.utils import timezone
+
+from django_pydantic_field import SchemaField
+from encrypted_fields.fields import EncryptedJSONField, EncryptedTextField
+from multiselectfield import MultiSelectField
+from solo.models import SingletonModel
+
 from corpoch import settings
-from corpoch.validators import validate_chart_file
 from corpoch.managers import DiscordOAuth2Manager
-from corpoch.types import CH_INSTRUMENTS, CH_DIFFICULTIES, CH_MODIFIERS, CH_VERSIONS, CHART_CATEGORIES, TB_RULESETS, PICK_RULESETS, BAN_RULESETS, StegScreenshot
 from corpoch.utils.snghandler import SNGHandler
+from corpoch.types import CH_INSTRUMENTS, CH_DIFFICULTIES, CH_MODIFIERS, CH_VERSIONS, CHART_CATEGORIES, TB_RULESETS, PICK_RULESETS, BAN_RULESETS, StegScreenshot
+from corpoch.validators import validate_chart_file
 
 def steg_upload_dir(self, filename):
 	return f"matches/{str(self.match.group).replace(' ', '').replace(":", "")}/{self.match.id}/{filename}"
@@ -23,10 +26,14 @@ def steg_upload_dir(self, filename):
 def quali_upload_dir(self, filename):
 	return f"qualifiers/{str(self.qualifier).replace(' ', '').replace(':', '')}/{filename}"
 
-class GSheetAPI(models.Model):
+class GSheetAPI(SingletonModel):
 	api_key = EncryptedJSONField(null=False, blank=True, default=dict)
 	sa_name = models.CharField(verbose_name="API Service Account Name", max_length=96)
-	#ONLY ONE KEY SHOULD BE IN THIS TABLE
+
+	singleton_instance_id = 1
+
+	def __str__(self):
+		return "Google Sheets"
 
 	class Meta:
 		verbose_name = "Google Sheets API"
@@ -310,7 +317,7 @@ class Qualifier(models.Model):
 	rules = models.TextField(verbose_name="Rules", max_length=1024, default="Placeholder rules")
 	channel = models.ForeignKey("dbot.Channels", verbose_name="Submission Discord Channel", on_delete=models.SET_NULL, db_index=True, blank=True, null=True)
 	gsheet = models.URLField(verbose_name="Submissions Google Sheet", null=True, blank=True)
-	output = models.BooleanField(verbose_name="Msg On Submissiom", default=True)
+	output = models.BooleanField(verbose_name="Msg On Submission", default=True)
 
 	class Meta:
 		verbose_name = "Qualifier"

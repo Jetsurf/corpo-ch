@@ -10,7 +10,7 @@
 	<br><br>
 	<div class="container">
 		<nav class="navbar navbar-expand-sm  navbar-dark ">
-			<a class="navbar-brand mx-auto" href="#DiscordOauth2"><img class="rounded-circle" src="{% static 'mainapp/images/django_discord.png' %}"><span> DiscordOauth2</span></a>
+			<a class="navbar-brand mx-auto" href="#CorpoCH"><img class="rounded-circle" src="{% static 'mainapp/images/corpo.png' %}"><span> Corpo Clone Hero Bot</span></a>
 			<!--
 			<button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#navbarCollapse">
 				<span class="navbar-toggler-icon"></span>
@@ -23,21 +23,28 @@
 	</div>
 	<div class="container" style="padding-top: 3vh;">
 		<div class="jumbotron">
-			<h1><strong id="DiscordOauth2">DiscordOauth2</strong></h1>
-			<div id="Discord">
-				<h4>Discord</h4>
-				<blockquote cite="https://discord.com/company"><a href="https://discord.com/company" target="_blank">Discord</a> is a voice, video and text communication service used by over a hundred million people to hang out and talk with their friends and communities.</blockquote>
+			<h1><strong id="Corpo">Corpo</strong></h1>
+			<div id="Corpo">
+				<h4>Corpo</h4>
+				<p> Corpo is a Clone Hero tournament organizier tool used to assist with a lot of tasks involved in running one.
+
+				This page will eventually have more information from Tournaments past and on-going.</p>
 			</div>
-			<div id="OAuth2">
-				<h4>OAuth2</h4>
-				<blockquote cite="https://discord.com/developers/docs/topics/oauth2#oauth2">
-					<a href="https://discord.com/developers/docs/topics/oauth2#oauth2" target="_blank">OAuth2</a> enables application developers to build applications that utilize authentication and data from the Discord API. Within Discord, there are multiple types of OAuth2 authentication. We support the authorization code grant, the implicit grant, client credentials, and some modified special-for-Discord flows for Bots and Webhooks.
+			<div id="Bot">
+				<h4>Corpo Bot</h4>
+				<blockquote cite="https://discord.com/oauth2/authorize?client_id=1381816611086012456">
+					<a href="https://discord.com/oauth2/authorize?client_id=1381816611086012456" target="_blank">The Corpo Discord Bot</a> is a component of Corpo that handles matches, qualifiers, screenshot collection, and CHOpt/Hydra path generation. 
 				</blockquote>
+				<h6>/qualifier</h6>
+				<p>Provides information on a running qualifier for a Discord Guild (Download links, forms, etc). Allows for submitting a qualifier screenshot to enter a tournament, and shows previous submissions.</p>
+				<h6>/ch path</h6>
+				<p>Will generate a <a href="https://github.com/GenericMadScientist/CHOpt">CHOpt</a> or <a href="https://github.com/DragonDelgar/hydra">Hydra</a> (for Drums) path for either a chart listed on <a href="https://www.enchor.us/">Encore</a> or from a tournament's setlist (only ones the bot has ran for now)</p>
 			</div>
 			<div id="About">
 				<h4>About</h4>
-				<p>This site allows you to see your profile and the servers you are in after your authentication in Discord, but according to Discord rules and the services it provides to us. So do not worry about stealing your identity and the servers you are on.</p>
-				<p>This is just a simple project that is just for practice and challenge for me. If you see a problem, please raise it on my github repository issue or dm on discord → <kbd>ShoK#0002</kbd>.</p>
+				<p>Corpo is a passion project made by competitive Clone Hero players for everyone. It's primary aim is to make data on CH tournaments easily available.</p>
+				<p>It will always remain open-source, free to use, and collect as little information as possible.</p>
+				<p>For now, this is just a basic landing page. More to come. Questions, please reach out to @jetsurf on Discord.</p>
 			</div>	
 		</div>	
 		<div id="Auth"><span>⇘Click here to authenticate yourself⇙<br></span>

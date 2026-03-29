@@ -1,23 +1,22 @@
 import json, time
 
-from adminsortable2.admin import CustomInlineFormSet, SortableAdminBase, SortableStackedInline, SortableAdminMixin
-
-from django_pydantic_field import fields
 from django.contrib import admin
-from django_jsonform.widgets import JSONFormWidget
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Count
+from django.utils.html import mark_safe
+
+from adminsortable2.admin import CustomInlineFormSet, SortableAdminBase, SortableStackedInline, SortableAdminMixin
+from django_jsonform.widgets import JSONFormWidget
+from django_pydantic_field import fields
+from solo.admin import SingletonModelAdmin
 
 from corpoch.models import Chart, Tournament, TournamentConfig, BracketRules, Bracket, Qualifier, TournamentPlayer, GroupSeed, MatchRound, CHIcon
 from corpoch.models import Match, Group, QualifierSubmission, CH_MODIFIERS, MatchBan, GSheetAPI, DiscordUser
 from corpoch.dbot.models import Guilds, Channels, Roles
 from corpoch.providers import EncoreClient, GSheets
-from django.utils.html import mark_safe
 import corpoch.dbot.tasks
 
-@admin.register(GSheetAPI)
-class GSheetAPIAdmin(admin.ModelAdmin):
-	pass
+admin.site.register(GSheetAPI, SingletonModelAdmin)
 
 @admin.register(DiscordUser)
 class DiscordUserAdmin(admin.ModelAdmin):

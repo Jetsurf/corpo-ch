@@ -19,6 +19,7 @@ django-pydantic-field
 django-celery-results
 django-jsonform
 python-decouple
+django-solo
 daphne
 gspread
 mido

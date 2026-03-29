@@ -271,7 +271,7 @@ class GSheets():
 		self._format_header = {'textFormat': {'bold': True}, "horizontalAlignment": "CENTER", 'borders': { 'bottom': { 'style' : 'SOLID' }, 'left': { 'style' : 'SOLID' }, 'right': { 'style' : 'SOLID' }}}
 
 	def login(self):
-		gs = GSheetAPI.objects.get()
+		gs = GSheetAPI.objects.get_solo()
 		self._gc = gspread.service_account_from_dict(gs.api_key, http_client=gspread.BackOffHTTPClient)
 		if not self._gc:
 			raise RuntimeError("Gsheels API: API Key invalid/failed to login")

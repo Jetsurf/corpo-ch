@@ -10,7 +10,6 @@ from asgiref.sync import sync_to_async
 from django.utils import timezone
 from django.core.files.base import ContentFile
 
-from corpoch.dbot.bot_tasks import update_user
 from corpoch.models import Tournament, Bracket, TournamentPlayer, Qualifier, QualifierSubmission, Chart, DiscordUser
 from corpoch.providers import CHOpt, CHStegTool
 
@@ -63,9 +62,8 @@ class QualiPlayerSel(discord.ui.Select):
 		await self.quali.show()
 
 class DiscordQualifierView(discord.ui.View):
-	def __init__(self, handler, ctx):
+	def __init__(self, ctx):
 		super().__init__(timeout = 360, disable_on_timeout=True)
-		self._bot = handler.bot
 		self.ctx = ctx
 		self.qualifier = None
 		self.qualifiers = []
@@ -121,9 +119,12 @@ class DiscordQualifierView(discord.ui.View):
 			try:
 				self.user = await DiscordUser.objects.aget(id=self.ctx.user.id)
 			except:
-				self.user = DiscordUser(id=self.ctx.user.id, username=self.ctx.user.global_name if self.ctx.user.global_name else self.ctx.user.display_name, , username=self.ctx.user.global_name if self.ctx.user.global_name else self.ctx.user.display_name)
+				self.user = DiscordUser(id=self.ctx.user.id,
+					username=self.ctx.user.global_name if self.ctx.user.global_name else self.ctx.user.display_name,
+					global_name=self.ctx.user.global_name if self.ctx.user.global_name else self.ctx.user.display_name,
+					avatar=self.ctx.user.display_avatar.url
+				)
 				await self.user.asave()
-				await update_user(self._bot, self.ctx.user.id)
 			try:
 				self.ply = await TournamentPlayer.objects.aget(user=self.user, tournament=self.qualifier.tournament)
 				async for qual in QualifierSubmission.objects.select_related().all().filter(player=self.ply, qualifier=self.qualifier):
