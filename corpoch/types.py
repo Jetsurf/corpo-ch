@@ -68,6 +68,10 @@ BAN_RULESETS = (
 	("deferboth", "High Seed can defers both ban/pick"),
 )
 
+class TournamentPlayerConfig(pydantic.BaseModel):
+	ch_name: str
+	is_primary: bool
+
 #This is for v6 steg
 class StegScreenshotPlayer(pydantic.BaseModel):
 	accent_notes_hit : int = 0

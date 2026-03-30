@@ -52,12 +52,13 @@ class QualiPlayerSel(discord.ui.Select):
 		opts = []
 		for i, player in enumerate(self.quali.steg.output.players):
 			self.retOpts[player.profile_name] = i
-			opts.append(discord.SelectOption(label=player.profile_name))
+			opts.append(discord.SelectOption(label=player.profile_name, value=str(i)))
 		super().__init__(max_values=1, options=opts, custom_id="bracket_sel")
 
 	async def callback(self, interaction: discord.Interaction):
 		#Purge all non-selected players from steg data
-		self.quali.steg.output.players = [ ply for i, ply in enumerate(self.quali.steg.output.players) if i == self.retOpts[self.values[0]]]
+		selected_index = int(self.values[0])
+		self.quali.steg.output.players = [ ply for i, ply in enumerate(self.quali.steg.output.players) if i == selected_index]
 		await interaction.response.defer(invisible=True)
 		await self.quali.show()
 
@@ -171,21 +172,32 @@ class DiscordQualifierView(discord.ui.View):
 			return
 		plySteg = []
 		for i, ply in enumerate(steg.output.players):
-			try:
-				otherPly = await TournamentPlayer.objects.aget(ch_name=ply.profile_name, tournament=self.qualifier.tournament)
-				if self.ply and self.ply != otherPly:
-					print(f"QUALIFIER: Removing player {ply.profile_name} already in tournament {self.tourney.short_name}")
-					continue
-			except TournamentPlayer.DoesNotExist:
-				pass
+			current_player_id = self.ply.id if (self.ply and self.ply.id) else None
+			name_taken_by_other = False
+			target_name = ply.profile_name.strip().lower()
 
-			if self.ply.ch_name != "</Null>" and not self.ply.check_ch_name(ply.profile_name):
-					print(f"QUALIFIER: Stripping {i}:{ply.profile_name} from {self.ply.ch_name} qualifier screen")
+			other_players = TournamentPlayer.objects.filter(tournament=self.qualifier.tournament).exclude(user=self.user)
+
+			async for other_ply in other_players:
+				if not isinstance(other_ply.config, list):
 					continue
+
+				for item in other_ply.config:
+					db_name = item.get('ch_name', '').strip().lower()
+					if db_name == target_name:
+						name_taken_by_other = True
+						break 
+
+				if name_taken_by_other:
+					break 
+
+			if name_taken_by_other:
+				print(f"QUALIFIER: Removing player {ply.profile_name} already in tournament {self.tourney.short_name}")
+				continue
 
 			plySteg.append(ply)
 
-		steg.outputplayers = plySteg
+		steg.output.players = plySteg
 		try:
 			playedChart = await self.qualifier.charts.aget(md5=steg.output.checksum)
 		except Chart.DoesNotExist:
@@ -210,7 +222,22 @@ class DiscordQualifierView(discord.ui.View):
 		print(f"QUALIFIER: {self.qualifier}: {self.ctx.user.display_name} submitted a screenshot")
 		await interaction.response.defer()
 		self.ply.name = self.ctx.user.display_name
-		self.ply.ch_name = self.steg.output.players[0].profile_name
+		final_ch_name = self.steg.output.players[0].profile_name
+
+		if self.ply:
+			config_data = list(self.ply.config) if isinstance(self.ply.config, list) else []
+			name_exists = any(item.get('ch_name') == final_ch_name for item in config_data)
+			if not name_exists:
+				print(f"QUALIFIER: Player claimed a brand new name: {final_ch_name}. Appending to config.")
+				config_data.append({
+					"ch_name": final_ch_name,
+					"is_primary": False
+				})
+			for item in config_data:
+				item['is_primary'] = (item.get('ch_name') == final_ch_name)
+			self.ply.config = config_data
+			self.ply.ch_name = final_ch_name
+
 		await self.user.asave()
 		await self.ply.asave()
 		quali = QualifierSubmission(player=self.ply, qualifier=self.qualifier, steg=self.steg.output)
@@ -276,8 +303,8 @@ class QualifierCmds(commands.Cog):
 		self.bot = bot
 
 	@commands.slash_command(name='qualifier', description='Submit a qualifier score for a tournament/bracket', integration_types={discord.IntegrationType.guild_install})
-	async def qualifierSubmitCmd(self, ctx):
-		view = DiscordQualifierView(self, ctx)
+	async def qualifierSubmitCmd(self,ctx):
+		view = DiscordQualifierView(ctx)
 		await view.init()
 
 def setup(bot):
