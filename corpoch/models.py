@@ -345,6 +345,10 @@ class QualifierSubmission(models.Model):
 	def __str__(self):
 		return f"{self.player.ch_name} - {self.qualifier.tournament.name} {self.qualifier.bracket.name if self.qualifier.bracket else ''} Qualifier"
 
+	@property
+	def score(self):
+		return self.steg.players[0].score
+
 	def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
 		if self.screenshot and not self.steg:
 			from corpoch.providers import CHStegTool

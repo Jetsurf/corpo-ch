@@ -316,7 +316,7 @@ class GroupAdmin(SortableAdminBase, admin.ModelAdmin):
 @admin.register(QualifierSubmission)
 class QualifierSubmissionAdmin(admin.ModelAdmin):
 	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
-	list_display = ('id', 'qualifier', 'player_ch_name', '_score', '_miss', '_hit', '_excess', '_ghosts', '_phrases', 'submitted')
+	list_display = ('id', 'qualifier', 'player_ch_name', 'score', '_miss', '_hit', '_excess', '_ghosts', '_phrases', 'submitted')
 	list_filter = ["qualifier", "player"]
 	actions = ['set_unsubmitted',"reread_steg", "resubmit_gsheet"]
 
@@ -325,9 +325,6 @@ class QualifierSubmissionAdmin(admin.ModelAdmin):
 
 	def player_ch_name(self, obj):
 		return obj.player.ch_name
-
-	def _score(self, obj):
-		return obj.steg.players[0].score if len(obj.steg.players) > 0 else '-'
 
 	def _miss(self, obj):
 		return obj.steg.players[0].notes_missed if len(obj.steg.players) > 0 else '-'
@@ -343,6 +340,15 @@ class QualifierSubmissionAdmin(admin.ModelAdmin):
 
 	def _phrases(self, obj):
 		return obj.steg.players[0].sp_phrases_earned if len(obj.steg.players) > 0 else '-'
+
+	def formfield_for_foreignkey(self, db_field, request, **kwargs):
+		if db_field.name == "player":
+			if 'object_id' in request.resolver_match.kwargs:
+				sub = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs['queryset'] = TournamentPlayer.objects.all().filter(tournament=sub.qualifier.tournament)
+			else:
+				kwargs["queryset"] = TournamentPlayer.objects.none()
+		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 	@admin.action(description="Mark Qualifiers GSheet Unsent")
 	def set_unsubmitted(modeladmin, request, queryset):

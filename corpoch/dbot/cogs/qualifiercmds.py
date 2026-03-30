@@ -127,7 +127,7 @@ class DiscordQualifierView(discord.ui.View):
 				await self.user.asave()
 			try:
 				self.ply = await TournamentPlayer.objects.aget(user=self.user, tournament=self.qualifier.tournament)
-				async for qual in QualifierSubmission.objects.select_related().all().filter(player=self.ply, qualifier=self.qualifier):
+				async for qual in QualifierSubmission.objects.select_related().all().filter(player=self.ply, qualifier=self.qualifier).order_by("-submit_time"):
 					self.prev_subs.append(qual)
 				self.num_subs = len(self.prev_subs)
 			except TournamentPlayer.DoesNotExist:
@@ -277,7 +277,7 @@ class QualifierCmds(commands.Cog):
 
 	@commands.slash_command(name='qualifier', description='Submit a qualifier score for a tournament/bracket', integration_types={discord.IntegrationType.guild_install})
 	async def qualifierSubmitCmd(self, ctx):
-		view = DiscordQualifierView(self, ctx)
+		view = DiscordQualifierView(ctx)
 		await view.init()
 
 def setup(bot):
