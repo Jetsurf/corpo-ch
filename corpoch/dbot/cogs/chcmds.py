@@ -50,7 +50,6 @@ class Path():
 				self.chopt.opts.speed = self.chart.speed
 
 			if self.chopt.opts.instrument[0] == 'drums':
-				opts = self.hydra.opts
 				self.hydra = Hydra()
 				self.hydra.opts = hyopts
 				self.hydra.gen_path(self.chart)
