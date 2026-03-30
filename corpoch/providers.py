@@ -43,7 +43,7 @@ class EncoreClient:
 		resp = self._session.post(self._encore['adv'], data = json.dumps(d))
 		return SearchResponse.parse_raw(json.dumps(resp.json()))
 
-	def url(self, chart: dict) -> str:
+	def url(self, chart) -> str:
 		return f"{self._encore['dl']}{chart.md5}{('_novideo','')[not chart.has_video_background]}.sng"
 
 	def download_from_chart(self, chart: dict) -> str:
@@ -114,12 +114,11 @@ class CHOpt:
 				content = chart.sngfile.open().read()
 			else:
 				content = self._encore.download_from_url(chart.url)
-			chartName = chart.name
 			self.opts.speed = chart.speed
 			self.opts.instrument = chart.instrument
-		elif isinstance(chart, dict):
-			content = self._encore.download_from_chart(chart)
-			chartName = chart['name']
+		else:
+			content = self._encore.download_from_url(self._encore.url(chart))
+			self.opts.instrument = self.opts.instrument[0]
 
 		self._sng = SNGHandler(content)
 		self._prep_chart()
@@ -128,7 +127,7 @@ class CHOpt:
 		try:
 			subprocess.run(choptCall, check=True, shell=True, stdout=subprocess.DEVNULL)
 		except Exception as e:
-			print(f"CHOPT: died on chart {chartName}")
+			print(f"CHOPT: died on chart {chart.name}")
 			print(f"CHOpt: call failed with exception: {e}")
 
 		try:

@@ -33,24 +33,31 @@ class Path():
 
 	async def showResult(self, interaction):
 		if len(self.chart_paths) > 1:
-			respond = await self.ctx.channel.create_thread(name="CH Path Results Thread")
+			respond = await self.ctx.channel.create_thread(name="CH Path Results Thread", message=interaction)
 		else:
 			respond = interaction.followup
 
-		opts = self.chopt.opts
+		chopts = self.chopt.opts
+		hyopts = self.hydra.opts
 		for chart in self.chart_paths:
 			self.chart = chart
 			self.emoji = await get_chart_emoji(self.bot, self.chart)
 			self.chopt = CHOpt()
-			self.chopt.opts = opts
-			self.chopt.opts.instrument = self.chart.instrument
-			self.chopt.opts.speed = self.chart.speed
+			self.chopt.opts = chopts
+
+			if isinstance(chart, Chart):
+				self.chopt.opts.instrument = self.chart.instrument
+				self.chopt.opts.speed = self.chart.speed
+
 			if self.chopt.opts.instrument[0] == 'drums':
+				opts = self.hydra.opts
 				self.hydra = Hydra()
+				self.hydra.opts = hyopts
 				self.hydra.gen_path(self.chart)
 				if not self.hydra.output:
 					await interaction.followup.send("Path generation died on Hydra call.")
 					await self.hide()
+					return
 			else:
 				self.chopt.gen_path(self.chart)
 				try:
@@ -60,11 +67,15 @@ class Path():
 				if not self.chopt.url:
 					await interaction.followup.send("Path generation died on CHOpt call.")
 					await self.hide()
+					return
 
 			if self.chopt.opts.instrument[0] == "drums":
 				await respond.send(embed=self.genHydraResultEmbed())
 			else:
 				await respond.send(embed=self.genCHOptResultEmbed())
+
+		if isinstance(respond, discord.Thread):
+			await respond.archive()
 		await self.hide()
 
 	async def doSearch(self, inQuery):
@@ -102,7 +113,10 @@ class Path():
 		if self.chopt.opts.instrument[0] == 'drums':
 			embed.add_field(name="Hydra Options Used", value=f"Kick/Bass 2x: {self.hydra.opts.bass2x}\nPro Drums: {self.hydra.opts.pro}\nDepth Mode: {self.hydra.opts.depth_mode}\nDepth Value: {self.hydra.opts.depth}", inline=False)
 		else:
-			embed.add_field(name="CHOpt Options Used", value=f"Squeeze: {self.chopt.opts.squeeze}%\nEarly Whammy: {self.chopt.opts.whammy}%\nSong Speed: {self.chopt.opts.speed}%\nLazy Whammy: {self.chopt.opts.lazy}ms\nWhammy Delay: {self.chopt.opts.delay}ms", inline=False)
+			outStr = f"Squeeze: {self.chopt.opts.squeeze}%\nEarly Whammy: {self.chopt.opts.whammy}%\nLazy Whammy: {self.chopt.opts.lazy}ms\nWhammy Delay: {self.chopt.opts.delay}ms"
+			if not isinstance(self.charts[0], Chart):
+				outStr += f"\nSong Speed: {self.chopt.opts.speed}%"
+			embed.add_field(name="CHOpt Options Used", value=outStr, inline=False)
 
 	def formatChart(self) -> str:
 		if isinstance(self.chart, Chart):

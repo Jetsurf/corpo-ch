@@ -17,7 +17,7 @@ class CHOptModal(discord.ui.DesignerModal):
 		args += (discord.ui.Label("Early Whammy % (0-100)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value='0')),)
 		args += (discord.ui.Label("Lazy Whammy (ms 0-10000)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value='0')),)
 		args += (discord.ui.Label("Whammy Delay (ms 0-10000)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value='0')),)
-		if not isinstance(self.path.chart, Chart):
+		if not isinstance(self.path.charts[0], Chart):
 			args += (discord.ui.Label("Song Speed (10-500)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value=100)),)
 		super().__init__(*args, **kwargs)
 		self.title = "CHOpt Options"
@@ -187,14 +187,16 @@ class ChartSelect(discord.ui.Select):
 	async def init(self):
 		opts = []
 		for chart in self.path.charts:
+			self.retOpts[chart.md5] = chart
 			emoji = await get_chart_emoji(self.path.bot, chart)
 			if isinstance(chart, Chart):
-				self.retOpts[chart.md5] = chart
-				opts.append(discord.SelectOption(label=chart.tournament_name, emoji=emoji, value=chart.md5, description=f"{'TB - ' if chart.tiebreaker else ''}{chart.artist} - {chart.album} - {chart.charter}"))
+				opt = discord.SelectOption(label=chart.tournament_name, emoji=emoji, value=chart.md5, description=f"{'TB - ' if chart.tiebreaker else ''}{chart.artist} - {chart.album} - {chart.charter}")
 			else:
-				opts.append(discord.SelectOption(label=chart.name, emoji=emoji, value=chart.md5, description=f"{chart.artist} - {chart.album} - {chart.charter}"))
-				self.retOpts[chart.md5] = chart
-		super().__init__(placeholder="Select a chart", options=opts, min_values=1, max_values=len(opts), custom_id="chart_sel")
+				opt = discord.SelectOption(label=chart.name, emoji=emoji, value=chart.md5, description=f"{chart.artist} - {chart.album} - {chart.charter}")
+			opt.default = True if chart in self.path.chart_paths else False
+			opts.append(opt)
+
+		super().__init__(placeholder="Select a chart", options=opts, min_values=1, max_values=len(opts) if isinstance(self.path.charts[0], Chart) else 1, custom_id="chart_sel")
 
 	async def callback(self, interaction: discord.Interaction):
 		for retChart in self.values:
@@ -202,7 +204,7 @@ class ChartSelect(discord.ui.Select):
 			self.path.chart_paths.append(chart)
 			if isinstance(chart, Chart):
 				self.path.chopt.opts.instrument = chart.instrument
-			self.path.chopt.opts.speed = chart.speed
+				self.path.chopt.opts.speed = chart.speed
 
 		await interaction.response.defer(ephemeral=True)
 		await self.path.show()
@@ -250,6 +252,7 @@ class PathView(discord.ui.View):
 		await modal.wait()
 		await self.path.show()
 
+
 	@discord.ui.button(label="Tourney Search", style=discord.ButtonStyle.secondary, custom_id="tourney")
 	async def tourneyBtn(self, button, interaction: discord.Interaction):
 		await self.clear()
@@ -273,5 +276,9 @@ class PathView(discord.ui.View):
 
 	@discord.ui.button(label="Submit", style=discord.ButtonStyle.green, custom_id="submit")
 	async def submitBtn(self, button, interaction: discord.Interaction):
-		await interaction.response.defer(invisible=False)
+		if len(self.path.chart_paths) > 1:
+			await interaction.response.defer(invisible=True)
+			interaction = await interaction.followup.send("/ch path results")
+		else:
+			await interaction.response.defer(invisible=False)
 		await self.path.showResult(interaction)
