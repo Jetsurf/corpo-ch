@@ -193,6 +193,7 @@ class PlayerSelect(discord.ui.Select):
 		super().__init__(placeholder="Players", min_values=plys, max_values=plys, options=seeding, custom_id="player_sel")
 
 	async def callback(self, interaction: discord.Interaction):
+		self.values.sort()
 		for ply in self.values:
 			seed = self.retOpts[ply]
 			self.match.seeding.append(seed)
