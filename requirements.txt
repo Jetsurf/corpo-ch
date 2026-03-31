@@ -9,6 +9,7 @@ celery
 django-multiselectfield
 django-fernet-encrypted-fields
 django-admin-sortable2
+django-admin-logs
 aiohttp
 redis
 django-celery-beat

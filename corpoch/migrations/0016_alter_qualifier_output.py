@@ -21,4 +21,8 @@ class Migration(migrations.Migration):
             name='referee',
             field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL, verbose_name='User'),
         ),
+        migrations.RemoveField(
+            model_name='discorduser',
+            name='username',
+        ),
     ]

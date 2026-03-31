@@ -17,7 +17,10 @@ from corpoch.models import Match, Group, QualifierSubmission, CH_MODIFIERS, Matc
 from corpoch.dbot.models import Guilds, Channels, Roles
 from corpoch.providers import EncoreClient, GSheets
 import corpoch.dbot.tasks
+import corpoch.tasks
 
+admin.site.site_header = 'Corpo CH Admin'
+admin.site.site_title = 'Corpo CH'
 admin.site.register(GSheetAPI, SingletonModelAdmin)
 
 @admin.register(DiscordUser)
@@ -389,11 +392,8 @@ class QualifierSubmissionAdmin(admin.ModelAdmin):
 
 	@admin.action(description="Correct GSheet Values")
 	def resubmit_gsheet(modeladmin, request, queryset):
-		sheet = GSheets()
-		sheet.login()
-		for quali in queryset:
-			sheet.set_submission(quali)
-			sheet.update_qualifier()
+		for submission in queryset:
+			corpoch.tasks.update_gsheet.apply_async(args=[submission.id])
 
 class RoundsInline(SortableStackedInline):
 	model = MatchRound
@@ -494,11 +494,8 @@ class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
 
 	@admin.action(description="Correct GSheet Values")
 	def resubmit_gsheet(modeladmin, request, queryset):
-		sheet = GSheets()
-		sheet.login()
-		for quali in queryset:
-			sheet.set_submission(quali)
-			sheet.update_match()
+		for match in queryset:
+			corpoch.tasks.update_gsheet.apply_async(args=[match.id])
 
 	@admin.action(description="Refresh Discord Message")
 	def resubmit_discord(modeladmin, request, queryset):

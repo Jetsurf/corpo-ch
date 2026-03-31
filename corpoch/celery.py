@@ -23,7 +23,3 @@ app.conf.broker_transport_options = {
 }
 trace.LOG_SUCCESS = "Task %(name)s[%(id)s] succeeded in %(runtime)ss"
 app.autodiscover_tasks()  # Discovers tasks in INSTALLED_APPS
-
-@app.task(bind=True, ignore_result=True)
-def debug_task(self):
-    print(f'Request: {self.request!r}')

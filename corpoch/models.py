@@ -49,7 +49,9 @@ class DiscordUser(AbstractUser):
 	mfa_enabled = models.BooleanField(default=False)
 	last_login = models.DateTimeField(null=True, blank=True)
 
+	username = None
 	USERNAME_FIELD = 'id'
+	REQUIRED_FIELDS = ()
 
 	def __str__(self):
 		if self.global_name:
@@ -493,9 +495,9 @@ class MatchRound(models.Model):
 	match = models.ForeignKey(Match, related_name="match_rounds", verbose_name="Match ID", on_delete=models.CASCADE, null=True, blank=True)
 	picked = models.ForeignKey(TournamentPlayer, related_name="picks", verbose_name="Picker", on_delete=models.CASCADE, blank=True, null=True)
 	chart = models.ForeignKey(Chart, related_name="rounds_played", verbose_name="Chart Played", null=True, blank=True, on_delete=models.SET_NULL)
-	winner = models.ForeignKey(TournamentPlayer, related_name="rounds_won", verbose_name="Winner", null=True, on_delete=models.SET_NULL)
+	winner = models.ForeignKey(TournamentPlayer, related_name="rounds_won", verbose_name="Winner", null=True, blank=True, on_delete=models.SET_NULL)
 	#w_points = models.PositiveIntegerField(verbose_name="Players", validators=[MinValueValidator(1), MaxValueValidator(5)], default=1)
-	loser = models.ForeignKey(TournamentPlayer, related_name="rounds_lost", verbose_name="Loser", null=True, on_delete=models.SET_NULL)
+	loser = models.ForeignKey(TournamentPlayer, related_name="rounds_lost", verbose_name="Loser", null=True, blank=True, on_delete=models.SET_NULL)
 	#l_points = models.PositiveIntegerField(verbose_name="Players", validators=[MinValueValidator(1), MaxValueValidator(5)], default=0)
 	steg = SchemaField(StegScreenshot, verbose_name="Steg Data", null=True, blank=True) #This is the players list in the steg data
 	screenshot = models.ImageField(upload_to=steg_upload_dir, verbose_name="Screenshot", null=True, blank=True)

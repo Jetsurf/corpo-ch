@@ -186,15 +186,21 @@ class ChartSelect(discord.ui.Select):
 
 	async def init(self):
 		opts = []
+		names = []
 		for chart in self.path.charts:
 			self.retOpts[chart.md5] = chart
 			emoji = await get_chart_emoji(self.path.bot, chart)
+			chartStr = f"{chart.artist} - {chart.album} - {chart.charter}"[:99]
+			if chartStr in names:
+				continue
+			names.append(chartStr)
 			if isinstance(chart, Chart):
-				opt = discord.SelectOption(label=chart.tournament_name, emoji=emoji, value=chart.md5, description=f"{'TB - ' if chart.tiebreaker else ''}{chart.artist} - {chart.album} - {chart.charter}")
+				opt = discord.SelectOption(label=chart.tournament_name, emoji=emoji, value=chart.md5, description=f"{'TB - ' if chart.tiebreaker else ''}{chartStr}"[:99])
 			else:
-				opt = discord.SelectOption(label=chart.name, emoji=emoji, value=chart.md5, description=f"{chart.artist} - {chart.album} - {chart.charter}")
+				opt = discord.SelectOption(label=chart.name, emoji=emoji, value=chart.md5, description=chartStr)
 			opt.default = True if chart in self.path.chart_paths else False
-			opts.append(opt)
+			if opt not in opts:
+				opts.append(opt)
 
 		super().__init__(placeholder="Select a chart", options=opts, min_values=1, max_values=len(opts) if isinstance(self.path.charts[0], Chart) else 1, custom_id="chart_sel")
 
