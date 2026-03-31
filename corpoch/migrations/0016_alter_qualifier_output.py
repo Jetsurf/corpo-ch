@@ -25,4 +25,14 @@ class Migration(migrations.Migration):
             model_name='discorduser',
             name='username',
         ),
+        migrations.AlterField(
+            model_name='matchround',
+            name='loser',
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='rounds_lost', to='corpoch.tournamentplayer', verbose_name='Loser'),
+        ),
+        migrations.AlterField(
+            model_name='matchround',
+            name='winner',
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='rounds_won', to='corpoch.tournamentplayer', verbose_name='Winner'),
+        ),
     ]
