@@ -70,7 +70,8 @@ class DiscordMatch():
 
 	@sync_to_async
 	def load_match(self):
-		self.matchDb = Match.objects.select_related().get(id=self.matchDb)
+		if isinstance(self.matchDb, str):
+			self.matchDb = Match.objects.select_related().get(id=self.matchDb)
 		self.channel = self.bot.get_channel(self.matchDb.channel.id)
 		self.guild = self.channel.guild
 		self.group = self.matchDb.group
@@ -116,22 +117,27 @@ class DiscordMatch():
 		if not self.complete:
 			self.rounds.append(MatchRound(num=len(self.rounds) + 1, match=self.matchDb, picked=picked))
 
-	async def showTool(self, interaction):
+	async def showTool(self, interaction=None):
 		is_message = isinstance(interaction, discord.Message)
 		is_ctx = hasattr(interaction, 'interaction') and hasattr(interaction, 'command')
 
-		if is_message:
-			self.msg = interaction
-		elif is_ctx:
-			if not interaction.interaction.response.is_done():
-				await interaction.defer()
-			self.msg = await interaction.interaction.original_response()
+		if interaction:
+			if is_message:
+				self.msg = interaction
+			elif is_ctx:
+				if not interaction.interaction.response.is_done():
+					await interaction.defer()
+				self.msg = await interaction.interaction.original_response()
+			else:
+				if not interaction.response.is_done():
+					await interaction.response.defer()
+				self.msg = interaction.message
+			await self.save_match()
 		else:
-			if not interaction.response.is_done():
-				await interaction.response.defer()
-			self.msg = interaction.message
-
-		await self.save_match()
+			interaction = self.msg #Live reload
+			is_message = True
+			await self.load_match()
+		
 		view = DiscordMatchView(self)
 		await view.init()
 		embeds = [await self.genMatchEmbed()]
