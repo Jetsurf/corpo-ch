@@ -80,7 +80,7 @@ class SongRoundSelect(discord.ui.Select):
 			selStr += f"{picked.ch_name} Picks"
 
 		if self.round.chart:
-			selStr += f" - {self.round.chart.name}"
+			selStr += f" - {self.round.chart.tournament_name}"
 
 		bansDone = []
 		for ban in self.match.bans:
@@ -90,9 +90,8 @@ class SongRoundSelect(discord.ui.Select):
 		if len(self.match.rounds) == self.match.ruleset.num_rounds:
 			if self.match.ruleset.tb_ruleset == 'refdecide':
 				for rnd in self.match.rounds:
-					chart = await sync_to_async(lambda: rnd.chart)()
-					if chart:
-						songOptsDone.append(chart.id)
+					if rnd.chart:
+						songOptsDone.append(rnd.chart.id)
 				charts = self.match.setlist.select_related('icon').filter().exclude(id__in=bansDone).exclude(id__in=songOptsDone)
 			elif self.match.ruleset.tb_ruleset == "banpick":
 				charts = self.match.setlist.select_related('icon').filter(tiebreaker=True).exclude(id__in=bansDone)
@@ -100,9 +99,8 @@ class SongRoundSelect(discord.ui.Select):
 				charts = self.match.setlist.select_related('icon').filter(tiebreaker=True)
 		else:
 			for rnd in self.match.rounds:
-				chart = await sync_to_async(lambda: rnd.chart)()
-				if chart:
-					songOptsDone.append(chart.id)
+				if rnd.chart:
+					songOptsDone.append(rnd.chart.id)
 			charts = self.match.setlist.select_related('icon').filter(tiebreaker=False).exclude(id__in=songOptsDone).exclude(id__in=bansDone)
 
 		opts = []

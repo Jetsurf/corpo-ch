@@ -48,17 +48,16 @@ class ScreenshotModal(discord.ui.DesignerModal):
 class QualiPlayerSel(discord.ui.Select):
 	def __init__(self, quali):
 		self.quali = quali
-		self.retOpts = {}
 		opts = []
 		for i, player in enumerate(self.quali.steg.output.players):
-			self.retOpts[player.profile_name] = i
-			opts.append(discord.SelectOption(label=player.profile_name))
+			opts.append(discord.SelectOption(label=player.profile_name), value=str(i))
 		super().__init__(max_values=1, options=opts, custom_id="bracket_sel")
 
 	async def callback(self, interaction: discord.Interaction):
 		#Purge all non-selected players from steg data
-		self.quali.steg.output.players = [ ply for i, ply in enumerate(self.quali.steg.output.players) if i == self.retOpts[self.values[0]]]
+		self.quali.steg.output.players = [ self.match.steg.output.players[self.values[0]] ]
 		await interaction.response.defer(invisible=True)
+		self.stop()
 		await self.quali.show()
 
 class DiscordQualifierView(discord.ui.View):
@@ -120,7 +119,6 @@ class DiscordQualifierView(discord.ui.View):
 				self.user = await DiscordUser.objects.aget(id=self.ctx.user.id)
 			except:
 				self.user = DiscordUser(id=self.ctx.user.id,
-					username=self.ctx.user.global_name if self.ctx.user.global_name else self.ctx.user.display_name,
 					global_name=self.ctx.user.global_name if self.ctx.user.global_name else self.ctx.user.display_name,
 					avatar=self.ctx.user.display_avatar.url
 				)
@@ -185,7 +183,7 @@ class DiscordQualifierView(discord.ui.View):
 
 			plySteg.append(ply)
 
-		steg.outputplayers = plySteg
+		steg.output.players = plySteg
 		try:
 			playedChart = await self.qualifier.charts.aget(md5=steg.output.checksum)
 		except Chart.DoesNotExist:
@@ -202,8 +200,8 @@ class DiscordQualifierView(discord.ui.View):
 			await interaction.followup.send(f"Uploaded screenshot speed ({steg.output.playback_speed}%) does not match speed of qualifier: {playedChart.speed}%", ephemeral=True, delete_after=10)
 		else:
 			print(f"QUALIFIER: {self.ctx.user.display_name} screenshot {steg.img_name} accepted")
-			self.steg = steg
 			self.screen = modal.screen
+			self.steg = steg
 		await self.show()
 
 	async def submitBtn(self, interaction: discord.Interaction):
@@ -278,7 +276,6 @@ class QualifierCmds(commands.Cog):
 	@commands.slash_command(name='qualifier', description='Submit a qualifier score for a tournament/bracket', integration_types={discord.IntegrationType.guild_install})
 	async def qualifierSubmitCmd(self, ctx):
 		view = DiscordQualifierView(ctx)
-		view = DiscordQualifierView(self, ctx)
 		await view.init()
 
 def setup(bot):
