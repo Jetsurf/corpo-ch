@@ -223,6 +223,7 @@ class BracketRules(models.Model):
 
 	class Meta:
 		verbose_name = "Bracket Rules"
+		verbose_name_plural = "Bracket Rules"
 
 	@property
 	def wins_needed(self):
@@ -300,6 +301,10 @@ class GroupSeed(models.Model):
 	@property
 	def player_ch_name(self):
 		return self.player.ch_name
+
+	@property
+	def user(self):
+		return self.player.user
 
 	@property
 	def full_name(self):

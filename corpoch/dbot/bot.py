@@ -1,20 +1,16 @@
-import sys, os, discord, asyncio, time, json, logging, logging, time
-from discord.ext import commands, tasks
-
-#Django
-import pendulum
-import django
+import sys, discord, time, logging, django
 import django.db
-from socket import timeout
+
+from discord.ext import commands, tasks
 from django.apps import apps
-from corpoch.dbot import settings
 from django.utils import timezone
-from corpoch.dbot import autoreload
 from kombu import Connection, Consumer, Queue
 from kombu.utils.limits import TokenBucket
 from redis import asyncio as aioredis
-from dotenv import load_dotenv
+from socket import timeout
+
 from corpoch.dbot import bot_tasks
+from corpoch.dbot import settings
 
 logger = logging.getLogger(__name__)
 
@@ -55,13 +51,8 @@ class CorpoDbot(commands.Bot):
 		sys.exit(0)
 
 	def on_queue_message(self, body, message):
-		task = message.headers["task"].replace("corpoch.dbot.tasks.", '')
-		_task = getattr(bot_tasks, task, False)
-		_args = body[0]
-		_kwargs = body[1]
-		print(f"Got task.{task}({_args}, {_kwargs})")
+		self.tasks.append((getattr(bot_tasks, message.headers["task"].replace("corpoch.dbot.tasks.", ''), False), body[0], body[1]))
 		message.ack()
-		self.tasks.append((_task, _args, _kwargs))
 
 	async def on_interaction(self, interaction):
 		try:

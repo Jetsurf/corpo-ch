@@ -1,5 +1,4 @@
 from django.db import models
-#from corpoch.db.tasks
 
 class CHEmoji(models.Model):
 	id = models.BigIntegerField(verbose_name="AppEmoji ID", db_index=True, primary_key=True)

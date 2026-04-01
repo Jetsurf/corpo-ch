@@ -1,17 +1,17 @@
-from pydantic import BaseModel
 import requests_cache, json, io, hashlib, re, gspread, asyncio, discord, os, uuid, platform, subprocess, pytesseract, shutil
 
 from datetime import datetime
-from typing import Optional, Union, Literal
-from random import randbytes
-from PIL import Image, ImageEnhance
 from django.db import models
+from PIL import Image, ImageEnhance
+from pydantic import BaseModel
+from random import randbytes
+from typing import Optional, Union, Literal
 
 from corpoch import __user_agent__
 from corpoch import settings
 from corpoch.models import GSheetAPI, Chart, Tournament, Match, Qualifier, QualifierSubmission
-from corpoch.utils.hydra.hydra.hyutil import analyze_chart_bytes_chart, analyze_chart_bytes_mid
 from corpoch.types import StegScreenshot, SearchResponse, CH_DIFFICULTIES, CH_INSTRUMENTS
+from corpoch.utils.hydra.hydra.hyutil import analyze_chart_bytes_chart, analyze_chart_bytes_mid
 from corpoch.utils.snghandler import SNGHandler
 
 class EncoreClient:
@@ -189,11 +189,11 @@ class CHStegTool:
 
 	def _get_over_strums(self):
 		outStr = pytesseract.image_to_string(self.img)
-		osCnt = re.findall("(?<=Overstrums )([O|o|0-9]+)", outStr)
+		osCnt = re.findall("(?<=Overstrums )([O|0-9]+)", outStr)
 		for i, cnt in enumerate(osCnt):
 			osCnt[i] = cnt.replace('O', '0')
 		for i, player in enumerate(self.output.players):
-			if len(osCnt) == len(self.output.players):
+			if len(osCnt) == len(self.output.players) and osCnt[i].isdigit():
 				player.excess_hits = int(osCnt[i])
 			else:
 				player.excess_hits = -1
@@ -224,7 +224,7 @@ class CHStegTool:
 				for i, player in enumerate(self.output.players):
 					player.notes_missed = player.total_notes - player.notes_hit
 			elif err == 'Error: InvalidScreenshotData\n':
-				print(f"STEG: Error - invalid no steg data found in image {self.img_name}")
+				print(f"STEG: Error - invalid steg data found in image {self.img_name}")
 				self.output = None
 		except Exception as e:
 			print(f"STEG: Call failed: {e}")

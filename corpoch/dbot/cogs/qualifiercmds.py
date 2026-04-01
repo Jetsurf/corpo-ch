@@ -6,7 +6,6 @@ from discord.ext import commands
 from discord.ui import *
 from discord.enums import ComponentType, InputTextStyle
 from django.db.models.functions import Now
-from asgiref.sync import sync_to_async
 from django.utils import timezone
 from django.core.files.base import ContentFile
 
@@ -21,7 +20,6 @@ class QualifierSelect(discord.ui.Select):
 	async def init(self):
 		qualis = []
 		for qualifier in self.quali.qualifiers:
-			theStr = await sync_to_async(lambda : str(qualifier))()
 			self.retOpts[theStr] = qualifier
 			qualis.append(discord.SelectOption(label=theStr))
 		super().__init__(max_values=1, options=qualis, custom_id="bracket_sel")
@@ -238,7 +236,7 @@ class DiscordQualifierView(discord.ui.View):
 		await self.user.asave()
 		await self.ply.asave()
 		quali = QualifierSubmission(player=self.ply, qualifier=self.qualifier, steg=self.steg.output)
-		await sync_to_async(quali.screenshot.save)(f'{uuid.uuid1()}.png', open(self.steg.img_path, 'rb'))
+		quali.screenshot.save(f'{uuid.uuid1()}.png', io.BytesIO(self.screen))
 		await quali.asave()
 		await self.ctx.interaction.delete_original_response()
 		await interaction.followup.send(f"{self.ctx.user.mention} submitted a qualifier for {self.qualifier}!", ephemeral=not self.qualifier.output)

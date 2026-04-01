@@ -2,7 +2,6 @@ import discord, uuid, json, re
 from discord.ext import commands
 from discord.ui import *
 from discord.enums import ComponentType, InputTextStyle
-from asgiref.sync import sync_to_async
 from django.utils import timezone
 
 from corpoch.dbot import settings
@@ -184,9 +183,9 @@ class PlayerSelect(discord.ui.Select):
 		seeding = []
 		async for seed in self.match.group.seeding.select_related('player').all():
 			if seed.player.is_active:
-				self.retOpts[str(seed.player.user.id)] = seed
-				mem = await self.match.guild.fetch_member(seed.player.user.id)
-				seeding.append(discord.SelectOption(label=str(seed), value=str(seed.player.user.id), description=f"@{mem.display_name}"))
+				self.retOpts[str(seed.user.id)] = seed
+				mem = await self.match.guild.fetch_member(seed.user.id)
+				seeding.append(discord.SelectOption(label=str(seed), value=str(seed.user.id), description=f"@{mem.display_name}"))
 		plys = self.match.ruleset.num_players
 		super().__init__(placeholder="Players", min_values=plys, max_values=plys, options=seeding, custom_id="player_sel")
 
@@ -195,7 +194,7 @@ class PlayerSelect(discord.ui.Select):
 		for ply in self.values:
 			seed = self.retOpts[ply]
 			self.match.seeding.append(seed)
-			self.match.seeding_discord.append(await self.match.guild.fetch_member(seed.player.user.id))
+			self.match.seeding_discord.append(await self.match.guild.fetch_member(seed.user.id))
 		await self.match.showTool(interaction)
 
 class DiscordMatchView(discord.ui.View):
@@ -286,7 +285,7 @@ class DiscordMatchView(discord.ui.View):
 			return True
 		if isinstance(self.match.matchDb, Match) and self.match.complete:
 			for seed in self.match.seeding:
-				if seed.player.user.id == interaction.user.id:
+				if seed.user.id == interaction.user.id:
 					return True
 		if interaction.user.id == self.match.referee.id:
 			return True

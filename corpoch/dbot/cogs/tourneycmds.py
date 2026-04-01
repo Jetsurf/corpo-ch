@@ -2,7 +2,6 @@ import discord, uuid
 from discord.ext import commands
 from discord.ui import *
 from discord.enums import ComponentType, InputTextStyle
-from asgiref.sync import sync_to_async
 
 from corpoch import settings
 from corpoch.models import Tournament, Chart, Match, MatchRound, Bracket, Group, GroupSeed, TournamentPlayer, MatchRound, MatchBan, DiscordUser
@@ -30,12 +29,12 @@ class DiscordMatch():
 
 	async def init(self):
 		if self.matchDb:
-			await self.load_match()
+			self.load_match()
 			#Finish loading async
 			self.msg = await self.channel.fetch_message(self.matchDb.message)
 			self.referee = await self.guild.fetch_member(self.matchDb.referee.id)
 			for seed in self.seeding:
-				self.seeding_discord.append(await self.guild.fetch_member(seed.player.user.id))
+				self.seeding_discord.append(await self.guild.fetch_member(seed.user.id))
 			if not self.finished and len(self.bans) > 0 and (len(self.rounds) == 0 or self.rounds[-1].winner):
 				await self.add_round()
 		try:
@@ -68,55 +67,6 @@ class DiscordMatch():
 		await interaction.edit(embeds=embeds[:10], view=None)
 		self.bot.matches.pop(self.id)
 
-	@sync_to_async
-	def load_match(self):
-		if isinstance(self.matchDb, str):
-			self.matchDb = Match.objects.select_related().get(id=self.matchDb)
-		self.channel = self.bot.get_channel(self.matchDb.channel.id)
-		self.guild = self.channel.guild
-		self.group = self.matchDb.group
-		self.bracket = self.matchDb.group.bracket
-		self.players = self.matchDb.players
-		self.seeding = list(self.matchDb.players.select_related('group', 'player').all())
-		self.bans = list(self.matchDb.bans.select_related('chart', 'player').all())
-		self.rounds = list(self.matchDb.rounds.select_related('chart', 'picked', 'winner', 'loser').all())
-		self.chart = self.rounds[-1].chart if len(self.rounds) > 0 else None
-		print(f"Reattached to on-going match {self.matchDb}")
-
-	@sync_to_async
-	def save_match(self):
-		if self.group:
-			self.bot.matches[self.id] = self
-			self.matchDb.group = self.group
-			self.matchDb.players.set(self.seeding)
-			self.matchDb.message = self.msg.id if self.msg else None
-			self.matchDb.channel = Channels.objects.get(id=self.channel.id)
-			self.matchDb.referee = DiscordUser.objects.get(id=self.referee.id)
-			self.matchDb.save()
-
-	@sync_to_async
-	def add_round(self):
-		if len(self.rounds) == 0:
-			if self.defer and self.ruleset.ban_ruleset == "deferboth":
-				picked = self.seeding[1].player
-			else:
-				picked = self.seeding[0].player
-		elif len(self.rounds) + 1 == self.ruleset.num_rounds and self.ruleset.tb_ruleset == 'refdecide':
-			picked = None
-		elif self.ruleset.pick_ruleset == "loserpicks":
-			picked = self.rounds[-1].loser
-		else:
-			prevPicked = self.rounds[-1].loser
-			if self.seeding[0].player == prevPicked:
-				picked = self.seeding[0].player
-			else:
-				picked = self.seeding[1].player
-
-		if len(self.rounds) > 0:
-			self.rounds[-1].save()
-		if not self.finished:
-			self.rounds.append(MatchRound(num=len(self.rounds) + 1, match=self.matchDb, picked=picked))
-
 	async def showTool(self, interaction=None):
 		is_message = isinstance(interaction, discord.Message)
 		is_ctx = hasattr(interaction, 'interaction') and hasattr(interaction, 'command')
@@ -132,11 +82,11 @@ class DiscordMatch():
 				if not interaction.response.is_done():
 					await interaction.response.defer()
 				self.msg = interaction.message
-			await self.save_match()
+			self.save_match()
 		else:
 			interaction = self.msg #Live reload
 			is_message = True
-			await self.load_match()
+			self.load_match()
 		
 		view = DiscordMatchView(self)
 		await view.init()
@@ -150,6 +100,67 @@ class DiscordMatch():
 			await interaction.interaction.edit_original_response(embeds=embeds, content=None, view=view)
 		else:
 			await interaction.edit_original_response(embeds=embeds, content=None, view=view)
+
+	def load_match(self):
+		if isinstance(self.matchDb, str):
+			self.matchDb = Match.objects.select_related().get(id=self.matchDb)
+		self.channel = self.bot.get_channel(self.matchDb.channel.id)
+		self.guild = self.channel.guild
+		self.group = self.matchDb.group
+		self.bracket = self.matchDb.group.bracket
+		self.players = self.matchDb.players
+		self.seeding = list(self.matchDb.players.select_related('group', 'player').all())
+		self.bans = list(self.matchDb.bans.select_related('chart', 'player').all())
+		self.rounds = list(self.matchDb.rounds.select_related('chart', 'picked', 'winner', 'loser').all())
+		print(f"Reattached to on-going match {self.matchDb}")
+
+	def save_match(self):
+		if self.group:
+			self.bot.matches[self.id] = self
+			self.matchDb.group = self.group
+			self.matchDb.players.set(self.seeding)
+			self.matchDb.message = self.msg.id if self.msg else None
+			self.matchDb.channel = Channels.objects.get(id=self.channel.id)
+			self.matchDb.referee = DiscordUser.objects.get(id=self.referee.id)
+			self.matchDb.save()
+
+	def add_round(self):
+		chart = None
+		if len(self.rounds) == 0:
+			if self.defer and self.ruleset.ban_ruleset == "deferboth":
+				picked = self.seeding[1].player
+			else:
+				picked = self.seeding[0].player
+		elif self.tiebreaker and self.ruleset.tb_ruleset == 'refdecide':
+			picked = None
+		elif self.tiebreaker and self.ruleset.tb_ruleset == 'csc':
+			fret, strum = 0, 0
+			for rnd in self.rounds:
+				if rnd.picked.category[0] == "fret":
+					fret += 1
+				elif rnd.picked.category[0] == "strum":
+					strum += 1
+
+			picked = None
+			if strum < fret:
+				chart = Chart.objects.get(category=CHART_CATEGORIES[3], tiebreaker=True)
+			if fret < strum:
+				chart = Chart.objects.get(category=CHART_CATEGORIES[2], tiebreaker=True)
+			else:
+				chart = Chart.objects.get(category=CHART_CATEGORIES[1], tiebreaker=True)
+		elif self.ruleset.pick_ruleset == "loserpicks":
+			picked = self.rounds[-1].loser
+		else:
+			prevPicked = self.rounds[-1].loser
+			if self.seeding[0].player == prevPicked:
+				picked = self.seeding[0].player
+			else:
+				picked = self.seeding[1].player
+
+		if len(self.rounds) > 0:
+			self.rounds[-1].save()
+		if not self.finished:
+			self.rounds.append(MatchRound(num=len(self.rounds) + 1, match=self.matchDb, picked=picked, chart=chart))
 
 	@property
 	def defer(self):
@@ -192,7 +203,7 @@ class DiscordMatch():
 
 	@property
 	def complete(self) -> bool:
-		if self.matchDb:
+		if isinstance(self.matchDb, Match):
 			return self.matchDb.complete
 		else:
 			return False
@@ -210,6 +221,10 @@ class DiscordMatch():
 			return self.matchDb.id
 		else:
 			return None
+
+	@property
+	def chart(self):
+		return self.rounds[-1].chart if len(self.rounds) > 0 else None
 
 	async def genScreenEmbed(self):
 		embed = discord.Embed(colour=0xFFFF66)
