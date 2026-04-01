@@ -57,8 +57,7 @@ class QualiPlayerSel(discord.ui.Select):
 
 	async def callback(self, interaction: discord.Interaction):
 		#Purge all non-selected players from steg data
-		selected_index = int(self.values[0])
-		self.quali.steg.output.players = [ ply for i, ply in enumerate(self.quali.steg.output.players) if i == selected_index]
+		self.quali.steg.output.players = [ quali.steg.output.players[int(self.values[0])] ]
 		await interaction.response.defer(invisible=True)
 		await self.quali.show()
 

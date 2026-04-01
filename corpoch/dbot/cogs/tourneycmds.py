@@ -114,7 +114,7 @@ class DiscordMatch():
 
 		if len(self.rounds) > 0:
 			self.rounds[-1].save()
-		if not self.complete:
+		if not self.finished:
 			self.rounds.append(MatchRound(num=len(self.rounds) + 1, match=self.matchDb, picked=picked))
 
 	async def showTool(self, interaction=None):
@@ -218,7 +218,7 @@ class DiscordMatch():
 		noneStr = ""
 		validStr = ""
 		for rnd in self.rounds:
-			if rnd.steg:
+			if rnd.steg and len(rnd.steg.players) > 0:
 				validStr += f"{rnd.chart.name}\n"
 			else:
 				noneStr += f"{rnd.chart.name}\n"
