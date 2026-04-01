@@ -3,13 +3,15 @@ import json, time
 from django.contrib import admin
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Count
-from django.utils.html import mark_safe
+from django.utils.safestring import mark_safe
+from django.utils.html import format_html
 
 from adminsortable2.admin import CustomInlineFormSet, SortableAdminBase, SortableStackedInline, SortableAdminMixin
 from django_jsonform.widgets import JSONFormWidget
 from django_pydantic_field import fields
 from solo.admin import SingletonModelAdmin
 
+from corpoch.forms import TournamentPlayerForm
 from corpoch.models import Chart, Tournament, TournamentConfig, BracketRules, Bracket, Qualifier, TournamentPlayer, GroupSeed, MatchRound, CHIcon
 from corpoch.models import Match, Group, QualifierSubmission, CH_MODIFIERS, MatchBan, GSheetAPI, DiscordUser
 from corpoch.dbot.models import Guilds, Channels, Roles
@@ -178,9 +180,32 @@ class BracketAdmin(admin.ModelAdmin):
 
 @admin.register(TournamentPlayer)
 class TournamentPlayerAdmin(admin.ModelAdmin):
-	list_display = ('user', 'tournament', 'ch_name', 'is_active')
+	form = TournamentPlayerForm
+	list_display = ('user', 'tournament', 'display_exact_ch_name', 'is_active')
 	list_filter = ['tournament']
 	actions = ["set_tournament_roles"]
+	readonly_fields = ("display_exact_ch_name",)
+	fields = (
+		'user',
+		'name',
+		'tournament',
+		'display_exact_ch_name',
+		'primary_ch_name_selection',
+		'new_ch_name',
+		'is_active',
+		'config',
+		'delete_ch_name',
+	)
+
+	@admin.display(description='Clone Hero Name', ordering='ch_name')
+	def display_exact_ch_name(self, obj):
+		if not obj.ch_name:
+			return "-"
+
+		return format_html(
+			'<span style="white-space: pre-wrap; background-color: rgba(128, 128, 128, 0.2); padding: 2px 4px; border-radius: 3px; font-family: monospace;">{}</span>',
+			obj.ch_name
+		)
 
 	@admin.action(description="Set tournament roles")
 	def set_tournament_roles(modeladmin, request, queryset):
