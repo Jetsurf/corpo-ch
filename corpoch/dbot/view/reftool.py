@@ -32,7 +32,7 @@ class BanSelect(discord.ui.Select):
 	async def init(self):
 		self.index = (self.match.ruleset.num_bans - len(self.match.bans) % self.match.ruleset.num_players) - 1
 		opts = []
-		if len(self.match.rounds) >= self.match.ruleset.num_rounds:
+		if self.match.tiebreaker:
 			charts = self.match.setlist.select_related('icon').filter(tiebreaker=True)
 		else:
 			charts = self.match.setlist.select_related('icon').filter(tiebreaker=False).exclude(bans__in=self.match.bans)
@@ -40,10 +40,10 @@ class BanSelect(discord.ui.Select):
 			emoji = await get_chart_emoji(self.match.bot, chart)
 			self.retOpts[chart.md5] = chart
 			opts.append(discord.SelectOption(label=str(chart.tournament_name), description=f"{chart.artist} - {chart.charter}", emoji=emoji, value=chart.md5))
-		if len(self.match.rounds) == self.match.ruleset.num_rounds:
-			super().__init__(placeholder=f"{await sync_to_async(lambda: self.match.rounds[-2].winner.ch_name)()} Ban", max_values=1, options=opts, custom_id="ban_sel")
+		if self.match.tiebreaker:
+			super().__init__(placeholder=f"{self.match.rounds[-2].winner.ch_name} Ban", max_values=1, options=opts, custom_id="ban_sel")
 		else:
-			super().__init__(placeholder=f"{await sync_to_async(lambda: self.match.seeding[self.index].player.ch_name)()} Ban", max_values=1, options=opts, custom_id="ban_sel")
+			super().__init__(placeholder=f"{self.match.seeding[self.index].player.ch_name} Ban", max_values=1, options=opts, custom_id="ban_sel")
 
 	async def callback(self, interaction: discord.Interaction):
 		chart = self.retOpts[self.values[0]]
@@ -371,7 +371,7 @@ class DiscordMatchView(discord.ui.View):
 			if not rnd.screenshot:
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} accepted")
 				screen.filename = f"{uuid.uuid1()}.png"
-				await sync_to_async(rnd.screenshot.save)(screen.filename, open(tool.img_path, 'rb'))
+				rnd.screenshot.save(screen.filename, open(tool.img_path, 'rb'))
 				rnd.steg = steg
 				await rnd.asave()
 			else:

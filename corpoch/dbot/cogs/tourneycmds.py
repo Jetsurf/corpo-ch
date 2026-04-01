@@ -45,7 +45,7 @@ class DiscordMatch():
 			return
 
 		try:
-			self.bracket = await Bracket.objects.select_related("ruleset").aget(score_log=self.msg.channel.id)
+			self.bracket = await Bracket.objects.select_related("ruleset").aget(score_log__id=self.msg.channel.id)
 		except Bracket.DoesNotExist: 
 			await self.msg.respond("Channel is not a score log channel - please use this command in a match reporting channel.", ephemeral=True)
 			return

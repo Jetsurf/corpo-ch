@@ -277,11 +277,8 @@ class QualifierCmds(commands.Cog):
 
 	@commands.slash_command(name='qualifier', description='Submit a qualifier score for a tournament/bracket', integration_types={discord.IntegrationType.guild_install})
 	async def qualifierSubmitCmd(self, ctx):
-<<<<<<< HEAD
 		view = DiscordQualifierView(ctx)
-=======
 		view = DiscordQualifierView(self, ctx)
->>>>>>> parent of 34c92d3 (Multiple ch_name for tournament player)
 		await view.init()
 
 def setup(bot):
