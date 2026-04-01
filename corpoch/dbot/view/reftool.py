@@ -30,9 +30,9 @@ class BanSelect(discord.ui.Select):
 		self.retOpts = {}
 
 	async def init(self):
-		self.index = (self.match.bracket.ruleset.num_bans - len(self.match.bans) % self.match.bracket.ruleset.num_players) - 1
+		self.index = (self.match.ruleset.num_bans - len(self.match.bans) % self.match.ruleset.num_players) - 1
 		opts = []
-		if len(self.match.rounds) >= self.match.bracket.ruleset.num_rounds:
+		if self.match.tiebreaker:
 			charts = self.match.setlist.select_related('icon').filter(tiebreaker=True)
 		else:
 			charts = self.match.setlist.select_related('icon').filter(tiebreaker=False).exclude(bans__in=self.match.bans)
@@ -40,14 +40,14 @@ class BanSelect(discord.ui.Select):
 			emoji = await get_chart_emoji(self.match.bot, chart)
 			self.retOpts[chart.md5] = chart
 			opts.append(discord.SelectOption(label=str(chart.tournament_name), description=f"{chart.artist} - {chart.charter}", emoji=emoji, value=chart.md5))
-		if len(self.match.rounds) == self.match.bracket.ruleset.num_rounds:
-			super().__init__(placeholder=f"{await sync_to_async(lambda: self.match.rounds[-2].winner.ch_name)()} Ban", max_values=1, options=opts, custom_id="ban_sel")
+		if self.match.tiebreaker:
+			super().__init__(placeholder=f"{self.match.rounds[-2].winner.ch_name} Ban", max_values=1, options=opts, custom_id="ban_sel")
 		else:
-			super().__init__(placeholder=f"{await sync_to_async(lambda: self.match.seeding[self.index].player.ch_name)()} Ban", max_values=1, options=opts, custom_id="ban_sel")
+			super().__init__(placeholder=f"{self.match.seeding[self.index].player.ch_name} Ban", max_values=1, options=opts, custom_id="ban_sel")
 
 	async def callback(self, interaction: discord.Interaction):
 		chart = self.retOpts[self.values[0]]
-		if len(self.match.rounds) < self.match.bracket.ruleset.num_rounds:
+		if len(self.match.rounds) < self.match.ruleset.num_rounds:
 			seed = self.match.seeding[self.index]
 		else:
 			if self.match.seeding[0].player == self.match.rounds[-2].winner:
@@ -70,9 +70,9 @@ class SongRoundSelect(discord.ui.Select):
 		selStr = ""
 		if len(self.match.rounds) == 1:
 			selStr += f"{self.match.seeding[0].player.ch_name} Picks"
-		elif len(self.match.rounds) == self.match.bracket.ruleset.num_rounds and self.match.bracket.ruleset.tb_ruleset == 'refdecide':
+		elif len(self.match.rounds) == self.match.ruleset.num_rounds and self.match.ruleset.tb_ruleset == 'refdecide':
 			selStr += f"Chat Picks"
-		elif self.match.bracket.ruleset.pick_ruleset == "loserpicks":
+		elif self.match.ruleset.pick_ruleset == "loserpicks":
 			selStr += f"{self.match.rounds[-2].loser.ch_name} Picks"
 		else:
 			prevPicked = self.match.rounds[-1].loser
@@ -80,29 +80,27 @@ class SongRoundSelect(discord.ui.Select):
 			selStr += f"{picked.ch_name} Picks"
 
 		if self.round.chart:
-			selStr += f" - {self.round.chart.name}"
+			selStr += f" - {self.round.chart.tournament_name}"
 
 		bansDone = []
 		for ban in self.match.bans:
 			bansDone.append(ban.chart.id)
 
 		songOptsDone = []
-		if len(self.match.rounds) == self.match.bracket.ruleset.num_rounds:
-			if self.match.bracket.ruleset.tb_ruleset == 'refdecide':
+		if len(self.match.rounds) == self.match.ruleset.num_rounds:
+			if self.match.ruleset.tb_ruleset == 'refdecide':
 				for rnd in self.match.rounds:
-					chart = await sync_to_async(lambda: rnd.chart)()
-					if chart:
-						songOptsDone.append(chart.id)
+					if rnd.chart:
+						songOptsDone.append(rnd.chart.id)
 				charts = self.match.setlist.select_related('icon').filter().exclude(id__in=bansDone).exclude(id__in=songOptsDone)
-			elif self.match.bracket.ruleset.tb_ruleset == "banpick":
+			elif self.match.ruleset.tb_ruleset == "banpick":
 				charts = self.match.setlist.select_related('icon').filter(tiebreaker=True).exclude(id__in=bansDone)
 			else:
 				charts = self.match.setlist.select_related('icon').filter(tiebreaker=True)
 		else:
 			for rnd in self.match.rounds:
-				chart = await sync_to_async(lambda: rnd.chart)()
-				if chart:
-					songOptsDone.append(chart.id)
+				if rnd.chart:
+					songOptsDone.append(rnd.chart.id)
 			charts = self.match.setlist.select_related('icon').filter(tiebreaker=False).exclude(id__in=songOptsDone).exclude(id__in=bansDone)
 
 		opts = []
@@ -174,7 +172,7 @@ class GroupSelect(discord.ui.Select):
 		self.match.group = self.retOpts[self.values[0]]
 		self.match.matchDb = Match(id=uuid.uuid1(), group=self.match.group)
 		await self.match.matchDb.asave()
-		print(f"REF: {self.match.referee.global_name} starting match {self.match.matchDb.id}")
+		print(f"REF: {self.match.referee.global_name} starting match {self.match.id}")
 		await self.match.showTool(interaction)
 
 class PlayerSelect(discord.ui.Select):
@@ -188,11 +186,12 @@ class PlayerSelect(discord.ui.Select):
 			if seed.player.is_active:
 				self.retOpts[str(seed.player.user.id)] = seed
 				mem = await self.match.guild.fetch_member(seed.player.user.id)
-				seeding.append(discord.SelectOption(label=f"{seed.player.ch_name} ({seed.seed})", value=str(seed.player.user.id), description=f"@{mem.display_name}"))
-		plys = self.match.bracket.ruleset.num_players
+				seeding.append(discord.SelectOption(label=str(seed), value=str(seed.player.user.id), description=f"@{mem.display_name}"))
+		plys = self.match.ruleset.num_players
 		super().__init__(placeholder="Players", min_values=plys, max_values=plys, options=seeding, custom_id="player_sel")
 
 	async def callback(self, interaction: discord.Interaction):
+		self.values.sort()
 		for ply in self.values:
 			seed = self.retOpts[ply]
 			self.match.seeding.append(seed)
@@ -235,7 +234,7 @@ class DiscordMatchView(discord.ui.View):
 		self.add_item(plySel)
 
 	async def init(self):
-		if self.match.matchDb and self.match.matchDb.complete:
+		if self.match.matchDb and self.match.complete:
 			self.add_item(self.upload)
 		else:
 			self.add_item(self.cancel)
@@ -249,30 +248,29 @@ class DiscordMatchView(discord.ui.View):
 			sel = GroupSelect(self.match)
 			await sel.init()
 			self.add_item(sel)
-		elif len(self.match.seeding) < self.match.bracket.ruleset.num_players:
+		elif len(self.match.seeding) < self.match.ruleset.num_players:
 			self.add_item(self.back)
 			sel = PlayerSelect(self.match)
 			await sel.init()
 			self.add_item(sel)
-		elif len(self.match.bans) < self.match.bracket.ruleset.total_bans:
+		elif len(self.match.bans) < self.match.ruleset.total_bans:
 			self.add_item(self.back)
-			if 'defer' in self.match.bracket.ruleset.ban_ruleset:
+			if 'defer' in self.match.ruleset.ban_ruleset:
 				self.add_item(self.defer)
 			sel = BanSelect(self.match)
 			await sel.init()
 			self.add_item(sel)
-		elif not self.match.matchDb.complete:
+		elif not self.match.complete:
 			self.add_item(self.back)
 			self.add_item(self.submit)
-			if len(self.match.bans) == self.match.bracket.ruleset.total_bans and len(self.match.rounds) == 0:
+			if len(self.match.bans) == self.match.ruleset.total_bans and len(self.match.rounds) == 0:
 				await self.match.add_round()
 
-			wins = await self.match.getScore()
-			if not await self.match.isFinished() and not await self.match.isTieBreaker():
+			if not self.match.finished and not self.match.tiebreaker:
 				await self.setup_round_player_sels()
-			elif not await self.match.isFinished() and await self.match.isTieBreaker():
-				if self.match.bracket.ruleset.tb_ruleset == 'banpick':
-					if len(self.match.bans) == self.match.bracket.ruleset.total_bans:
+			elif not self.match.finished and self.match.tiebreaker:
+				if self.match.ruleset.tb_ruleset == 'banpick':
+					if len(self.match.bans) == self.match.ruleset.total_bans:
 						sel = BanSelect(self.match)
 						await sel.init()
 						self.add_item(sel)
@@ -280,14 +278,14 @@ class DiscordMatchView(discord.ui.View):
 						await self.setup_round_player_sels()
 				else:
 					await self.setup_round_player_sels()
-			elif await self.match.isFinished():
+			elif self.match.finished:
 				self.submit.disabled = False
 
 	async def interaction_check(self, interaction: discord.Interaction):
 		if interaction.user in self.match.bot.owners:
 			return True
-		if isinstance(self.match.matchDb, Match) and self.match.matchDb.complete:
-			async for seed in self.match.matchDb.players.select_related('player'):
+		if isinstance(self.match.matchDb, Match) and self.match.complete:
+			for seed in self.match.seeding:
 				if seed.player.user.id == interaction.user.id:
 					return True
 		if interaction.user.id == self.match.referee.id:
@@ -312,11 +310,6 @@ class DiscordMatchView(discord.ui.View):
 			await ban.adelete()
 		elif len(self.match.seeding) > 0:
 			self.match.seeding = []
-		elif self.match.group:
-			await self.match.matchDb.adelete()
-			self.match.group = None
-		elif self.match.bracket:
-			self.match.bracket = None
 
 		await self.match.showTool(interaction)
 
@@ -331,7 +324,7 @@ class DiscordMatchView(discord.ui.View):
 			await interaction.response.send_message(content="Are you sure you want to cancel? Click cancel again to confirm", ephemeral=True, delete_after=10)
 
 	async def deferBtn(self, interaction: discord.Interaction):
-		self.match.matchDb.defer = not self.match.matchDb.defer
+		self.match.defer = not self.match.defer
 		await self.showTool(interaction)
 
 	async def uploadBtn(self, interaction: discord.Interaction):
@@ -342,7 +335,7 @@ class DiscordMatchView(discord.ui.View):
 			tool = CHStegTool()
 			try:
 				steg = await tool.getStegInfo(screen)
-				rnd = await MatchRound.objects.select_related('chart').aget(match__id=self.match.matchDb.id, chart__md5=steg.checksum)
+				rnd = await MatchRound.objects.select_related('chart').aget(match__id=self.match.id, chart__md5=steg.checksum)
 				playedChart = rnd.chart
 			except MatchRound.DoesNotExist:
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} was for a setlist chart not played in this match")
@@ -376,7 +369,7 @@ class DiscordMatchView(discord.ui.View):
 			if not rnd.screenshot:
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} accepted")
 				screen.filename = f"{uuid.uuid1()}.png"
-				await sync_to_async(rnd.screenshot.save)(screen.filename, open(tool.img_path, 'rb'))
+				rnd.screenshot.save(screen.filename, open(tool.img_path, 'rb'))
 				rnd.steg = steg
 				await rnd.asave()
 			else:

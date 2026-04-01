@@ -21,7 +21,13 @@ Collect Static -> `python3 manage.py collectstatic`
 
 Create Super User -> `python3 manage.py createsuperuser`
 
-Load CH AppEmotes -> `python3 manage.py ch_icon_import` - takes a while to not hammer any API's
+Load CH Icons/AppEmotes -> `python3 manage.py ch_icon_import`
+
+Login to Main Site to create a discord user.
+
+Set your user as superuser. `python3 manage.py set_discord_superuser -d DISCORDID`
+
+(Optional) Create Google Service Account API. Upload contents of json file into admin UI
 
 Start Processes:
  - `celery -A corpoch beat -l INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler`
@@ -30,6 +36,12 @@ Start Processes:
  - `python3 manage.py run_dbot`
 
 Needs nginx/apache2/web server hosting the static directories - preferable turn off autoindexing/view on images/qualifiers
+
+Setup periodic tasks for management in admin UI:
+ - corpoch.tasks.update_all_users - 6 hours
+ - corpoch.tasks.update_all_guilds - 20 mins
+ - corpoch.tasks.upload_qualifiers_gsheet - 5 mins
+ - corpoch.tasks.upload_completed_match_gsheet - 5 mins
 
 More to come!
 

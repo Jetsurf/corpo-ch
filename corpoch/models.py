@@ -1,21 +1,24 @@
 import uuid, typing, json, math, io
 
-from django.db import models
-from django_pydantic_field import SchemaField
-from multiselectfield import MultiSelectField
 from django.contrib import admin
-from django.core.validators import MaxValueValidator, MinValueValidator
-from encrypted_fields.fields import EncryptedJSONField, EncryptedTextField
-from django.core.serializers.json import DjangoJSONEncoder
-from django.core.exceptions import ValidationError
-from django.utils import timezone
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
 from django.core.files import File
+from django.core.serializers.json import DjangoJSONEncoder
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import models
+from django.utils import timezone
+
+from django_pydantic_field import SchemaField
+from encrypted_fields.fields import EncryptedJSONField, EncryptedTextField
+from multiselectfield import MultiSelectField
+from solo.models import SingletonModel
+
 from corpoch import settings
-from corpoch.validators import validate_chart_file
 from corpoch.managers import DiscordOAuth2Manager
-from corpoch.types import CH_INSTRUMENTS, CH_DIFFICULTIES, CH_MODIFIERS, CH_VERSIONS, CHART_CATEGORIES, TB_RULESETS, PICK_RULESETS, BAN_RULESETS, StegScreenshot
 from corpoch.utils.snghandler import SNGHandler
+from corpoch.types import CH_INSTRUMENTS, CH_DIFFICULTIES, CH_MODIFIERS, CH_VERSIONS, CHART_CATEGORIES, TB_RULESETS, PICK_RULESETS, BAN_RULESETS, StegScreenshot
+from corpoch.validators import validate_chart_file
 
 def steg_upload_dir(self, filename):
 	return f"matches/{str(self.match.group).replace(' ', '').replace(":", "")}/{self.match.id}/{filename}"
@@ -23,10 +26,14 @@ def steg_upload_dir(self, filename):
 def quali_upload_dir(self, filename):
 	return f"qualifiers/{str(self.qualifier).replace(' ', '').replace(':', '')}/{filename}"
 
-class GSheetAPI(models.Model):
+class GSheetAPI(SingletonModel):
 	api_key = EncryptedJSONField(null=False, blank=True, default=dict)
 	sa_name = models.CharField(verbose_name="API Service Account Name", max_length=96)
-	#ONLY ONE KEY SHOULD BE IN THIS TABLE
+
+	singleton_instance_id = 1
+
+	def __str__(self):
+		return "Google Sheets"
 
 	class Meta:
 		verbose_name = "Google Sheets API"
@@ -42,7 +49,9 @@ class DiscordUser(AbstractUser):
 	mfa_enabled = models.BooleanField(default=False)
 	last_login = models.DateTimeField(null=True, blank=True)
 
+	username = None
 	USERNAME_FIELD = 'id'
+	REQUIRED_FIELDS = ()
 
 	def __str__(self):
 		if self.global_name:
@@ -246,7 +255,6 @@ class Group(models.Model):
 
 class TournamentPlayer(models.Model):
 	id = models.AutoField(primary_key=True)
-	#user = models.BigIntegerField(verbose_name="Player Discord ID", db_index=True)
 	user = models.ForeignKey(DiscordUser, verbose_name="User", on_delete=models.SET_NULL, db_index=True, blank=True, null=True)
 	name = models.CharField(verbose_name="Discord Name", max_length=128, null=True, blank=True) #This is the users tournament guild display name
 	tournament = models.ForeignKey(Tournament, related_name="players", verbose_name="Tournament", on_delete=models.CASCADE)
@@ -267,7 +275,7 @@ class TournamentPlayer(models.Model):
 		return self.tournament.brackets.objects.select_related('player').filter(players__id=self.id)
 
 	def check_ch_name(self, testname):
-		return True if testname.replace(" ", "").replace("☆", "") in self.ch_name.replace(" ", "").replace("♡", "") else False#Might be good to move the replaces here to a type of CH_NAME_IGNORE_CHARS
+		return True if testname.replace(" ", "").replace("♡", "").replace("☆", "") in self.ch_name.replace(" ", "").replace("♡", "").replace("☆", "") else False#Might be good to move the replaces here to a type of CH_NAME_IGNORE_CHARS
 
 class GroupSeed(models.Model):
 	id = models.AutoField(primary_key=True)
@@ -310,7 +318,7 @@ class Qualifier(models.Model):
 	rules = models.TextField(verbose_name="Rules", max_length=1024, default="Placeholder rules")
 	channel = models.ForeignKey("dbot.Channels", verbose_name="Submission Discord Channel", on_delete=models.SET_NULL, db_index=True, blank=True, null=True)
 	gsheet = models.URLField(verbose_name="Submissions Google Sheet", null=True, blank=True)
-	output = models.BooleanField(verbose_name="Msg On Submissiom", default=True)
+	output = models.BooleanField(verbose_name="Msg On Submission", default=True)
 
 	class Meta:
 		verbose_name = "Qualifier"
@@ -338,6 +346,10 @@ class QualifierSubmission(models.Model):
 	def __str__(self):
 		return f"{self.player.ch_name} - {self.qualifier.tournament.name} {self.qualifier.bracket.name if self.qualifier.bracket else ''} Qualifier"
 
+	@property
+	def score(self):
+		return self.steg.players[0].score
+
 	def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
 		if self.screenshot and not self.steg:
 			from corpoch.providers import CHStegTool
@@ -362,7 +374,7 @@ class Match(models.Model):
 	submitted = models.BooleanField(verbose_name="GSheet", default=False)
 	channel = models.ForeignKey("dbot.Channels", verbose_name="Ref-Tool Discord Channel", on_delete=models.SET_NULL, null=True, blank=True)
 	message = models.BigIntegerField(verbose_name="Ref-Tool Discord Message ID", null=True, blank=True)
-	referee = models.BigIntegerField(verbose_name="Discord Ref ID", null=True, blank=True)
+	referee = models.ForeignKey(DiscordUser, verbose_name="User", on_delete=models.SET_NULL, db_index=True, blank=True, null=True)
 	exhibition = models.BooleanField(default=False)
 
 	class Meta:
@@ -480,9 +492,9 @@ class MatchRound(models.Model):
 	match = models.ForeignKey(Match, related_name="match_rounds", verbose_name="Match ID", on_delete=models.CASCADE, null=True, blank=True)
 	picked = models.ForeignKey(TournamentPlayer, related_name="picks", verbose_name="Picker", on_delete=models.CASCADE, blank=True, null=True)
 	chart = models.ForeignKey(Chart, related_name="rounds_played", verbose_name="Chart Played", null=True, blank=True, on_delete=models.SET_NULL)
-	winner = models.ForeignKey(TournamentPlayer, related_name="rounds_won", verbose_name="Winner", null=True, on_delete=models.SET_NULL)
+	winner = models.ForeignKey(TournamentPlayer, related_name="rounds_won", verbose_name="Winner", null=True, blank=True, on_delete=models.SET_NULL)
 	#w_points = models.PositiveIntegerField(verbose_name="Players", validators=[MinValueValidator(1), MaxValueValidator(5)], default=1)
-	loser = models.ForeignKey(TournamentPlayer, related_name="rounds_lost", verbose_name="Loser", null=True, on_delete=models.SET_NULL)
+	loser = models.ForeignKey(TournamentPlayer, related_name="rounds_lost", verbose_name="Loser", null=True, blank=True, on_delete=models.SET_NULL)
 	#l_points = models.PositiveIntegerField(verbose_name="Players", validators=[MinValueValidator(1), MaxValueValidator(5)], default=0)
 	steg = SchemaField(StegScreenshot, verbose_name="Steg Data", null=True, blank=True) #This is the players list in the steg data
 	screenshot = models.ImageField(upload_to=steg_upload_dir, verbose_name="Screenshot", null=True, blank=True)

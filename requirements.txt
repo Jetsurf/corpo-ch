@@ -9,6 +9,7 @@ celery
 django-multiselectfield
 django-fernet-encrypted-fields
 django-admin-sortable2
+django-admin-logs
 aiohttp
 redis
 django-celery-beat
@@ -19,6 +20,7 @@ django-pydantic-field
 django-celery-results
 django-jsonform
 python-decouple
+django-solo
 daphne
 gspread
 mido

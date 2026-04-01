@@ -17,7 +17,7 @@ class CHOptModal(discord.ui.DesignerModal):
 		args += (discord.ui.Label("Early Whammy % (0-100)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value='0')),)
 		args += (discord.ui.Label("Lazy Whammy (ms 0-10000)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value='0')),)
 		args += (discord.ui.Label("Whammy Delay (ms 0-10000)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value='0')),)
-		if not isinstance(self.path.chart, Chart):
+		if not isinstance(self.path.charts[0], Chart):
 			args += (discord.ui.Label("Song Speed (10-500)", discord.ui.InputText(style=discord.InputTextStyle.short, required=True, value=100)),)
 		super().__init__(*args, **kwargs)
 		self.title = "CHOpt Options"
@@ -186,21 +186,32 @@ class ChartSelect(discord.ui.Select):
 
 	async def init(self):
 		opts = []
+		names = []
 		for chart in self.path.charts:
+			self.retOpts[chart.md5] = chart
 			emoji = await get_chart_emoji(self.path.bot, chart)
+			chartStr = f"{chart.artist} - {chart.album} - {chart.charter}"[:99]
+			if chartStr in names:
+				continue
+			names.append(chartStr)
 			if isinstance(chart, Chart):
-				self.retOpts[chart.md5] = chart
-				opts.append(discord.SelectOption(label=chart.tournament_name, emoji=emoji, value=chart.md5, description=f"{'TB - ' if chart.tiebreaker else ''}{chart.artist} - {chart.album} - {chart.charter}", default=True if self.path.chart == chart else False))
+				opt = discord.SelectOption(label=chart.tournament_name, emoji=emoji, value=chart.md5, description=f"{'TB - ' if chart.tiebreaker else ''}{chartStr}"[:99])
 			else:
-				opts.append(discord.SelectOption(label=chart.name, emoji=emoji, value=chart.md5, description=f"{chart.artist} - {chart.album} - {chart.charter}", default=True if self.path.chart == chart else False))
-				self.retOpts[chart.md5] = chart
-		super().__init__(placeholder="Select a chart", options=opts, max_values=1, custom_id="chart_sel")
+				opt = discord.SelectOption(label=chart.name, emoji=emoji, value=chart.md5, description=chartStr)
+			opt.default = True if chart in self.path.chart_paths else False
+			if opt not in opts:
+				opts.append(opt)
+
+		super().__init__(placeholder="Select a chart", options=opts, min_values=1, max_values=len(opts) if isinstance(self.path.charts[0], Chart) else 1, custom_id="chart_sel")
 
 	async def callback(self, interaction: discord.Interaction):
-		self.path.chart = self.retOpts[self.values[0]]
-		if isinstance(self.path.chart, Chart):
-			self.path.chopt.opts.instrument = self.path.chart.instrument
-			self.path.chopt.opts.speed = self.path.chart.speed
+		for retChart in self.values:
+			chart = self.retOpts[retChart]
+			self.path.chart_paths.append(chart)
+			if isinstance(chart, Chart):
+				self.path.chopt.opts.instrument = chart.instrument
+				self.path.chopt.opts.speed = chart.speed
+
 		await interaction.response.defer(ephemeral=True)
 		await self.path.show()
 
@@ -208,7 +219,7 @@ class PathView(discord.ui.View):
 	def __init__(self, path):
 		self.path = path
 		super().__init__(timeout = None)
-		if not self.path.chart:
+		if len(self.path.chart_paths) < 1:
 			self.get_item('submit').disabled = True
 			self.get_item('opts').disabled = True
 
@@ -247,6 +258,7 @@ class PathView(discord.ui.View):
 		await modal.wait()
 		await self.path.show()
 
+
 	@discord.ui.button(label="Tourney Search", style=discord.ButtonStyle.secondary, custom_id="tourney")
 	async def tourneyBtn(self, button, interaction: discord.Interaction):
 		await self.clear()
@@ -270,5 +282,9 @@ class PathView(discord.ui.View):
 
 	@discord.ui.button(label="Submit", style=discord.ButtonStyle.green, custom_id="submit")
 	async def submitBtn(self, button, interaction: discord.Interaction):
-		await interaction.response.defer(invisible=False)
+		if len(self.path.chart_paths) > 1:
+			await interaction.response.defer(invisible=True)
+			interaction = await interaction.followup.send("/ch path results")
+		else:
+			await interaction.response.defer(invisible=False)
 		await self.path.showResult(interaction)

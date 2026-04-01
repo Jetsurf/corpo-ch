@@ -31,6 +31,7 @@ class CorpoDbot(commands.Bot):
 		self.message_connection = Connection(settings.CELERY_BROKER_URL)
 		self.message_consumer = Consumer(self.message_connection, [Queue("corpoch.dbot")], callbacks=[self.on_queue_message])#, channel=self.chan)
 		self.tasks = []
+		self.matches = {}
 		print(f"redis pool started {settings.CELERY_BROKER_URL}")
 
 		for cog in settings.COGS_ENABLED:
@@ -115,6 +116,7 @@ class CorpoDbot(commands.Bot):
 			print(f"Got ongoing match {match.id}")
 			view = DiscordMatch(self._bot, uuid=match.id)
 			await view.init()
+			self.matches[match.id] = view
 
 		if not bot_tasks.run_tasks.is_running():
 			print("Starting tasks")

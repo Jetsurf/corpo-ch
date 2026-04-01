@@ -1,23 +1,25 @@
 import json, time
 
-from adminsortable2.admin import CustomInlineFormSet, SortableAdminBase, SortableStackedInline, SortableAdminMixin
-
-from django_pydantic_field import fields
 from django.contrib import admin
-from django_jsonform.widgets import JSONFormWidget
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Count
+from django.utils.html import mark_safe
+
+from adminsortable2.admin import CustomInlineFormSet, SortableAdminBase, SortableStackedInline, SortableAdminMixin
+from django_jsonform.widgets import JSONFormWidget
+from django_pydantic_field import fields
+from solo.admin import SingletonModelAdmin
 
 from corpoch.models import Chart, Tournament, TournamentConfig, BracketRules, Bracket, Qualifier, TournamentPlayer, GroupSeed, MatchRound, CHIcon
 from corpoch.models import Match, Group, QualifierSubmission, CH_MODIFIERS, MatchBan, GSheetAPI, DiscordUser
 from corpoch.dbot.models import Guilds, Channels, Roles
 from corpoch.providers import EncoreClient, GSheets
-from django.utils.html import mark_safe
 import corpoch.dbot.tasks
+import corpoch.tasks
 
-@admin.register(GSheetAPI)
-class GSheetAPIAdmin(admin.ModelAdmin):
-	pass
+admin.site.site_header = 'Corpo CH Admin'
+admin.site.site_title = 'Corpo CH'
+admin.site.register(GSheetAPI, SingletonModelAdmin)
 
 @admin.register(DiscordUser)
 class DiscordUserAdmin(admin.ModelAdmin):
@@ -70,41 +72,13 @@ class ChartAdmin(admin.ModelAdmin):
 
 	@admin.action(description="Run Encore import")
 	def run_encore_import(modeladmin, request, queryset):
-		encore = EncoreClient()
 		for chart in queryset:
-			search = encore.search(chart.encore_search_query)
-			i = 0 
-			if len(search.data) == 0:
-				print(f"Chart {chart.name} encore lookup with query {chart.encore_search_query} failed with query {search}")
-				continue
-			if len(search.data) > 1:
-				print(f"Chart {chart.name} returned multiple results")
-				for j, cht in enumerate(search.data):
-					if chart.blake3 == cht.md5:
-						i = j
-						break
-
-			encoreChart = search.data[i]
-			chart.sngfile.save(f"{encoreChart.name}.sng", encore.download_from_chart(encoreChart))
-			chart.save()
+			corpoch.tasks.encore_import.apply_async(args=[chart.id])
 
 	@admin.action(description="Import data from song.ini")
 	def import_song_ini(modeladmin, request, queryset):
-		from corpoch.utils.snghandler import SNGHandler
 		for chart in queryset:
-			song = SNGHandler(chart.sngfile.open(mode='rb').read())
-			songini = song.songini_model
-			chart.name = songini.name
-			chart.artist = songini.artist
-			chart.album = songini.album
-			chart.genre = songini.genre
-			chart.charter = songini.charter
-			chart.md5 = song.md5
-			try:
-				chart.icon = CHIcon.objects.get(name=songini.icon)
-			except CHIcon.DoesNotExist:
-				chart.icon = CHIcon.objects.get(name="ch_default_icon")
-			chart.save()
+			corpoch.tasks.chart_songini_import.apply_async(args=[chart.id])
 
 class TournamentConfigInline(admin.TabularInline):
 	model = TournamentConfig
@@ -317,7 +291,7 @@ class GroupAdmin(SortableAdminBase, admin.ModelAdmin):
 @admin.register(QualifierSubmission)
 class QualifierSubmissionAdmin(admin.ModelAdmin):
 	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
-	list_display = ('id', 'qualifier', 'player_ch_name', '_score', '_miss', '_hit', '_excess', '_ghosts', '_phrases', 'submitted')
+	list_display = ('id', 'qualifier', 'player_ch_name', 'score', '_miss', '_hit', '_excess', '_ghosts', '_phrases', 'submitted')
 	list_filter = ["qualifier", "player"]
 	actions = ['set_unsubmitted',"reread_steg", "resubmit_gsheet"]
 
@@ -326,9 +300,6 @@ class QualifierSubmissionAdmin(admin.ModelAdmin):
 
 	def player_ch_name(self, obj):
 		return obj.player.ch_name
-
-	def _score(self, obj):
-		return obj.steg.players[0].score if len(obj.steg.players) > 0 else '-'
 
 	def _miss(self, obj):
 		return obj.steg.players[0].notes_missed if len(obj.steg.players) > 0 else '-'
@@ -345,6 +316,15 @@ class QualifierSubmissionAdmin(admin.ModelAdmin):
 	def _phrases(self, obj):
 		return obj.steg.players[0].sp_phrases_earned if len(obj.steg.players) > 0 else '-'
 
+	def formfield_for_foreignkey(self, db_field, request, **kwargs):
+		if db_field.name == "player":
+			if 'object_id' in request.resolver_match.kwargs:
+				sub = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs['queryset'] = TournamentPlayer.objects.all().filter(tournament=sub.qualifier.tournament)
+			else:
+				kwargs["queryset"] = TournamentPlayer.objects.none()
+		return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
 	@admin.action(description="Mark Qualifiers GSheet Unsent")
 	def set_unsubmitted(modeladmin, request, queryset):
 		for quali in queryset:
@@ -359,11 +339,8 @@ class QualifierSubmissionAdmin(admin.ModelAdmin):
 
 	@admin.action(description="Correct GSheet Values")
 	def resubmit_gsheet(modeladmin, request, queryset):
-		sheet = GSheets()
-		sheet.login()
-		for quali in queryset:
-			sheet.set_submission(quali)
-			sheet.update_qualifier()
+		for submission in queryset:
+			corpoch.tasks.update_gsheet.apply_async(args=[submission.id])
 
 class RoundsInline(SortableStackedInline):
 	model = MatchRound
@@ -464,11 +441,8 @@ class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
 
 	@admin.action(description="Correct GSheet Values")
 	def resubmit_gsheet(modeladmin, request, queryset):
-		sheet = GSheets()
-		sheet.login()
-		for quali in queryset:
-			sheet.set_submission(quali)
-			sheet.update_match()
+		for match in queryset:
+			corpoch.tasks.update_gsheet.apply_async(args=[match.id])
 
 	@admin.action(description="Refresh Discord Message")
 	def resubmit_discord(modeladmin, request, queryset):
