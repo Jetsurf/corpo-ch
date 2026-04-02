@@ -136,7 +136,7 @@ class PlayerRoundSelect(discord.ui.Select):
 		else:
 			self.round.loser = self.match.seeding[0].player
 		self.round.winner = winner.player
-		await self.match.add_round()
+		self.match.add_round()
 		await self.match.showTool(interaction)
 
 class BracketSelect(discord.ui.Select):
@@ -263,7 +263,7 @@ class DiscordMatchView(discord.ui.View):
 			self.add_item(self.back)
 			self.add_item(self.submit)
 			if len(self.match.bans) == self.match.ruleset.total_bans and len(self.match.rounds) == 0:
-				await self.match.add_round()
+				self.match.add_round()
 
 			if not self.match.finished and not self.match.tiebreaker:
 				await self.setup_round_player_sels()
