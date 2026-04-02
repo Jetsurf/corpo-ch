@@ -1,13 +1,12 @@
-import discord, os, sys, json, shutil
+import discord
 
 from discord.ext import commands
-from asgiref.sync import sync_to_async
 
-from corpoch.providers import CHOpt, EncoreClient, CHStegTool, Hydra
-from corpoch.models import Chart
 from corpoch.dbot.models import CHEmoji
 from corpoch.dbot.view.helpers import get_chart_emoji
-
+from corpoch.providers import CHOpt, EncoreClient, CHStegTool, Hydra
+from corpoch.models import Chart
+from corpoch.chdedi.models import GlobalConfig
 from corpoch.dbot.view.path import PathView
 
 class Path():
@@ -146,11 +145,20 @@ class CHCmds(commands.Cog):
 
 	ch = discord.SlashCommandGroup('ch','CloneHero tools')
 
-	@ch.command(name='path',description='Generate a path for a given chart on Chorus', integration_types={discord.IntegrationType.guild_install, discord.IntegrationType.user_install})
+	@ch.command(name='path', description='Generate a path for a given chart on Chorus', integration_types={discord.IntegrationType.guild_install, discord.IntegrationType.user_install})
 	async def path(self, ctx):
 		path = Path(self.bot, ctx)
 		await ctx.respond(content="Setting up", ephemeral=True)
 		await path.show()
+
+	@ch.command(name='servers', description="List of CH Server's Corpo is currently running", integration_types={discord.IntegrationType.guild_install, discord.IntegrationType.user_install})
+	async def servers(self, ctx):
+		embed = discord.Embed(colour=0x00F2FF)
+		embed.title = "Corpo Clone Hero Dedicated Servers"
+		outStr = "settings.ini file in `C:\\Users\\YOURUSERNAME\\Documents\\Clone Hero` find the [Server] section and copy+paste the server list below it. For Linux the file is `~/.clonehero/settings.ini`\n\nRestart your game and the servers should be available!"
+		embed.add_field(name="How to add", value=outStr, inline=False)
+		embed.add_field(name="Corpo Server List", value=f"```{GlobalConfig.objects.get().server_list}```", inline=False)
+		await ctx.respond(embed=embed)
 
 	@discord.message_command(name='CH Sten',description='Reads CH Sten data from a screenshot posted to a message', integration_types={discord.IntegrationType.guild_install, discord.IntegrationType.user_install})
 	async def getScreenSten(self, ctx: discord.ApplicationContext, msg: discord.Message):

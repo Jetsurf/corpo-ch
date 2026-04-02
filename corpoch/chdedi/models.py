@@ -6,6 +6,8 @@ from django.db import models
 
 from django_pydantic_field import SchemaField
 from solo.models import SingletonModel
+
+from corpoch.chdedi import settings
 from corpoch.chdedi.types import CHServerSettings, CHServerSpecificSettings, CHRedisSettings, SERVER_CONFIG_CHOICES, CHSettings, CHOnlineSettings
 
 class GlobalConfig(SingletonModel):
@@ -17,6 +19,15 @@ class GlobalConfig(SingletonModel):
 	class Meta:
 		verbose_name = "Global Settings"
 		verbose_name_plural = "Global Settings"
+
+	@property
+	def server_list(self) -> list:
+		servers = []
+		i = 10000 #Chosen Arbitrarily
+		for server in CHDediServer.objects.all():
+			servers.append(f"server{i}:{settings.BASE_URL}:{server.port}")
+			i += 1
+		return "\n".join(servers)
 
 	def __str__(self):
 		return "Global CH Server Settings"
@@ -53,6 +64,10 @@ class CHDediServer(models.Model):
 	class Meta:
 		verbose_name = "Servers"
 		verbose_name_plural = "Servers"
+
+	@property
+	def port(self):
+		return str(self.server_settings.port)
 
 	@property
 	def exec_str(self):
