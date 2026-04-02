@@ -152,13 +152,13 @@ class CHCmds(commands.Cog):
 		await path.show()
 
 	@ch.command(name='servers', description="List of CH Server's Corpo is currently running", integration_types={discord.IntegrationType.guild_install, discord.IntegrationType.user_install})
-	async def servers(self, ctx):
+	async def servers(self, ctx, ephemeral: discord.Option(input_type=bool, default=True, description="Message shows only to you", required=True)):
 		embed = discord.Embed(colour=0x00F2FF)
 		embed.title = "Corpo Clone Hero Dedicated Servers"
 		outStr = "settings.ini file in `C:\\Users\\YOURUSERNAME\\Documents\\Clone Hero` find the [Server] section and copy+paste the server list below it. For Linux the file is `~/.clonehero/settings.ini`\n\nRestart your game and the servers should be available!"
 		embed.add_field(name="How to add", value=outStr, inline=False)
 		embed.add_field(name="Corpo Server List", value=f"```{GlobalConfig.objects.get().server_list}```", inline=False)
-		await ctx.respond(embed=embed)
+		await ctx.respond(embed=embed, ephemeral=ephemeral)
 
 	@discord.message_command(name='CH Sten',description='Reads CH Sten data from a screenshot posted to a message', integration_types={discord.IntegrationType.guild_install, discord.IntegrationType.user_install})
 	async def getScreenSten(self, ctx: discord.ApplicationContext, msg: discord.Message):

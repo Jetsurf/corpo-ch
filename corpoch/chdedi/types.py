@@ -1,7 +1,6 @@
 import pydantic, socket, typing
 
 from pydantic import Field
-from pydantic_config import SettingsModel, SettingsConfig
 
 SERVER_CONFIG_CHOICES = (
 	("disabled", "Disabled"),
