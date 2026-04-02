@@ -30,6 +30,7 @@ Start Processes:
  - `celery -A corpoch worker -l info`
  - `python3 manage.py runserver`
  - `python3 manage.py run_dbot`
+ - `python3 manage.py run_ch_servers` (Optional)
 
 Needs nginx/apache2/web server hosting the static directories - preferable turn off autoindexing/view on images/qualifiers
 
