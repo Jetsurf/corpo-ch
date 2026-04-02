@@ -13,10 +13,15 @@ class CHManager:
         self._monitor = SubprocessMonitor(check_interval=10)
         self._servers = servers
 
+    def __del__(self):
+        for server in self._servers:
+            server.pid = None
+            server.save()
+
     async def run(self, server):
         with chdir(server.path):
             settings = server.write_settings()
-            server.pid = await self._monitor.start_subprocess({ "cmd" : f"{server.path}/startup.sh", "args" : [] })
+            server.pid = await self._monitor.start_subprocess({ "cmd" : server.exec_str, "args" : [] })
             await server.asave()
 
     def restart(self):

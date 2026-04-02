@@ -1,4 +1,4 @@
-import pydantic, typing
+import pydantic, socket, typing
 
 from pydantic import Field
 from pydantic_config import SettingsModel, SettingsConfig
@@ -29,7 +29,7 @@ class CHServerSettings(pydantic.BaseModel):
 class CHServerSpecificSettings(pydantic.BaseModel):
 	name : str = "Corpo CH - Dedicated Server"
 	port : int = Field(14242, ge=1024, le=65534)
-	ip : str = "127.0.0.1"
+	ip : str = socket.gethostbyname(socket.gethostname())
 	password: str = ""
 
 class CHOnlineSettings(CHServerSettings, CHServerSpecificSettings):

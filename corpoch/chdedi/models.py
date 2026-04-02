@@ -1,3 +1,4 @@
+import platform
 from contextlib import chdir
 
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -31,7 +32,7 @@ class TournamentConfig(models.Model):
 
 class CHDediServer(models.Model):
 	id = models.AutoField(primary_key=True)
-	pid = models.PositiveIntegerField(verbose_name="Process PID", null=True, blank=True)
+	pid = models.PositiveIntegerField(verbose_name="PID", null=True, blank=True)
 	path = models.CharField(verbose_name="Server Path", max_length=40, default="~/CHDediServer")
 	config = models.CharField(verbose_name="Config Option", choices=SERVER_CONFIG_CHOICES, max_length=16, default=SERVER_CONFIG_CHOICES[0])
 	tournament_config = models.ForeignKey(TournamentConfig, verbose_name="Tournament Configuration", on_delete=models.SET_NULL, null=True, blank=True)
@@ -40,6 +41,13 @@ class CHDediServer(models.Model):
 	class Meta:
 		verbose_name = "Servers"
 		verbose_name_plural = "Servers"
+
+	@property
+	def exec_str(self):
+		if platform.system() == 'Windows':
+			return f"{self.path}/startup.cmd"
+		else:
+			return f"{self.path}/startup.sh"
 
 	@property
 	def settings(self):
@@ -67,4 +75,3 @@ class CHDediServer(models.Model):
 		with chdir(self.path):
 			with open("settings.ini", "w") as f:
 				f.write(fileStr)
-
