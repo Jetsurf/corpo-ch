@@ -1,9 +1,11 @@
+from contextlib import chdir
+
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from django_pydantic_field import SchemaField
 from solo.models import SingletonModel
-from corpoch.chdedi.types import CHServerSettings, CHServerSpecificSettings, CHRedisSettings, SERVER_CONFIG_CHOICES
+from corpoch.chdedi.types import CHServerSettings, CHServerSpecificSettings, CHRedisSettings, SERVER_CONFIG_CHOICES, CHSettings, CHOnlineSettings
 
 class GlobalConfig(SingletonModel):
 	redis = SchemaField(CHRedisSettings, verbose_name="Redis Config", null=True, blank=True)
@@ -29,7 +31,7 @@ class TournamentConfig(models.Model):
 
 class CHDediServer(models.Model):
 	id = models.AutoField(primary_key=True)
-	pid = models.PositiveIntegerField(verbose_name="Process PID")
+	pid = models.PositiveIntegerField(verbose_name="Process PID", null=True, blank=True)
 	path = models.CharField(verbose_name="Server Path", max_length=40, default="~/CHDediServer")
 	config = models.CharField(verbose_name="Config Option", choices=SERVER_CONFIG_CHOICES, max_length=16, default=SERVER_CONFIG_CHOICES[0])
 	tournament_config = models.ForeignKey(TournamentConfig, verbose_name="Tournament Configuration", on_delete=models.SET_NULL, null=True, blank=True)
@@ -42,10 +44,27 @@ class CHDediServer(models.Model):
 	@property
 	def settings(self):
 		if self.config == "open":
-			conf = OpenConfig.objects.get()
+			conf = OpenConfig.objects.get().settings
 		elif self.config == "tournament":
-			conf = tournament_config
+			conf = self.tournament_config.settings
 		else:
 			return None
 
-		return CHSettings(conf | self.serverSettings)
+		redis = GlobalConfig.objects.get().redis
+		online = CHOnlineSettings.model_validate(self.server_settings.model_dump() | conf.model_dump())
+		return CHSettings.model_validate({ 'redis' : redis, 'online' : online })
+
+	def __str__(self):
+		return self.server_settings.name
+
+	def write_settings(self):
+		fileStr = ""
+		for section, val1 in iter(self.settings):
+			fileStr += f"[{section}]\n"
+			for opt, val2 in iter(val1):
+				fileStr += f"{opt} = {val2}\n"
+			fileStr += "\n"
+		with chdir(self.path):
+			with open("settings.ini", "w") as f:
+				f.write(fileStr)
+

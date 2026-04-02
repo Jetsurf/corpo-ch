@@ -35,7 +35,7 @@ INSTALLED_APPS = [
 	'redis',
 	'corpoch',
 	'corpoch.dbot',
-	#'corpoch.chdedi',
+	'corpoch.chdedi',
 	'adminsortable2'
 ]
 

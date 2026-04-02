@@ -13,13 +13,9 @@ Install redis+MySQL + populate .env vars for needed fields.
 
 Install requirements `pip3 install -r requirements.txt`
 
-Make migrations -> `python3 manage.py makemigrations corpoch`
-
 Migrate -> `python3 manage.py migrate`
 
 Collect Static -> `python3 manage.py collectstatic`
-
-Create Super User -> `python3 manage.py createsuperuser`
 
 Load CH Icons/AppEmotes -> `python3 manage.py ch_icon_import`
 

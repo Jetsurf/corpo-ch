@@ -36,7 +36,7 @@ class DiscordMatch():
 			for seed in self.seeding:
 				self.seeding_discord.append(await self.guild.fetch_member(seed.user.id))
 			if not self.finished and len(self.bans) > 0 and (len(self.rounds) == 0 or self.rounds[-1].winner):
-				await self.add_round()
+				self.add_round()
 		try:
 			self.tourney = await Tournament.objects.select_related().aget(guild=self.msg.guild.id, active=True)
 		except Tournament.DoesNotExist:
@@ -195,6 +195,8 @@ class DiscordMatch():
 
 	@property
 	def finished(self) -> bool:
+		if not self.matchDb:
+			return False
 		wins = self.score
 		if wins[0] == self.ruleset.wins_needed or wins[1] == self.ruleset.wins_needed:
 			return True

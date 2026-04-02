@@ -30,14 +30,11 @@ class CHServerSpecificSettings(pydantic.BaseModel):
 	name : str = "Corpo CH - Dedicated Server"
 	port : int = Field(14242, ge=1024, le=65534)
 	ip : str = "127.0.0.1"
-	password: typing.Optional[str] = None
+	password: str = ""
 
 class CHOnlineSettings(CHServerSettings, CHServerSpecificSettings):
 	pass
 
-class CHSettings():
+class CHSettings(pydantic.BaseModel):
 	redis: CHRedisSettings
 	online: CHOnlineSettings
-
-class CHSettingsINI(SettingsModel, CHSettings):
-	model_config = SettingsConfig(config_file="settings.ini")
