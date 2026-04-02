@@ -8,7 +8,8 @@ from subprocess_monitor import SubprocessMonitor
 from corpoch.chdedi.models import CHDediServer, GlobalConfig
 
 class CHManager:
-	def __init__(self, servers):
+	def __init__(self, servers, skip_startup):
+		self._skip_startup = skip_startup
 		os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
 		self._monitor = SubprocessMonitor(check_interval=10)
 		self._servers = servers
@@ -43,8 +44,9 @@ class CHManager:
 
 	async def main(self):
 		asyncio.create_task(self._monitor.run())
-		for server in self._servers:
-			await self.run(server)
+		if not self._skip_startup:
+			for server in self._servers:
+				await self.run(server)
 
 		while True:
 			async for server in self.global_config.to_restart.all():
@@ -73,10 +75,13 @@ class CHManager:
 class Command(BaseCommand):
 	help = 'Run Corpoch Dbot'
 
+	def add_arguments(self, parser):
+		parser.add_argument('-s', '--skip-startup', action="store_true", help='Starts monitor without starting servers')
+
 	def handle(self, *args, **options):
 		print("Starting Clone Hero Dedicated Servers")
 		conf = GlobalConfig.objects.get()
 		conf.pid = os.getpid()
 		conf.save()
-		mgr = CHManager(CHDediServer.objects.all())
+		mgr = CHManager(CHDediServer.objects.all(), options['skip_startup'])
 		asyncio.run(mgr.main())
