@@ -13,7 +13,7 @@ django-admin-logs
 aiohttp
 redis
 django-celery-beat
-subprocess_monitor
+subprocess-monitor
 pytesseract
 pillow
 requests-cache
