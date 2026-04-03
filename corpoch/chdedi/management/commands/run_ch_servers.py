@@ -1,4 +1,4 @@
-import asyncio, os, signal, psutil, sys
+import asyncio, atexit, os, signal, psutil, sys
 from contextlib import chdir
 
 from django.core.management.base import BaseCommand
@@ -29,6 +29,7 @@ class CHManager:
 
 	def sig_term(self, sig, frame):
 		print("Keyboard Interrput, exiting.")
+
 		sys.exit(0)
 
 	async def run(self, server):
@@ -46,6 +47,8 @@ class CHManager:
 		asyncio.create_task(self._monitor.run())
 		if not self._skip_startup:
 			for server in self._servers:
+				if server.pid:
+					await self.stop(server)
 				await self.run(server)
 
 		while True:
@@ -58,7 +61,7 @@ class CHManager:
 				self.global_config.to_stop.remove(server)
 				await self.global_config.asave()
 
-			await asyncio.sleep(1)
+			await asyncio.sleep(5)
 
 	async def stop(self, server):
 		print(f"Stopping CH Server: {server}")
@@ -68,9 +71,18 @@ class CHManager:
 				child.terminate()
 			#parent.terminate()
 		except psutil.NoSuchProcess:
-			print(f"Server {server} {server.pid} not running.")
-		server.pid = None
-		await server.asave()
+			print(f"Server {server} {server.pid} not running. Checking for zombies")
+			for proc in psutil.process_iter():
+				procStr = proc.name()
+				if proc.name() in server.process_name:
+					try:
+						if server.path in proc.exe():
+							print(f"Killed zombie server {proc.exe()}")
+							proc.terminate()
+					except psutil.AccessDenied:
+						continue
+			server.pid = None
+			await server.asave()
 
 class Command(BaseCommand):
 	help = 'Run Corpoch Dbot'
@@ -79,6 +91,8 @@ class Command(BaseCommand):
 		parser.add_argument('-s', '--skip-startup', action="store_true", help='Starts monitor without starting servers')
 
 	def handle(self, *args, **options):
+		sys.stdout.reconfigure(line_buffering = True)
+		sys.stderr.reconfigure(line_buffering = True)
 		print("Starting Clone Hero Dedicated Servers")
 		conf = GlobalConfig.objects.get()
 		conf.pid = os.getpid()

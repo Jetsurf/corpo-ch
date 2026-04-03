@@ -1,4 +1,4 @@
-import sys, discord, time, logging, django
+import sys, discord, time, logging, django, random
 import django.db
 
 from discord.ext import commands, tasks
@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 class CorpoDbot(commands.Bot):
 	def __init__(self):
+		random.seed()
 		sys.stdout.reconfigure(line_buffering = True)
 		sys.stderr.reconfigure(line_buffering = True)
 		print("--- Pre-startup ---")
@@ -89,7 +90,25 @@ class CorpoDbot(commands.Bot):
 		if not bot_tasks.run_tasks.is_running():
 			bot_tasks.run_tasks.start(self)
 
+	@tasks.loop(seconds=300)
+	async def switch_status(self):
+		from corpoch.models import Match, QualifierSubmission, MatchRound
+		matches = Match.objects.all().filter(finished=False)
+		if len(matches) > 0:
+			rand = random.randrange(0, len(matches), 1)
+			activity = discord.Activity(name=f"{matches[rand].tournament.short_name} - {matches[rand].short_name} {matches[rand].score}", type=discord.ActivityType(3))
+		else:
+			rand = random.randrange(0, 2, 1)
+			if rand == 0:
+				activity = discord.Game(f"{len(Match.objects.all())} Tracked Matches")
+			elif rand == 1:
+				activity = discord.Game(f"{len(MatchRound.objects.all())} Tracked Match Rounds")
+			elif rand == 2:
+				activity = discord.Game(f"{len(QualifierSubmission.objects.all())} Tracked Qualifier Submissions")
+		await self._bot.change_presence(status=discord.Status.online, activity=activity)
+
 	async def close(self):
+		self.switch_status.stop()
 		self.poll_queue.stop()
 		bot_tasks.run_tasks.stop()
 		await super().close()
@@ -113,6 +132,7 @@ class CorpoDbot(commands.Bot):
 			print("Starting tasks")
 			self.message_consumer.consume(no_ack=False)
 			self.poll_queue.start()
+			self.switch_status.start()
 
 		print('------Done with Startup------')
 

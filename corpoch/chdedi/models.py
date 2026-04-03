@@ -66,10 +66,6 @@ class CHDediServer(models.Model):
 		verbose_name_plural = "Servers"
 
 	@property
-	def port(self):
-		return str(self.server_settings.port)
-
-	@property
 	def exec_str(self):
 		if platform.system() == 'Windows':
 			return f"{self.path}/startup.cmd"
@@ -83,6 +79,13 @@ class CHDediServer(models.Model):
 	@property
 	def open_config(self):
 		return OpenConfig.objects.get()
+
+	@property
+	def process_name(self):
+		if platform.system() == 'Windows':
+			return "Server.exe"
+		else:
+			return "Server"
 
 	@property
 	def settings(self):

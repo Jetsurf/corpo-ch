@@ -299,8 +299,11 @@ class QualifierCmds(commands.Cog):
 
 	@commands.slash_command(name='qualifier', description='Submit a qualifier score for a tournament/bracket', integration_types={discord.IntegrationType.guild_install})
 	async def qualifierSubmitCmd(self, ctx):
-		view = DiscordQualifierView(ctx)
-		await view.init()
+		if ctx.guild:
+			view = DiscordQualifierView(ctx)
+			await view.init()
+		else:
+			await ctx.respond("Can't run this command outside of a guild!", ephemeral=True)
 
 def setup(bot):
 	bot.add_cog(QualifierCmds(bot))
