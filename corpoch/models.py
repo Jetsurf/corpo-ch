@@ -391,7 +391,8 @@ class Match(models.Model):
 
 	@property
 	def ongoing(self):
-		return self.complete == False
+		players = self.players.all()
+		return self.complete == False and players.count() > 1
 
 	@property
 	def high_seed(self):

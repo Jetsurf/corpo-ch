@@ -1,76 +1,88 @@
-<div class="livematches">
-    {% for match in matches %}
-        <div class="match">
-            <h1>{{match.high_seed.player_ch_name}} vs {{match.low_seed.player_ch_name}}</h1>
+<input type="hidden" id="current-match-ids" name="current_match_ids" value="{{ current_match_ids }}">
 
-            {# <td title="full name">...</td> to show the full name for truncated values #}
-            <table>
-                <thead>
-                    <tr>
-                        <th class="header-player1">Player 1</th>
-                        <th class="header-player2">Player 2</th>
-                        <th class="header-score">Score</th>
-                        <th class="header-bans1">Player 1 Bans</th>
-                        <th class="header-bans2">Player 2 Bans</th>
-                        <th class="header-pickers">Who Picked</th>
-                        <th class="header-picks">Song Picked</th>
-                        <th class="header-wins">Won</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>{{match.high_seed.player_ch_name}}</td>
-                        <td>{{match.low_seed.player_ch_name}}</td>
-                        <td>{{match.score}}</td>
-                        <td>
-                            {% for ban in match.high_seed_bans %}
-                                {{ban}}
-                                <br>
-                            {% empty %}
-                                No Bans
-                            {% endfor %}
-                        </td>
-                        <td>
-                            {% for ban in match.low_seed_bans %}
-                                {{ban}}
-                                <br>
-                            {% empty %}
-                                No Bans
-                            {% endfor %}
-                        </td>
-                        <td>
-                            {% for round in match.rounds %}
-                                {{round.picked}}
-                                <br>
-                            {% empty %}
-                                No Picks
-                            {% endfor %}
-                        </td>
-                        <td>
-                            {% for round in match.rounds %}
-                                {{round.chart.name}}
-                                <br>
-                            {% empty %}
-                                No Picks
-                            {% endfor %}
-                        </td>
-                        <td>
-                            {% for round in match.rounds %}
-                                {{round.winner.ch_name}}
-                                <br>
-                            {% empty %}
-                                No Wins
-                            {% endfor %}
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-            <br>
-        </div>
-        <br>
-    {% empty %}
-    <h2 class="no-matches">
-        No Live Matches
-    </h2>
-    {% endfor %}
+<div class="livematches">
+	{% for match in matches %}
+		<div class="match">
+			<h1>{{match.high_seed.player_ch_name}} vs {{match.low_seed.player_ch_name}}</h1>
+
+			{# <td title="full name">...</td> to show the full name for truncated values #}
+			<table>
+				<thead>
+					<tr>
+						<th class="header-player1">Player 1</th>
+						<th class="header-player2">Player 2</th>
+						<th class="header-score">Score</th>
+						<th class="header-bans1">Player 1 Bans</th>
+						<th class="header-bans2">Player 2 Bans</th>
+						<th class="header-pickers">Who Picked</th>
+						<th class="header-picks">Song Picked</th>
+						<th class="header-wins">Won</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td>{{match.high_seed.player_ch_name}}</td>
+						<td>{{match.low_seed.player_ch_name}}</td>
+						<td>{{match.score}}</td>
+						<td>
+							{% for ban in match.high_seed_bans %}
+								{{ban}}
+								<br>
+							{% empty %}
+								No Bans
+							{% endfor %}
+						</td>
+						<td>
+							{% for ban in match.low_seed_bans %}
+								{{ban}}
+								<br>
+							{% empty %}
+								No Bans
+							{% endfor %}
+						</td>
+						<td>
+							{% for round in match.rounds %}
+								{{round.picked}}
+								<br>
+							{% empty %}
+								No Picks
+							{% endfor %}
+						</td>
+						<td>
+							{% for round in match.rounds %}
+								{{round.chart.name}}
+								<br>
+							{% empty %}
+								No Picks
+							{% endfor %}
+						</td>
+						<td>
+							{% for round in match.rounds %}
+								{{round.winner.ch_name}}
+								<br>
+							{% empty %}
+								No Wins
+							{% endfor %}
+						</td>
+					</tr>
+				</tbody>
+			</table>
+			<br>
+		</div>
+		<br>
+	{% empty %}
+	<h2 class="no-matches">
+		No Live Matches
+	</h2>
+	{% endfor %}
 </div>
+
+{% if matches_changed %}
+<select id="match-selector" name="selected_matches" class="match-selection" multiple hx-swap-oob="true">
+    {% for match in all_matches %}
+        <option value="{{ match.id }}" {% if match.id|stringformat:"s" in selected_ids %}selected{% endif %}>
+            {{ match.high_seed.player_ch_name }} vs {{ match.low_seed.player_ch_name }}
+        </option>
+    {% endfor %}
+</select>
+{% endif %}

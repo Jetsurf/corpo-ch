@@ -2,25 +2,43 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Live Matches{% endblock %}</title>
-    <link rel="shortcut icon" type="image/png" href="{% static 'mainapp/favicon.ico' %}">
-    {% block style %}
-    <link rel="stylesheet" href="{% static 'mainapp/bootstrap/css/bootstrap.min.css' %}">
+	<meta charset="UTF-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>{% block title %}Live Matches{% endblock %}</title>
+	<link rel="shortcut icon" type="image/png" href="{% static 'mainapp/favicon.ico' %}">
+	{% block style %}
+	<link rel="stylesheet" href="{% static 'mainapp/bootstrap/css/bootstrap.min.css' %}">
 	<link href="{% static 'mainapp/css/Varela.css' %}" rel='stylesheet'>
 	<link href="{% static 'mainapp/fontawesome-free-5.15.3-web/css/all.min.css'%}" rel="stylesheet" type="text/css">
-    {% endblock %}
+	{% endblock %}
 
 </head>
 <link rel="stylesheet" type="text/css" href="{% static 'mainapp/css/livematches.css' %}">
 {% block content %}
-<main
-    hx-get="{% url 'update_livematches' %}"
-    hx-trigger="every 1s"
-    hx-swap="innerHTML">
-    {% include 'partials/livematchesdata.html' %}
+<main>
+	<div class="control-panel">
+		<label for="match-selector" class="match-selection-label">Filter Matches:</label></br>
+		<select id="match-selector" 
+			name="selected_matches" 
+			class="match-selection" 
+			multiple>
+			{% for match in matches %}
+			<option value="{{ match.id }}">
+				{{ match.high_seed.player_ch_name }} vs {{ match.low_seed.player_ch_name }}
+			</option>
+			{% endfor %}
+		</select>
+	</div>
+
+	<div id="match-display-area"
+        hx-get="{% url 'update_livematches' %}"
+        hx-trigger="every 1s, change from:#match-selector"
+        hx-include="#match-selector, #current-match-ids"
+		hx-target="this"
+        hx-swap="innerHTML">
+        {% include 'partials/livematchesdata.html' %}
+    </div>
 </main>
 {% endblock %}
 {% block js %}

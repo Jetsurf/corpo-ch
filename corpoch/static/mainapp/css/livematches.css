@@ -1,57 +1,81 @@
+:root {
+	--page-bg: #31005b;
+	--text-color: white;
+	--match-border: black;
+}
+
 * {
 	font-family: 'Varela';
 }
 
 html, body {
-    height: 100%;
-    width: 100%;
-    margin: 0;
+	height: 100%;
+	width: 100%;
+	margin: 0;
 }
 
 body {
-    display: flex;
-    flex-direction: column;
-	background-color: #31005b;
+	display: flex;
+	flex-direction: column;
+	background-color: var(--page-bg);
 }
 
 main {
-    flex: 1;
+	flex: 1;
+}
+
+.control-panel {
+
+}
+
+.match-selection-label {
+	color: var(--text-color);
+	margin-left: 1rem;
+}
+
+.match-selection {
+	color: var(--text-color);
+	background-color: grey;
+	overflow-y: auto;
+	margin-left: 1rem;
+	min-width: 12rem;
+	width: auto;
 }
 
 .livematches {
-    width: 100% - 3rem;
-    margin: 3rem;
+	width: 100% - 3rem;
+	margin: 3rem;
 }
 
 .match {
-	color: white;
-    width: 100%;
+	color: var(--text-color);
+	width: 100%;
 }
 
 .match h1 {
-	color: white;
-    text-align: center;
+	color: var(--text-color);
+	text-align: center;
 }
 
 .match table {
-    width: 100%;
-    table-layout: fixed;
-    border-collapse: collapse;
+	width: 100%;
+	table-layout: fixed;
+	border-collapse: collapse;
 }
 
 .match th, td {
-    border: 3px solid black;
-    padding: 8px;
-    text-align: left;
-    vertical-align: top;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+	border: 3px solid var(--match-border);
+	padding: 8px;
+	text-align: left;
+	vertical-align: top;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 .no-matches {
-	color: white;
-    text-align: center;
+	color: var(--text-color);
+	text-align: center;
 }
 
 .header-player1 { width: 95% / 7%; }
