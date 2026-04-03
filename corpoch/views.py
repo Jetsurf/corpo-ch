@@ -50,7 +50,7 @@ def user(request: HttpRequest):
 		if not isinstance(discord_user, DiscordUser):
 			discord_user = discord_user[0]
 		login(request, discord_user, backend="corpoch.auth.DiscordBackend")
-
+		context['internal_user'] = discord_user
 	if DiscordToken.objects.filter(user=request.user.id).exists():
 		discord_token = request.user.token
 		discord_token.delete()

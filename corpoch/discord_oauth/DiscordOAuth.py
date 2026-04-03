@@ -96,8 +96,15 @@ class Role:
 
 class Guilds:
 	def __init__(self, guilds : list) -> None:
-		self.__guilds = guilds
-
+		self.__guilds = []
+		from corpoch.models import Tournament
+		self.__tournaments = []
+		for guild in guilds:
+			for tourney in Tournament.objects.all().filter(guild__id=guild['id']):
+				print(f"Hit with tournament {tourney.id} - {guild['id']}")
+				self.__guilds.append(guild)
+				self.__tournaments.append(tourney)
+				
 	def __iter__(self):
 		return iter([Guild(guild) for guild in self.__guilds])
 
@@ -118,12 +125,16 @@ class Guild:
 
 	@property
 	def user_is_administrator(self):
-		#Due to the annoyance of the discord in changing the permissions, I have to change it every time 😐
+		#Move this to be checking role grants admin from DB
 		return self.__guild["permissions"] == '1099511627775'
 	
 	@property
 	def roles(self) -> list:
 		return list(Role(role) for role in self.__guild['roles'])
+
+	@property
+	def id(self):
+		return self.__guild['id']
 
 	@property
 	def icon(self):
