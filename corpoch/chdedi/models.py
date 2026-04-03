@@ -25,7 +25,7 @@ class GlobalConfig(SingletonModel):
 		servers = []
 		i = 10000 #Chosen Arbitrarily
 		for server in CHDediServer.objects.all():
-			servers.append(f"server{i}:{settings.BASE_URL}:{server.port}")
+			servers.append(f"server{i} = {settings.BASE_URL}:{server.port}")
 			i += 1
 		return "\n".join(servers)
 
@@ -79,6 +79,10 @@ class CHDediServer(models.Model):
 	@property
 	def open_config(self):
 		return OpenConfig.objects.get()
+
+	@property
+	def port(self):
+		return self.server_settings.port
 
 	@property
 	def process_name(self):

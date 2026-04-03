@@ -16,7 +16,7 @@ class MatchScreenModal(discord.ui.DesignerModal):
 		self.match = match
 		self.screens = None
 		file = discord.ui.Label("Match Screenshot Submission", discord.ui.FileUpload(max_values=len(self.match.rounds), required=True))
-		super().__init__(discord.ui.TextDisplay("Screenshots"), file, title="Qualifier Screenshot")
+		super().__init__(discord.ui.TextDisplay("Screenshots"), file, title="Match Screenshots")
 
 	async def callback(self, interaction: discord.Interaction):
 		await interaction.respond("Processing, wait for embed to update", ephemeral=True, delete_after=10)
@@ -29,7 +29,7 @@ class BanSelect(discord.ui.Select):
 		self.retOpts = {}
 
 	async def init(self):
-		self.index = (self.match.ruleset.num_bans - len(self.match.bans) % self.match.ruleset.num_players) - 1
+		self.index = (self.match.ruleset.num_bans - len(self.match.bans) % self.match.ruleset.num_players) - ( 1 if not self.match.defer else 0 )
 		opts = []
 		if self.match.tiebreaker:
 			charts = self.match.setlist.select_related('icon').filter(tiebreaker=True)
@@ -254,7 +254,7 @@ class DiscordMatchView(discord.ui.View):
 			self.add_item(sel)
 		elif len(self.match.bans) < self.match.ruleset.total_bans:
 			self.add_item(self.back)
-			if 'defer' in self.match.ruleset.ban_ruleset:
+			if 'defer' in self.match.ruleset.ban_ruleset and len(self.match.bans) == 0:
 				self.add_item(self.defer)
 			sel = BanSelect(self.match)
 			await sel.init()
@@ -275,6 +275,10 @@ class DiscordMatchView(discord.ui.View):
 						self.add_item(sel)
 					else:
 						await self.setup_round_player_sels()
+				elif self.match.ruleset.tb_ruleset == 'csc':
+					sel = PlayerRoundSelect(self.match, False)
+					await sel.init()
+					self.add_item(sel)
 				else:
 					await self.setup_round_player_sels()
 			else:
@@ -298,15 +302,24 @@ class DiscordMatchView(discord.ui.View):
 
 	async def backBtn(self, interaction: discord.Interaction):
 		if len(self.match.rounds) > 0:
-			if self.match.rounds[-1].chart:
+			if self.match.tiebreaker:
+				if self.match.ruleset.tb_ruleset == 'banpick':
+					if len(self.match.rounds) == self.match.ruleset.num_rounds:
+						self.match.remove_round()
+						self,match.rounds[-1].winner = None
+						await self.match.rounds[-1].asave()
+					elif len(self.match.bans) > self.match.ruleset.num_bans * self.match.ruleset.num_players:
+						self.match.remove_ban()
+				else:
+					self.match.remove_round()
+					self.match.rounds[-1].winner = None
+					await self.match.rounds[-1].asave()
+			elif self.match.rounds[-1].chart:
 				self.match.rounds[-1].chart = None
 			else:
-				rnd = self.match.rounds.pop()
-				if rnd.id:
-					await rnd.adelete()
+				self.match.remove_round()
 		elif len(self.match.bans) > 0:
-			ban = self.match.bans.pop()
-			await ban.adelete()
+			self.match.remove_ban()
 		elif len(self.match.seeding) > 0:
 			self.match.seeding = []
 
@@ -323,8 +336,8 @@ class DiscordMatchView(discord.ui.View):
 			await interaction.response.send_message(content="Are you sure you want to cancel? Click cancel again to confirm", ephemeral=True, delete_after=10)
 
 	async def deferBtn(self, interaction: discord.Interaction):
-		self.match.defer = not self.match.defer
-		await self.showTool(interaction)
+		self.match.matchDb.defer = not self.match.defer
+		await self.match.showTool(interaction)
 
 	async def uploadBtn(self, interaction: discord.Interaction):
 		modal = MatchScreenModal(self.match)
