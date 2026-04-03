@@ -25,7 +25,9 @@ class DiscordMatch():
 		self.rounds = []
 		self.matchDb = uuid
 		self.exhibition = exhibition
-		self.confirmCancel = False
+		self.confirm_cancel = False
+		self.player_input = False
+		self.picking_player = None
 
 	async def init(self):
 		if self.matchDb:
@@ -35,7 +37,7 @@ class DiscordMatch():
 			self.referee = await self.guild.fetch_member(self.matchDb.referee.id)
 			for seed in self.seeding:
 				self.seeding_discord.append(await self.guild.fetch_member(seed.user.id))
-			if not self.finished and len(self.bans) > 0 and (len(self.rounds) == 0 or self.rounds[-1].winner):
+			if not self.complete and len(self.bans) == self.ruleset.total_bans and (len(self.rounds) == 0 or self.rounds[-1].winner):
 				self.add_round()
 		try:
 			self.tourney = await Tournament.objects.select_related().aget(guild=self.msg.guild.id, active=True)
@@ -67,6 +69,7 @@ class DiscordMatch():
 		self.bot.matches.pop(self.id)
 
 	async def showTool(self, interaction=None):
+		self.picking_player = None
 		is_message = isinstance(interaction, discord.Message)
 		is_ctx = hasattr(interaction, 'interaction') and hasattr(interaction, 'command')
 
@@ -161,8 +164,8 @@ class DiscordMatch():
 		if not self.finished:
 			self.rounds.append(MatchRound(num=len(self.rounds) + 1, match=self.matchDb, picked=picked, chart=chart))
 
-	def format_bans_player(self, player, bans):
-		outStr = f"**{player} Bans**\n"
+	def format_bans_player(self, seed, bans):
+		outStr = f"**{seed.player_ch_name} Bans**\n"
 		for i in range(0, self.ruleset.num_bans):
 			try:
 				outStr += f"{bans[i]}\n"
@@ -184,7 +187,7 @@ class DiscordMatch():
 		outStr = self.format_bans_player(ply1, bans1)
 		outStr += self.format_bans_player(ply2, bans2)
 		if bantb:
-			outStr += f"***TIEBREAKER BAN***\n{bantb.player} bans {bantb.chart.tournament_name}"
+			outStr += f"***TIEBREAKER BAN***\n{bantb.player.ch_name} bans {bantb.chart.tournament_name}"
 		return outStr
 
 	@property

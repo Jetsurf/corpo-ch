@@ -40,8 +40,10 @@ class BanSelect(discord.ui.Select):
 			self.retOpts[chart.md5] = chart
 			opts.append(discord.SelectOption(label=str(chart.tournament_name), description=f"{chart.artist} - {chart.charter}", emoji=emoji, value=chart.md5))
 		if self.match.tiebreaker:
+			self.match.picking_player = self.match.rounds[-2].winner
 			super().__init__(placeholder=f"{self.match.rounds[-2].winner.ch_name} Ban", max_values=1, options=opts, custom_id="ban_sel")
 		else:
+			self.match.picking_player = self.match.seeding[self.index].player
 			super().__init__(placeholder=f"{self.match.seeding[self.index].player.ch_name} Ban", max_values=1, options=opts, custom_id="ban_sel")
 
 	async def callback(self, interaction: discord.Interaction):
@@ -70,13 +72,15 @@ class SongRoundSelect(discord.ui.Select):
 		if len(self.match.rounds) == 1:
 			selStr += f"{self.match.seeding[0].player.ch_name} Picks"
 		elif len(self.match.rounds) == self.match.ruleset.num_rounds and self.match.ruleset.tb_ruleset == 'refdecide':
-			selStr += f"Chat Picks"
+			selStr += f"Pick Song"
 		elif self.match.ruleset.pick_ruleset == "loserpicks":
 			selStr += f"{self.match.rounds[-2].loser.ch_name} Picks"
 		else:
 			prevPicked = self.match.rounds[-1].loser
 			picked = list(self.match.seeding).difference(self.match.rounds[-1].picked)[0]
 			selStr += f"{picked.ch_name} Picks"
+			if not self.dis:
+				self.match.picking_player = picked
 
 		if self.round.chart:
 			selStr += f" - {self.round.chart.tournament_name}"
@@ -254,6 +258,7 @@ class DiscordMatchView(discord.ui.View):
 			self.add_item(sel)
 		elif len(self.match.bans) < self.match.ruleset.total_bans:
 			self.add_item(self.back)
+			self.add_item(self.plyin)
 			if 'defer' in self.match.ruleset.ban_ruleset and len(self.match.bans) == 0:
 				self.add_item(self.defer)
 			sel = BanSelect(self.match)
@@ -261,6 +266,7 @@ class DiscordMatchView(discord.ui.View):
 			self.add_item(sel)
 		elif not self.match.complete:
 			self.add_item(self.back)
+			self.add_item(self.plyin)
 			self.add_item(self.submit)
 			if len(self.match.bans) == self.match.ruleset.total_bans and len(self.match.rounds) == 0:
 				self.match.add_round()
@@ -285,20 +291,32 @@ class DiscordMatchView(discord.ui.View):
 				self.submit.disabled = False
 
 	async def interaction_check(self, interaction: discord.Interaction):
+		caller = interaction.custom_id
 		if interaction.user in self.match.bot.owners:
 			return True
-		if self.match.complete:
-			for seed in self.match.seeding:
-				if seed.user.id == interaction.user.id:
-					return True
 		if interaction.user.id == self.match.referee.id:
 			return True
-		else:
-			await interaction.response.send_message("You are not the ref or player for this match", ephemeral=True, delete_after=10)
+		try:
+			self.match.matchDb.players.get(player__user__id=interaction.user.id)
+		except TournamentPlayer.DoesNotExist:
+			await interaction.response.send_message("You are not the ref for, nor a player in this match!", ephemeral=True, delete_after=10)
 			return False
 
+		if self.match.player_input and (caller == "roundsong_sel" or caller == "ban_sel"):
+			if self.match.picking_player and self.match.picking_player.user.id == interaction.user.id:
+				return True
+		elif self.match.complete:
+			return True
+		await interaction.response.send_message("Not allowed or player input is disabled!", ephemeral=True, delete_after=10)
+		return False
+
 	async def plyinBtn(self, interaction: discord.Interaction):
-		pass #To be used in the future to allow ref to have player manually input their choices into the tool
+		self.match.player_input = not self.match.player_input
+		if self.match.player_input:
+			await interaction.response.send_message("Player input allowed on bans/songs!", ephemeral=True, delete_after=10)
+		else:
+			await interaction.response.send_message("Player input disallowed!", ephemeral=True, delete_after=10)
+		await self.match.showTool(interaction)
 
 	async def backBtn(self, interaction: discord.Interaction):
 		if len(self.match.rounds) > 0:
@@ -316,8 +334,11 @@ class DiscordMatchView(discord.ui.View):
 					await self.match.rounds[-1].asave()
 			elif self.match.rounds[-1].chart:
 				self.match.rounds[-1].chart = None
+				print("Removed chart")
 			else:
 				self.match.remove_round()
+			if len(self.match.rounds) == 0:
+				self.match.remove_ban()
 		elif len(self.match.bans) > 0:
 			self.match.remove_ban()
 		elif len(self.match.seeding) > 0:
@@ -326,13 +347,13 @@ class DiscordMatchView(discord.ui.View):
 		await self.match.showTool(interaction)
 
 	async def cancelBtn(self, interaction: discord.Interaction):
-		if self.match.confirmCancel:
+		if self.match.confirm_cancel:
 			await interaction.response.edit_message(content="Closing", embed=None, view=None, delete_after=10)
 			if self.match.matchDb:
 				await self.match.matchDb.adelete()
 			self.stop()
 		else:
-			self.match.confirmCancel = True
+			self.match.confirm_cancel = True
 			await interaction.response.send_message(content="Are you sure you want to cancel? Click cancel again to confirm", ephemeral=True, delete_after=10)
 
 	async def deferBtn(self, interaction: discord.Interaction):
