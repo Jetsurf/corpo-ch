@@ -41,6 +41,7 @@ class ScreenshotModal(discord.ui.DesignerModal):
 
 	async def callback(self, interaction: discord.Interaction):
 		self.screen = self.children[1].item.values[0]
+		self.stop()
 		await interaction.respond("Processing, wait for embed to update", ephemeral=True, delete_after=10)
 
 class QualiPlayerSel(discord.ui.Select):
@@ -55,7 +56,6 @@ class QualiPlayerSel(discord.ui.Select):
 		#Purge all non-selected players from steg data
 		self.quali.steg.output.players = [ self.match.steg.output.players[int(self.values[0])] ]
 		await interaction.response.defer(invisible=True)
-		self.stop()
 		await self.quali.show()
 
 class DiscordQualifierView(discord.ui.View):

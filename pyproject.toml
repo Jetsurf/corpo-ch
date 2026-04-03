@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "corpoch"
-version = "1.3.2"
+version = "1.4.0"
 description = "Corpo CH Tournament Bot"
 readme = "README.md"
 license = {file = "LICENSE"}

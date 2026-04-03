@@ -233,7 +233,7 @@ class DiscordMatchView(discord.ui.View):
 		self.add_item(plySel)
 
 	async def init(self):
-		if self.match.matchDb and self.match.complete:
+		if self.match.complete:
 			self.add_item(self.upload)
 		else:
 			self.add_item(self.cancel)
@@ -277,13 +277,13 @@ class DiscordMatchView(discord.ui.View):
 						await self.setup_round_player_sels()
 				else:
 					await self.setup_round_player_sels()
-			elif self.match.finished:
+			else:
 				self.submit.disabled = False
 
 	async def interaction_check(self, interaction: discord.Interaction):
 		if interaction.user in self.match.bot.owners:
 			return True
-		if isinstance(self.match.matchDb, Match) and self.match.complete:
+		if self.match.complete:
 			for seed in self.match.seeding:
 				if seed.user.id == interaction.user.id:
 					return True

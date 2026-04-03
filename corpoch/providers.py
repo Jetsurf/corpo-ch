@@ -59,9 +59,9 @@ class CHOpt:
 		speed: int = 100
 		lazy: int = 0
 		delay: int = 0
-		instrument: CH_INSTRUMENTS = CH_INSTRUMENTS[0]
-		difficulty: CH_DIFFICULTIES = CH_DIFFICULTIES[0]
-
+		instrument: str = CH_INSTRUMENTS[0]
+		difficulty: str = CH_DIFFICULTIES[0]
+		#Do check for tuple force string
 	def __init__(self):
 		self._path = settings.CHOPT_PATH
 		self._chopt = f"{self._path}/CHOpt.exe" if platform.system() == 'Windows' else f"{self._path}/CHOpt"

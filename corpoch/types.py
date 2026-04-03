@@ -72,7 +72,7 @@ class TournamentPlayerConfig(pydantic.BaseModel):
 	ch_name: str
 	is_primary: bool
 
-#This is for v6 steg
+#CH Steg Classes - v6 with future excess_misses (overstrums) OCR/manual field
 class StegScreenshotPlayer(pydantic.BaseModel):
 	accent_notes_hit : int = 0
 	accent_notes_total : int = 0
@@ -117,7 +117,7 @@ class StegScreenshot(pydantic.BaseModel):
 	players : list[StegScreenshotPlayer] = []
 	score_timestamp: datetime = datetime.now()
 
-
+#Encore API Models
 class BaseEncoreModel(pydantic.BaseModel):
 	model_config = pydantic.ConfigDict(
 		alias_generator=pydantic.alias_generators.to_camel,

@@ -347,7 +347,7 @@ class QualifierSubmissionAdmin(admin.ModelAdmin):
 				sub = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
 				kwargs['queryset'] = TournamentPlayer.objects.all().filter(tournament=sub.qualifier.tournament)
 			else:
-				kwargs["queryset"] = TournamentPlayer.objects.none()
+				kwargs["queryset"] = TournamentPlayer.objects.all()
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 	@admin.action(description="Mark Qualifiers GSheet Unsent")
