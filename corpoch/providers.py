@@ -59,8 +59,8 @@ class CHOpt:
 		speed: int = 100
 		lazy: int = 0
 		delay: int = 0
-		instrument: str = CH_INSTRUMENTS[0]
-		difficulty: str = CH_DIFFICULTIES[0]
+		instrument: str = CH_INSTRUMENTS[0][0]
+		difficulty: str = CH_DIFFICULTIES[0][0]
 		#Do check for tuple force string
 	def __init__(self):
 		self._path = settings.CHOPT_PATH
@@ -384,7 +384,7 @@ class GSheets():
 				excess = ply.excess_hits
 				ghosts = ply.frets_ghosted
 				phrases = ply.sp_phrases_earned
-				ts = f"{self._submission.ended_on.strftime('%Y-%m-%d %H:%M:%S')}-UTC"
+				ts = f"{rnd.created.strftime('%Y-%m-%d %H:%M:%S')}-UTC"
 				link = f'=HYPERLINK("https://{settings.BASE_URL}{rnd.screenshot.url}", "Screenshot Link")'
 				retLines.append([matchId, bracket, group, match, picked, song, chName, score, wl, missed, hit, excess, ghosts, phrases, ts, link])
 		return retLines

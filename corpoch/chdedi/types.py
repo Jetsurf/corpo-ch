@@ -20,7 +20,7 @@ class CHServerSettings(pydantic.BaseModel):
 	onlyhostchoosesongs : int = Field(0, ge=0, le=1)
 	maxspectators : int = Field(4, ge=0, le=20)
 	servertickrate : int = Field(120, ge=30, le=1000)
-	lowsongspeed : int = Field(25, ge=25, le=95)
+	lowsongspeed : int = Field(25, ge=25, le=100)
 	maxsongspeed : int = Field(500, ge=100, le=5000)
 	clientremovesongs : int = Field(1, ge=0, le=1)
 	songsperclient : int = Field(1, ge=0, le=1)

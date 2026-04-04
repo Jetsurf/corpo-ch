@@ -22,6 +22,9 @@
 					<li class="nav-item">
 					  <a class="nav-link" href="#Guilds">Guilds</a>
 					</li>
+                                        <li class="nav-item">
+                                                <a class="nav-link" href="/livematches", target="_blank" rel="noopener noreferer">Live Matches</a>
+                                        </li>
 					{% if internal_user.is_staff %}
 					<li class="nav-item">
 						<a class="nav-link" href="{% url 'admin:index' %}", target="_blank" rel="noopener noreferer">Admin</a>
@@ -65,7 +68,7 @@
 							</tr>
 						</thead>
 						<tbody>
-							{% for guild in guilds%}
+							{% for guild in guilds %}
 							<tr>
 								<td ><img class="rounded-circle" src="{{guild.icon}}"></td>
 								<td><span>{{guild.id}}</span></td>

@@ -46,7 +46,7 @@ class DiscordUserAdmin(admin.ModelAdmin):
 @admin.register(Chart)
 class ChartAdmin(admin.ModelAdmin):
 	list_display = ('_icon','name',  '_bracket', 'charter', 'artist', 'album', 'speed', '_modifiers', 'tiebreaker')
-	list_filter = ['brackets', 'charter', 'artist', 'tiebreaker']
+	list_filter = ['brackets', 'tiebreaker']
 	readonly_fields = ['_icon']
 	actions = ['run_encore_import', 'import_song_ini']
 
@@ -280,6 +280,7 @@ class SeedingInline(SortableStackedInline):
 class GroupAdmin(SortableAdminBase, admin.ModelAdmin):
 	list_display = ('name', 'tournament', 'bracket_name')#, 'group_players')
 	inlines = [SeedingInline]
+	list_filter = ['bracket']
 	list_per_page = 32
 	actions = ['set_group_role']
 
@@ -317,7 +318,8 @@ class GroupAdmin(SortableAdminBase, admin.ModelAdmin):
 class QualifierSubmissionAdmin(admin.ModelAdmin):
 	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
 	list_display = ('id', 'qualifier', 'player_ch_name', 'score', '_miss', '_hit', '_excess', '_ghosts', '_phrases', 'submitted')
-	list_filter = ["qualifier", "player"]
+	list_filter = ["qualifier"]
+	search_fields = ['id']
 	actions = ['set_unsubmitted',"reread_steg", "resubmit_gsheet"]
 
 	def tournament(self, obj):
@@ -412,13 +414,13 @@ class BansInline(SortableStackedInline):
 class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
 	list_display = ('__str__', 'group', '_match_players', 'score', 'started_on', 'ended_on', 'complete', 'finished', 'submitted')
 	inlines = [BansInline, RoundsInline]
-	list_per_page = 16
+	list_per_page = 25
+	search_fields = ['id']
 	actions = ['set_unsubmitted',"reread_steg", "resubmit_gsheet", "resubmit_discord"]
 
 	def get_queryset(self, request):
 		qs = super().get_queryset(request)
 		user = request.user
-		print(f"MATCHADMIN: VARS{vars(user)}")
 		return qs
 
 	def _match_players(self, obj):
