@@ -1,4 +1,4 @@
-import uuid, typing, json, math, io
+import uuid, typing, json, math, io, pydantic
 
 from django.contrib import admin
 from django.contrib.auth.models import AbstractUser
@@ -17,7 +17,7 @@ from solo.models import SingletonModel
 from corpoch import settings
 from corpoch.managers import DiscordOAuth2Manager
 from corpoch.utils.snghandler import SNGHandler
-from corpoch.types import CH_INSTRUMENTS, CH_DIFFICULTIES, CH_MODIFIERS, CH_VERSIONS, CHART_CATEGORIES, TB_RULESETS, PICK_RULESETS, BAN_RULESETS, StegScreenshot
+from corpoch.types import CH_INSTRUMENTS, CH_DIFFICULTIES, CH_MODIFIERS, CH_VERSIONS, CHART_CATEGORIES, TB_RULESETS, PICK_RULESETS, BAN_RULESETS, StegScreenshot, PlayerConfig, CH_Name
 from corpoch.validators import validate_chart_file
 
 def steg_upload_dir(self, filename):
@@ -261,7 +261,7 @@ class TournamentPlayer(models.Model):
 	tournament = models.ForeignKey(Tournament, related_name="players", verbose_name="Tournament", on_delete=models.CASCADE)
 	is_active = models.BooleanField(verbose_name="Player Active", default=False)
 	ch_name = models.CharField(verbose_name="Clone Hero Name", max_length=128, default="</Null>")
-	config = models.JSONField(verbose_name="Player Configuration", default=dict, blank=True)
+	config = SchemaField(PlayerConfig, verbose_name="Player Configuration", blank=True)
 
 	class Meta:
 		verbose_name = "Player"
@@ -276,9 +276,81 @@ class TournamentPlayer(models.Model):
 		return self.tournament.brackets.objects.select_related('player').filter(players__id=self.id)
 
 	def check_ch_name(self, name_to_find: str) -> bool:
-		if not isinstance(self.config, list):
+		if not self.config or not self.config.names_list:
 			return False
-		return any(item.get('ch_name') == name_to_find for item in self.config)
+
+		return any(item.ch_name == name_to_find for item in self.config.names_list)
+'''
+	@property
+	def ch_name(self) -> str:
+		"""
+		Retrieves the primary Clone Hero name from the Pydantic config.
+		"""
+		if not self.config:
+			return "</Null>"
+
+		try:
+			config_obj = PlayerConfig(**self.config) if isinstance(self.config, dict) else self.config
+			names_list = config_obj.names_list
+
+			if not names_list:
+				return "</Null>"
+
+			for item in names_list:
+				if item.is_primary:
+					return item.ch_name
+
+			return names_list[0].ch_name
+
+		except pydantic.ValidationError:
+			return "</Null>"
+
+	@ch_name.setter
+	def ch_name(self, new_name: str):
+		"""
+		Sets a new primary Clone Hero name. Appends it to the list if it doesn't exist,
+		and ensures all other names are no longer marked as primary.
+		"""
+		if not new_name:
+			new_name = "</Null>"
+
+		clean_name = new_name
+
+		if not self.config:
+			config_obj = PlayerConfig(names_list=[])
+		else:
+			try:
+				config_obj = PlayerConfig(**self.config) if isinstance(self.config, dict) else self.config
+			except pydantic.ValidationError:
+				config_obj = PlayerConfig(names_list=[])
+
+		names_list = config_obj.names_list
+		name_already_exists = False
+
+		for item in names_list:
+			if item.ch_name == clean_name:
+				item.is_primary = True
+				name_already_exists = True
+			else:
+				item.is_primary = False
+
+		if not name_already_exists:
+			names_list.append(CH_Name(ch_name=clean_name, is_primary=True))
+
+		config_obj.names_list = names_list
+		self.config = config_obj
+
+
+	@property
+	def ch_aliases(self) -> list[str]:
+		"""Returns a list of all Clone Hero names associated with this player."""
+		if not self.config:
+			return []
+		try:
+			return [item.ch_name for item in self.config.names_list]
+		except pydantic.ValidationError:
+			return []
+'''
 
 class GroupSeed(models.Model):
 	id = models.AutoField(primary_key=True)
@@ -292,7 +364,9 @@ class GroupSeed(models.Model):
 		ordering = ['seed']
 
 	def __str__(self):
-		return f"{self.player.ch_name} ({self.seed})"
+		# Fallback text if there is no player assigned to this seed yet
+		player_name = self.player.ch_name if self.player else "Unassigned"
+		return f"{player_name} ({self.seed})"
 
 	@property
 	def seed_num(self):
@@ -300,17 +374,19 @@ class GroupSeed(models.Model):
 
 	@property
 	def player_ch_name(self):
-		return self.player.ch_name
+		return self.player.ch_name if self.player else "</Null>"
 
 	@property
 	def user(self):
-		return self.player.user
+		return self.player.user if self.player else None
 
 	@property
 	def full_name(self):
 		return f"{self.group.tournament.short_name} - {self.group.bracket.name} - Group {self.group.name} - Seed {self.seed}"
 
 	def check_ch_name(self, testname):
+		if not self.player:
+			return False
 		return self.player.check_ch_name(testname)
 
 class Qualifier(models.Model):

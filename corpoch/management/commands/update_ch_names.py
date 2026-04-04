@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 from corpoch.models import TournamentPlayer
+from corpoch.types import PlayerConfig, CH_Name
 
 class Command(BaseCommand):
     help = 'Migrates existing ch_name strings into the new config JSON array.'
@@ -9,19 +10,12 @@ class Command(BaseCommand):
         players_to_update = []
 
         for player in players:
-            if not player.config or not isinstance(player.config, list):
+            ch_name_str = player.ch_name
 
-                name_to_migrate = player.ch_name
-                if not name_to_migrate or name_to_migrate == "</Null>":
-                    name_to_migrate = "</Null>"
-
-                player.config = [
-                    {
-                        "ch_name": name_to_migrate,
-                        "is_primary": True
-                    }
-                ]
-
+            if ch_name_str:
+                new_ch_name = CH_Name(ch_name=ch_name_str, is_primary=True)
+                new_config = PlayerConfig(names_list=[new_ch_name])
+                player.config = new_config
                 players_to_update.append(player)
 
         if players_to_update:

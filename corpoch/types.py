@@ -68,11 +68,14 @@ BAN_RULESETS = (
 	("deferboth", "High Seed can defers both ban/pick"),
 )
 
-class TournamentPlayerConfig(pydantic.BaseModel):
+class CH_Name(pydantic.BaseModel):
 	ch_name: str
 	is_primary: bool
 
-#CH Steg Classes - v6 with future excess_misses (overstrums) OCR/manual field
+class PlayerConfig(pydantic.BaseModel):
+	names_list: list[CH_Name] = []
+
+#This is for v6 steg
 class StegScreenshotPlayer(pydantic.BaseModel):
 	accent_notes_hit : int = 0
 	accent_notes_total : int = 0

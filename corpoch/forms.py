@@ -1,7 +1,7 @@
 import pydantic
 from django import forms
 from .models import TournamentPlayer
-from .types import TournamentPlayerConfig
+from .types import PlayerConfig, CH_Name
 from django.utils.safestring import mark_safe
 
 class TournamentPlayerForm(forms.ModelForm):
@@ -28,9 +28,9 @@ class TournamentPlayerForm(forms.ModelForm):
     class Meta:
         model = TournamentPlayer
         fields = '__all__'
-        #widgets = {
-        #    'config': forms.HiddenInput(),
-        #}
+        widgets = {
+            'config': forms.HiddenInput(),
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -53,37 +53,35 @@ class TournamentPlayerForm(forms.ModelForm):
         if self.instance and self.instance.pk and self.instance.config:
             config_data = self.instance.config
 
-            if isinstance(config_data, list):
-                try:
-                    pydantic_configs = [TournamentPlayerConfig(**item) for item in config_data]
-                    choices = []
+            try:
+                if isinstance(config_data, dict):
+                    player_config = PlayerConfig(**config_data)
+                else:
+                    player_config = config_data
 
-                    for config in pydantic_configs:
-                        safe_name = config.ch_name.replace("'", "\\'")
+                choices = []
+                for ch_item in player_config.names_list:
+                    safe_name = ch_item.ch_name.replace("'", "\\'")
 
-                        label_html = f'''
-                            <span class="ch-name-text">{config.ch_name}</span>
-                            <button type="submit" name="_continue" 
-                                onclick="document.getElementById('delete_target_id').value='{safe_name}';" 
-                                style="border: none; background: none; cursor: pointer; padding: 0; font-size: 1.1em;" 
-                                title="Delete {config.ch_name}">
-                                🗑️
-                            </button>
-                        '''
+                    label_html = f'''
+                        <span class="ch-name-text">{ch_item.ch_name}</span>
+                        <button type="button"" 
+                            onclick="document.getElementById('delete_target_id').value='{safe_name}'; document.querySelector('input[name=\\'_continue\\']').click();" 
+                            style="border: none; background: none; cursor: pointer; padding: 0; font-size: 1.1em;" 
+                            title="Delete {ch_item.ch_name}">
+                            🗑️
+                        </button>
+                    '''
 
-                        label = mark_safe(label_html)
-                        choices.append((config.ch_name, label))
+                    label = mark_safe(label_html)
+                    choices.append((ch_item.ch_name, label))
 
-                    self.fields['primary_ch_name_selection'].choices = choices
+                    if ch_item.is_primary:
+                        self.initial['primary_ch_name_selection'] = ch_item.ch_name
 
-                    for config in pydantic_configs:
-                        if config.is_primary:
-                            self.initial['primary_ch_name_selection'] = config.ch_name
-                            break
+                self.fields['primary_ch_name_selection'].choices = choices
 
-                except pydantic.ValidationError as e:
-                    self.fields['primary_ch_name_selection'].choices = []
-            else:
+            except pydantic.ValidationError:
                 self.fields['primary_ch_name_selection'].choices = []
 
     def clean(self):
@@ -93,44 +91,51 @@ class TournamentPlayerForm(forms.ModelForm):
         target_to_delete = cleaned_data.get('delete_ch_name')
 
         raw_config_data = cleaned_data.get('config')
-        if not isinstance(raw_config_data, list):
-            raw_config_data = []
 
         try:
-            pydantic_configs = [TournamentPlayerConfig(**item) for item in raw_config_data]
+            if not raw_config_data:
+                player_config = PlayerConfig(names_list=[])
+            elif isinstance(raw_config_data, dict):
+                player_config = PlayerConfig(**raw_config_data)
+            else:
+                player_config = raw_config_data
         except pydantic.ValidationError as e:
-            raise pydantic.ValidationError(f"Stored configuration data is invalid: {e}")
+            raise forms.ValidationError(f"Stored configuration data is invalid: {e}")
+
+        names_list = player_config.names_list
 
         if target_to_delete:
-            pydantic_configs = [config for config in pydantic_configs if config.ch_name != target_to_delete]
+            names_list = [item for item in names_list if item.ch_name != target_to_delete]
             if selected_primary == target_to_delete:
                 selected_primary = None
 
         if new_name:
-            already_exists = any(config.ch_name == new_name for config in pydantic_configs)
+            already_exists = any(item.ch_name == new_name for item in names_list)
             if not already_exists:
-                is_first_item = len(pydantic_configs) == 0
-                new_config = TournamentPlayerConfig(ch_name=new_name, is_primary=is_first_item)
-                pydantic_configs.append(new_config)
+                is_first_item = len(names_list) == 0
+                new_ch_name = CH_Name(ch_name=new_name, is_primary=is_first_item)
+                names_list.append(new_ch_name)
+
 
         if selected_primary:
-            for config in pydantic_configs:
-                config.is_primary = (config.ch_name == selected_primary)
+            for item in names_list:
+                item.is_primary = (item.ch_name == selected_primary)
 
-        if pydantic_configs and not any(c.is_primary for c in pydantic_configs):
-            pydantic_configs[0].is_primary = True
+        if names_list and not any(item.is_primary for item in names_list):
+            names_list[0].is_primary = True
 
-        if pydantic_configs:
-            for config in pydantic_configs:
-                if config.is_primary:
-                    self.instance.ch_name = config.ch_name
-                    cleaned_data['ch_name'] = config.ch_name
+        if names_list:
+            for item in names_list:
+                if item.is_primary:
+                    self.instance.ch_name = item.ch_name
+                    cleaned_data['ch_name'] = item.ch_name
                     break
         else:
             self.instance.ch_name = "</Null>"
             cleaned_data['ch_name'] = "</Null>"
 
-        cleaned_data['config'] = [config.model_dump() for config in pydantic_configs]
+        player_config.names_list = names_list
+        cleaned_data['config'] = player_config 
         cleaned_data['delete_ch_name'] = ""
 
         return cleaned_data

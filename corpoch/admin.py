@@ -271,7 +271,7 @@ class SeedingInline(SortableStackedInline):
 		if db_field.name == "player":
 			if 'object_id' in request.resolver_match.kwargs:
 				group = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
-				kwargs["queryset"] = group.tournament.players
+				kwargs["queryset"] = group.bracket.tournament.players.all()
 			else:
 				kwargs["queryset"] = GroupSeed.objects.none()
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
@@ -288,18 +288,16 @@ class GroupAdmin(SortableAdminBase, admin.ModelAdmin):
 		return obj.bracket.tournament.short_name
 
 	def group_players(self, obj):
-		return ", ".join([seed.player.ch_name for seed in obj.seeding.all()])
+		return ", ".join([seed.player.ch_name for seed in obj.seeding.all() if seed.player])
 
 	def bracket_name(self, obj):
 		return obj.bracket.name
 
 	def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
-		if db_field.name == "group_players":
-			kwargs["queryset"] = Tournament.players.objects.all()
 		if db_field.name == "role":
 			if 'object_id' in request.resolver_match.kwargs:
 				group = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
-				kwargs['queryset'] = Roles.objects.all().filter(guild=group.tournament.guild)
+				kwargs['queryset'] = Roles.objects.filter(guild=group.bracket.tournament.guild)
 			else:
 				kwargs["queryset"] = Roles.objects.none()
 		return super(GroupAdmin, self).formfield_for_foreignkey(db_field, request, **kwargs)
