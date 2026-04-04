@@ -90,3 +90,5 @@ def update_livematches(request: HttpRequest):
 		'current_match_ids': current_match_ids
 	})
 
+def privterms(request: HttpRequest):
+	return render(request, 'privterms.html')
