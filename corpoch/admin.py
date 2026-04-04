@@ -3,13 +3,15 @@ import json, time
 from django.contrib import admin
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Count
-from django.utils.html import mark_safe
+from django.utils.safestring import mark_safe
+from django.utils.html import format_html
 
 from adminsortable2.admin import CustomInlineFormSet, SortableAdminBase, SortableStackedInline, SortableAdminMixin
 from django_jsonform.widgets import JSONFormWidget
 from django_pydantic_field import fields
 from solo.admin import SingletonModelAdmin
 
+from corpoch.forms import TournamentPlayerForm
 from corpoch.models import Chart, Tournament, TournamentConfig, BracketRules, Bracket, Qualifier, TournamentPlayer, GroupSeed, MatchRound, CHIcon
 from corpoch.models import Match, Group, QualifierSubmission, CH_MODIFIERS, MatchBan, GSheetAPI, DiscordUser
 from corpoch.dbot.models import Guilds, Channels, Roles
@@ -44,7 +46,7 @@ class DiscordUserAdmin(admin.ModelAdmin):
 @admin.register(Chart)
 class ChartAdmin(admin.ModelAdmin):
 	list_display = ('_icon','name',  '_bracket', 'charter', 'artist', 'album', 'speed', '_modifiers', 'tiebreaker')
-	list_filter = ['brackets', 'charter', 'artist', 'tiebreaker']
+	list_filter = ['brackets', 'tiebreaker']
 	readonly_fields = ['_icon']
 	actions = ['run_encore_import', 'import_song_ini']
 
@@ -178,9 +180,32 @@ class BracketAdmin(admin.ModelAdmin):
 
 @admin.register(TournamentPlayer)
 class TournamentPlayerAdmin(admin.ModelAdmin):
-	list_display = ('user', 'tournament', 'ch_name', 'is_active')
+	form = TournamentPlayerForm
+	list_display = ('user', 'tournament', 'display_exact_ch_name', 'is_active')
 	list_filter = ['tournament']
 	actions = ["set_tournament_roles"]
+	readonly_fields = ("display_exact_ch_name",)
+	fields = (
+		'user',
+		'name',
+		'tournament',
+		'display_exact_ch_name',
+		'primary_ch_name_selection',
+		'new_ch_name',
+		'is_active',
+		'config',
+		'delete_ch_name',
+	)
+
+	@admin.display(description='Clone Hero Name', ordering='ch_name')
+	def display_exact_ch_name(self, obj):
+		if not obj.ch_name:
+			return "-"
+
+		return format_html(
+			'<span style="white-space: pre-wrap; background-color: rgba(128, 128, 128, 0.2); padding: 2px 4px; border-radius: 3px; font-family: monospace;">{}</span>',
+			obj.ch_name
+		)
 
 	@admin.action(description="Set tournament roles")
 	def set_tournament_roles(modeladmin, request, queryset):
@@ -246,7 +271,7 @@ class SeedingInline(SortableStackedInline):
 		if db_field.name == "player":
 			if 'object_id' in request.resolver_match.kwargs:
 				group = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
-				kwargs["queryset"] = group.tournament.players
+				kwargs["queryset"] = group.bracket.tournament.players.all()
 			else:
 				kwargs["queryset"] = GroupSeed.objects.none()
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
@@ -255,6 +280,7 @@ class SeedingInline(SortableStackedInline):
 class GroupAdmin(SortableAdminBase, admin.ModelAdmin):
 	list_display = ('name', 'tournament', 'bracket_name')#, 'group_players')
 	inlines = [SeedingInline]
+	list_filter = ['bracket']
 	list_per_page = 32
 	actions = ['set_group_role']
 
@@ -262,18 +288,16 @@ class GroupAdmin(SortableAdminBase, admin.ModelAdmin):
 		return obj.bracket.tournament.short_name
 
 	def group_players(self, obj):
-		return ", ".join([seed.player.ch_name for seed in obj.seeding.all()])
+		return ", ".join([seed.player.ch_name for seed in obj.seeding.all() if seed.player])
 
 	def bracket_name(self, obj):
 		return obj.bracket.name
 
 	def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
-		if db_field.name == "group_players":
-			kwargs["queryset"] = Tournament.players.objects.all()
 		if db_field.name == "role":
 			if 'object_id' in request.resolver_match.kwargs:
 				group = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
-				kwargs['queryset'] = Roles.objects.all().filter(guild=group.tournament.guild)
+				kwargs['queryset'] = Roles.objects.filter(guild=group.bracket.tournament.guild)
 			else:
 				kwargs["queryset"] = Roles.objects.none()
 		return super(GroupAdmin, self).formfield_for_foreignkey(db_field, request, **kwargs)
@@ -292,7 +316,8 @@ class GroupAdmin(SortableAdminBase, admin.ModelAdmin):
 class QualifierSubmissionAdmin(admin.ModelAdmin):
 	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
 	list_display = ('id', 'qualifier', 'player_ch_name', 'score', '_miss', '_hit', '_excess', '_ghosts', '_phrases', 'submitted')
-	list_filter = ["qualifier", "player"]
+	list_filter = ["qualifier"]
+	search_fields = ['id']
 	actions = ['set_unsubmitted',"reread_steg", "resubmit_gsheet"]
 
 	def tournament(self, obj):
@@ -322,7 +347,7 @@ class QualifierSubmissionAdmin(admin.ModelAdmin):
 				sub = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
 				kwargs['queryset'] = TournamentPlayer.objects.all().filter(tournament=sub.qualifier.tournament)
 			else:
-				kwargs["queryset"] = TournamentPlayer.objects.none()
+				kwargs["queryset"] = TournamentPlayer.objects.all()
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 	@admin.action(description="Mark Qualifiers GSheet Unsent")
@@ -387,14 +412,14 @@ class BansInline(SortableStackedInline):
 class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
 	list_display = ('__str__', 'group', '_match_players', 'score', 'started_on', 'ended_on', 'complete', 'finished', 'submitted')
 	inlines = [BansInline, RoundsInline]
-	list_per_page = 16
+	list_per_page = 25
+	search_fields = ['id']
 	actions = ['set_unsubmitted',"reread_steg", "resubmit_gsheet", "resubmit_discord"]
 
 	def get_queryset(self, request):
-		 qs = super().get_queryset(request)
-		 user = request.user
-		 print(f"MATCHADMIN: VARS{vars(user)}")
-		 return qs
+		qs = super().get_queryset(request)
+		user = request.user
+		return qs
 
 	def _match_players(self, obj):
 		retList = []

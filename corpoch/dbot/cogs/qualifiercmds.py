@@ -1,15 +1,16 @@
 import json, base64, io, os, uuid
 
 import discord
+import pydantic
 import pytz
 from discord.ext import commands
 from discord.ui import *
 from discord.enums import ComponentType, InputTextStyle
 from django.db.models.functions import Now
-from asgiref.sync import sync_to_async
 from django.utils import timezone
 from django.core.files.base import ContentFile
 
+from corpoch.types import PlayerConfig, CH_Name
 from corpoch.models import Tournament, Bracket, TournamentPlayer, Qualifier, QualifierSubmission, Chart, DiscordUser
 from corpoch.providers import CHOpt, CHStegTool
 
@@ -21,12 +22,11 @@ class QualifierSelect(discord.ui.Select):
 	async def init(self):
 		qualis = []
 		for qualifier in self.quali.qualifiers:
-			theStr = await sync_to_async(lambda : str(qualifier))()
-			self.retOpts[theStr] = qualifier
-			qualis.append(discord.SelectOption(label=theStr))
+			self.retOpts[qualifier.id] = qualifier
+			qualis.append(discord.SelectOption(label=str(qualifier.name), value=str(qualifier.id)))
 		super().__init__(max_values=1, options=qualis, custom_id="bracket_sel")
 
-	async def callback(self, interaction: discord.Integration):
+	async def callback(self, interaction: discord.Interaction):
 		qualifier = self.retOpts[self.values[0]]
 		if qualifier.channel and qualifier.channel != self.quali.ctx.channel.id:
 			await interaction.respond(f"Please run command in channel (https://discord.com/{self.quali.tourney.guild}/{qualifier.channel}) to submit!", ephemeral=True, delete_after=10)
@@ -50,14 +50,14 @@ class QualiPlayerSel(discord.ui.Select):
 		self.quali = quali
 		opts = []
 		for i, player in enumerate(self.quali.steg.output.players):
-			opts.append(discord.SelectOption(label=player.profile_name), value=str(i))
+			opts.append(discord.SelectOption(label=player.profile_name, value=str(i)))
 		super().__init__(max_values=1, options=opts, custom_id="bracket_sel")
 
 	async def callback(self, interaction: discord.Interaction):
 		#Purge all non-selected players from steg data
-		self.quali.steg.output.players = [ self.match.steg.output.players[self.values[0]] ]
+		self.quali.steg.output.players = [ self.quali.steg.output.players[int(self.values[0])] ]
 		await interaction.response.defer(invisible=True)
-		self.stop()
+		self.parent.children.remove(self)
 		await self.quali.show()
 
 class DiscordQualifierView(discord.ui.View):
@@ -100,6 +100,7 @@ class DiscordQualifierView(discord.ui.View):
 		await self.show(init=True)
 
 	async def show(self, init=False):
+		self.prev_subs = []
 		embeds = []
 		if self.qualifier == None and len(self.qualifiers) > 1:
 			qualiSel = QualifierSelect(self)
@@ -117,7 +118,7 @@ class DiscordQualifierView(discord.ui.View):
 			self.upload.disabled = False
 			try:
 				self.user = await DiscordUser.objects.aget(id=self.ctx.user.id)
-			except:
+			except DiscordUser.DoesNotExist:
 				self.user = DiscordUser(id=self.ctx.user.id,
 					global_name=self.ctx.user.global_name if self.ctx.user.global_name else self.ctx.user.display_name,
 					avatar=self.ctx.user.display_avatar.url
@@ -127,10 +128,8 @@ class DiscordQualifierView(discord.ui.View):
 				self.ply = await TournamentPlayer.objects.aget(user=self.user, tournament=self.qualifier.tournament)
 				async for qual in QualifierSubmission.objects.select_related().all().filter(player=self.ply, qualifier=self.qualifier).order_by("-submit_time"):
 					self.prev_subs.append(qual)
-				self.num_subs = len(self.prev_subs)
 			except TournamentPlayer.DoesNotExist:
-				self.ply = TournamentPlayer(user=self.user, tournament=self.tourney, ch_name="</Null>")
-				self.num_subs = 0
+				self.ply = TournamentPlayer(user=self.user, tournament=self.tourney, config=PlayerConfig(names_list=[]))
 
 			self.num_subs = len(self.prev_subs)
 			embeds.append(self.buildRulesEmbed())
@@ -169,25 +168,49 @@ class DiscordQualifierView(discord.ui.View):
 			return
 		plySteg = []
 		for i, ply in enumerate(steg.output.players):
-			try:
-				otherPly = await TournamentPlayer.objects.aget(ch_name=ply.profile_name, tournament=self.qualifier.tournament)
-				if self.ply and self.ply != otherPly:
-					print(f"QUALIFIER: Removing player {ply.profile_name} already in tournament {self.tourney.short_name}")
-					continue
-			except TournamentPlayer.DoesNotExist:
-				pass
+			current_player_id = self.ply.id if (self.ply and self.ply.id) else None
+			name_taken_by_other = False
+			target_name = ply.profile_name
 
-			if self.ply.ch_name != "</Null>" and not self.ply.check_ch_name(ply.profile_name):
-					print(f"QUALIFIER: Stripping {i}:{ply.profile_name} from {self.ply.ch_name} qualifier screen")
+			other_players = TournamentPlayer.objects.filter(tournament=self.qualifier.tournament).exclude(user=self.user)
+
+			async for other_ply in other_players:
+				if not other_ply.config:
 					continue
+
+				try:
+					if isinstance(other_ply.config, dict):
+						other_config = PlayerConfig(**other_ply.config)
+					else:
+						other_config = other_ply.config
+
+					for item in other_config.names_list:
+						db_name = item.ch_name
+						if db_name == target_name:
+							name_taken_by_other = True
+							break 
+				except pydantic.ValidationError:
+					continue
+
+				if name_taken_by_other:
+					break
+
+			if name_taken_by_other:
+				print(f"QUALIFIER: Removing player {ply.profile_name} already in tournament {self.tourney.short_name}")
+				continue
 
 			plySteg.append(ply)
 
 		steg.output.players = plySteg
+		auto_matched_players = [p for p in steg.output.players if p.profile_name in self.ply.ch_aliases]
+
+		if auto_matched_players:
+			print(f"QUALIFIER: Auto-matched uploader to known aliases: {[p.profile_name for p in auto_matched_players]}")
+			steg.output.players = auto_matched_players
 		try:
 			playedChart = await self.qualifier.charts.aget(md5=steg.output.checksum)
 		except Chart.DoesNotExist:
-			print(f"QUALIFIER: {self.qualifier}: {self.ctx.user.display_name} uploaded screenshot with checksum {steg.output['checksum']} that did not match any charts")
+			print(f"QUALIFIER: {self.qualifier}: {self.ctx.user.display_name} uploaded screenshot with checksum {steg.output.checksum} that did not match any charts")
 			await interaction.followup.send("Screenshot is not for the qualifier chart.", ephemeral=True, delete_after=10)
 			await self.show()
 			return
@@ -208,11 +231,15 @@ class DiscordQualifierView(discord.ui.View):
 		print(f"QUALIFIER: {self.qualifier}: {self.ctx.user.display_name} submitted a screenshot")
 		await interaction.response.defer()
 		self.ply.name = self.ctx.user.display_name
-		self.ply.ch_name = self.steg.output.players[0].profile_name
+		final_ch_name = self.steg.output.players[0].profile_name
+
+		if self.ply:
+			self.ply.ch_name = final_ch_name
+
 		await self.user.asave()
 		await self.ply.asave()
 		quali = QualifierSubmission(player=self.ply, qualifier=self.qualifier, steg=self.steg.output)
-		await sync_to_async(quali.screenshot.save)(f'{uuid.uuid1()}.png', open(self.steg.img_path, 'rb'))
+		quali.screenshot.save(f'{uuid.uuid1()}.png', ContentFile(await self.screen.read()))
 		await quali.asave()
 		await self.ctx.interaction.delete_original_response()
 		await interaction.followup.send(f"{self.ctx.user.mention} submitted a qualifier for {self.qualifier}!", ephemeral=not self.qualifier.output)
@@ -275,8 +302,11 @@ class QualifierCmds(commands.Cog):
 
 	@commands.slash_command(name='qualifier', description='Submit a qualifier score for a tournament/bracket', integration_types={discord.IntegrationType.guild_install})
 	async def qualifierSubmitCmd(self, ctx):
-		view = DiscordQualifierView(ctx)
-		await view.init()
+		if ctx.guild:
+			view = DiscordQualifierView(ctx)
+			await view.init()
+		else:
+			await ctx.respond("Can't run this command outside of a guild!", ephemeral=True)
 
 def setup(bot):
 	bot.add_cog(QualifierCmds(bot))

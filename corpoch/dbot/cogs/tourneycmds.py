@@ -2,13 +2,12 @@ import discord, uuid
 from discord.ext import commands
 from discord.ui import *
 from discord.enums import ComponentType, InputTextStyle
-from asgiref.sync import sync_to_async
 
 from corpoch import settings
 from corpoch.models import Tournament, Chart, Match, MatchRound, Bracket, Group, GroupSeed, TournamentPlayer, MatchRound, MatchBan, DiscordUser
 from corpoch.dbot.models import CHEmoji, Channels
 from corpoch.dbot.view.reftool import DiscordMatchView
-from corpoch.types import TB_RULESETS, PICK_RULESETS, BAN_RULESETS
+from corpoch.types import TB_RULESETS, PICK_RULESETS, BAN_RULESETS, CHART_CATEGORIES
 
 class DiscordMatch():
 	def __init__(self, bot, message=None, uuid=None, exhibition=False):
@@ -26,24 +25,25 @@ class DiscordMatch():
 		self.rounds = []
 		self.matchDb = uuid
 		self.exhibition = exhibition
-		self.confirmCancel = False
+		self.confirm_cancel = False
+		self.player_input = False
+		self.picking_player = None
 
 	async def init(self):
 		if self.matchDb:
-			await self.load_match()
+			self.load_match()
 			#Finish loading async
 			self.msg = await self.channel.fetch_message(self.matchDb.message)
 			self.referee = await self.guild.fetch_member(self.matchDb.referee.id)
 			for seed in self.seeding:
-				self.seeding_discord.append(await self.guild.fetch_member(seed.player.user.id))
-			if not self.finished and len(self.bans) > 0 and (len(self.rounds) == 0 or self.rounds[-1].winner):
-				await self.add_round()
+				self.seeding_discord.append(await self.guild.fetch_member(seed.user.id))
+			if not self.complete and len(self.bans) == self.ruleset.total_bans and (len(self.rounds) == 0 or self.rounds[-1].winner):
+				self.add_round()
 		try:
 			self.tourney = await Tournament.objects.select_related().aget(guild=self.msg.guild.id, active=True)
 		except Tournament.DoesNotExist:
 			await self.msg.respond("No active tourney - running exhibition mode not supported now", ephemeral=True)
 			return
-
 		try:
 			self.bracket = await Bracket.objects.select_related("ruleset").aget(score_log__id=self.msg.channel.id)
 		except Bracket.DoesNotExist: 
@@ -68,56 +68,8 @@ class DiscordMatch():
 		await interaction.edit(embeds=embeds[:10], view=None)
 		self.bot.matches.pop(self.id)
 
-	@sync_to_async
-	def load_match(self):
-		if isinstance(self.matchDb, str):
-			self.matchDb = Match.objects.select_related().get(id=self.matchDb)
-		self.channel = self.bot.get_channel(self.matchDb.channel.id)
-		self.guild = self.channel.guild
-		self.group = self.matchDb.group
-		self.bracket = self.matchDb.group.bracket
-		self.players = self.matchDb.players
-		self.seeding = list(self.matchDb.players.select_related('group', 'player').all())
-		self.bans = list(self.matchDb.bans.select_related('chart', 'player').all())
-		self.rounds = list(self.matchDb.rounds.select_related('chart', 'picked', 'winner', 'loser').all())
-		self.chart = self.rounds[-1].chart if len(self.rounds) > 0 else None
-		print(f"Reattached to on-going match {self.matchDb}")
-
-	@sync_to_async
-	def save_match(self):
-		if self.group:
-			self.bot.matches[self.id] = self
-			self.matchDb.group = self.group
-			self.matchDb.players.set(self.seeding)
-			self.matchDb.message = self.msg.id if self.msg else None
-			self.matchDb.channel = Channels.objects.get(id=self.channel.id)
-			self.matchDb.referee = DiscordUser.objects.get(id=self.referee.id)
-			self.matchDb.save()
-
-	@sync_to_async
-	def add_round(self):
-		if len(self.rounds) == 0:
-			if self.defer and self.ruleset.ban_ruleset == "deferboth":
-				picked = self.seeding[1].player
-			else:
-				picked = self.seeding[0].player
-		elif len(self.rounds) + 1 == self.ruleset.num_rounds and self.ruleset.tb_ruleset == 'refdecide':
-			picked = None
-		elif self.ruleset.pick_ruleset == "loserpicks":
-			picked = self.rounds[-1].loser
-		else:
-			prevPicked = self.rounds[-1].loser
-			if self.seeding[0].player == prevPicked:
-				picked = self.seeding[0].player
-			else:
-				picked = self.seeding[1].player
-
-		if len(self.rounds) > 0:
-			self.rounds[-1].save()
-		if not self.finished:
-			self.rounds.append(MatchRound(num=len(self.rounds) + 1, match=self.matchDb, picked=picked))
-
 	async def showTool(self, interaction=None):
+		self.picking_player = None
 		is_message = isinstance(interaction, discord.Message)
 		is_ctx = hasattr(interaction, 'interaction') and hasattr(interaction, 'command')
 
@@ -132,11 +84,11 @@ class DiscordMatch():
 				if not interaction.response.is_done():
 					await interaction.response.defer()
 				self.msg = interaction.message
-			await self.save_match()
+			self.save_match()
 		else:
 			interaction = self.msg #Live reload
 			is_message = True
-			await self.load_match()
+			self.load_match()
 		
 		view = DiscordMatchView(self)
 		await view.init()
@@ -151,6 +103,129 @@ class DiscordMatch():
 		else:
 			await interaction.edit_original_response(embeds=embeds, content=None, view=view)
 
+	def load_match(self):
+		if isinstance(self.matchDb, str):
+			self.matchDb = Match.objects.select_related().get(id=self.matchDb)
+		self.channel = self.bot.get_channel(self.matchDb.channel.id)
+		self.guild = self.channel.guild
+		self.group = self.matchDb.group
+		self.bracket = self.matchDb.group.bracket
+		self.players = self.matchDb.players
+		self.seeding = list(self.matchDb.players.select_related('group', 'player').all())
+		self.bans = list(self.matchDb.bans.select_related('chart', 'player').all())
+		self.rounds = list(self.matchDb.rounds.select_related('chart', 'picked', 'winner', 'loser').all())
+		print(f"Reattached to on-going match {self.matchDb}")
+
+	def save_match(self):
+		if self.group:
+			self.bot.matches[self.id] = self
+			self.matchDb.group = self.group
+			self.matchDb.players.set(self.seeding)
+			self.matchDb.message = self.msg.id if self.msg else None
+			self.matchDb.channel = Channels.objects.get(id=self.channel.id)
+			self.matchDb.referee = DiscordUser.objects.get(id=self.referee.id)
+			self.matchDb.save()
+
+	def add_round(self):
+		chart = None
+		if len(self.rounds) == 0:
+			if self.defer and self.ruleset.ban_ruleset == "deferboth":
+				picked = self.seeding[1].player
+			else:
+				picked = self.seeding[0].player
+		elif self.tiebreaker and self.ruleset.tb_ruleset == 'refdecide':
+			picked = None
+		elif self.tiebreaker and self.ruleset.tb_ruleset == 'csc':
+			fret, strum = 0, 0
+			for rnd in self.rounds:
+				if rnd.chart.category[0] == "fret":
+					fret += 1
+				elif rnd.chart.category[0] == "strum":
+					strum += 1
+
+			picked = None
+			if strum < fret:
+				chart = Chart.objects.get(category=CHART_CATEGORIES[3][0], tiebreaker=True)
+			if fret < strum:
+				chart = Chart.objects.get(category=CHART_CATEGORIES[2][0], tiebreaker=True)
+			else:
+				chart = Chart.objects.get(category=CHART_CATEGORIES[1][0], tiebreaker=True)
+		elif self.ruleset.pick_ruleset == "loserpicks":
+			picked = self.rounds[-1].loser
+		else:
+			prevPicked = self.rounds[-1].loser
+			if self.seeding[0].player == prevPicked:
+				picked = self.seeding[0].player
+			else:
+				picked = self.seeding[1].player
+
+		if len(self.rounds) > 0:
+			self.rounds[-1].save()
+		if not self.finished:
+			self.rounds.append(MatchRound(num=len(self.rounds) + 1, match=self.matchDb, picked=picked, chart=chart))
+
+	def format_bans_player(self, seed, bans):
+		outStr = f"**{seed.player_ch_name} Bans**\n"
+		for i in range(0, self.ruleset.num_bans):
+			try:
+				outStr += f"{bans[i]}\n"
+			except IndexError:
+				outStr += "--\n"
+		return outStr
+
+	@property
+	def formatted_bans(self):
+		bans1 = self.matchDb.high_seed_bans if not self.defer else self.matchDb.low_seed_bans
+		bans2 = self.matchDb.low_seed_bans if not self.defer else self.matchDb.high_seed_bans
+		ply1 = self.matchDb.high_seed if not self.defer else self.matchDb.low_seed
+		ply2 = self.matchDb.low_seed if not self.defer else self.matchDb.high_seed
+		bantb = None
+		if len(bans1) > self.ruleset.num_bans:
+			bantb = bans1.pop()
+		elif len(bans2) > self.ruleset.num_bans:
+			bantb = bans2.pop()
+		outStr = self.format_bans_player(ply1, bans1)
+		outStr += self.format_bans_player(ply2, bans2)
+		if bantb:
+			outStr += f"***TIEBREAKER BAN***\n{bantb.player.player_ch_name} bans {bantb.chart.tournament_name}"
+		return outStr
+
+	@property
+	def formatted_rounds(self):
+		outStr = ""
+		for i, rnd in enumerate(self.rounds):
+			if i == self.ruleset.num_rounds - 1:
+				outStr += "**TIEBREAKER**\n"
+
+			outStr += f"{rnd.picked.ch_name + ' picks ' if rnd.picked else 'Played Chart: '}{rnd.chart.tournament_name if rnd.chart else '---'}"
+			if rnd.winner:
+				outStr += f" - {rnd.winner} wins!"
+			outStr+= "\n"
+		if (self.matchDb and self.matchDb.finished):
+			outStr += f"\n**{self.rounds[-1].winner} WINS!**"
+		return outStr
+
+	def remove_round(self):
+		rnd = self.rounds.pop()
+		if rnd.id:
+			rnd.delete()
+
+	def remove_ban(self):
+		ban = self.bans.pop()
+		if ban.id:
+			ban.delete()
+
+	@property
+	def chart(self):
+		return self.rounds[-1].chart if len(self.rounds) > 0 else None
+
+	@property
+	def complete(self) -> bool:
+		if isinstance(self.matchDb, Match):
+			return self.matchDb.complete
+		else:
+			return False
+
 	@property
 	def defer(self):
 		if self.matchDb:
@@ -159,16 +234,25 @@ class DiscordMatch():
 			return False
 
 	@property
-	def setlist(self) -> list:
-		if self.bracket:
-			return self.bracket.setlist
+	def finished(self) -> bool:
+		if not self.matchDb:
+			return False
+		if self.score[0] == self.ruleset.wins_needed or self.score[1] == self.ruleset.wins_needed:
+			return True
 		else:
-			return None
+			return False
 
 	@property
 	def ruleset(self):
 		if self.bracket:
 			return self.bracket.ruleset
+		else:
+			return None
+
+	@property
+	def setlist(self) -> list:
+		if self.bracket:
+			return self.bracket.setlist
 		else:
 			return None
 
@@ -181,21 +265,6 @@ class DiscordMatch():
 			elif rnd.winner:
 				wins[1] += 1
 		return wins
-
-	@property
-	def finished(self) -> bool:
-		wins = self.score
-		if wins[0] == self.ruleset.wins_needed or wins[1] == self.ruleset.wins_needed:
-			return True
-		else:
-			return False
-
-	@property
-	def complete(self) -> bool:
-		if self.matchDb:
-			return self.matchDb.complete
-		else:
-			return False
 
 	@property
 	def tiebreaker(self) -> bool:
@@ -240,43 +309,21 @@ class DiscordMatch():
 			embed.title = f"{self.group}"
 			embed.add_field(name="Player Select", value=f"Select which players the match is for", inline=False)
 		else:
-			embed.title = f"{self.group}\n{self.seeding[0]} vs {self.seeding[1]})"
+			embed.title = f"{self.group}\n{self.seeding[0]} vs {self.seeding[1]}"
 			embed.add_field(name="Match VS", value=f"{self.seeding_discord[0].mention} vs {self.seeding_discord[1].mention}")
 			embed.add_field(name="Score", value=f"{self.score[0]} - {self.score[1]}", inline=False)
-			outStr = ""
-			for i, seed in enumerate(self.seeding):
-				outStr += f"**{seed.player.ch_name} Bans**\n"
-				for j in range(0, self.ruleset.num_bans):
-					try:
-						outStr += f"{self.bans[j+i]}\n"
-					except IndexError:
-						outStr += "--\n"
+			if self.defer:
+				embed.add_field(name="Deferal", value=f"{self.matchDb.high_seed.player.ch_name} has deferred.")
 			if len(self.bans) < self.ruleset.num_bans:
-				embed.add_field(name="Bans", value=f"{outStr}\nSelect next ban", inline=False)
+				embed.add_field(name="Bans", value=f"{self.formatted_bans}\nSelect next ban", inline=False)
 			elif self.ruleset.tb_ruleset == 'banpick' and len(self.rounds) == self.ruleset.num_rounds:
-				outStr += f"***TIEBREAKER BAN***\n**{self.rounds[-2].winner}** Bans"					
 				if len(self.bans) < self.ruleset.total_bans + 1:
-					outStr += " ---"
-					embed.add_field(name="Bans", value=f"{outStr}\nSelect next ban", inline=False)
+					embed.add_field(name="Bans", value=f"{self.formatted_bans}\nSelect next ban", inline=False)
 				else:
-					outStr += f" {self.bans[-1]}"
-					embed.add_field(name="Bans", value=outStr, inline=False)
+					embed.add_field(name="Bans", value=self.formatted_bans, inline=False)
 			else:
-				embed.add_field(name="Bans", value=outStr, inline=False)
-
-		outStr = ""
-		for i, rnd in enumerate(self.rounds):
-			if i == self.ruleset.num_rounds - 1:
-				outStr += "**TIEBREAKER**\n"
-
-			outStr += f"{rnd.picked if rnd.picked else '*Chat*'} picks {rnd.chart.tournament_name if rnd.chart else '---'}"
-			if rnd.winner:
-				outStr += f" - {rnd.winner} wins!"
-			outStr+= "\n"
-
-		if (self.matchDb and self.matchDb.finished):
-			outStr += f"\n**{self.rounds[-1].winner} WINS!**"
-		embed.add_field(name="Rounds", value=outStr, inline=False)
+				embed.add_field(name="Bans", value=self.formatted_bans, inline=False)
+		embed.add_field(name="Rounds", value=self.formatted_rounds, inline=False)
 		if self.matchDb:
 			embed.set_footer(text=f"Match ID: {self.id}")
 		return embed

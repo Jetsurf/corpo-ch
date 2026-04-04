@@ -26,6 +26,7 @@ urlpatterns = [
     path('auth/user', views.user, name="user"),
     path('home', views.home, name="home"),
     path('livematches/', views.livematches, name="livematches"),
+    path('privterms/', views.privterms, name="privterms"),
     path('update-live-matches/', views.update_livematches, name='update_livematches')
 ]
 

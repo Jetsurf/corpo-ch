@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Home{% endblock %}
+{% block style %} 
+{{ block.super }}
+<link rel="stylesheet" type="text/css" href="{% static 'mainapp/css/home.css' %}">
+{% endblock %}
+{% block body %}class="dark" data-spy="scroll" data-target=".navbar" data-offset="50"class="dark" data-spy="scroll" data-target=".navbar" data-offset="50"{% endblock %}
+{% block content %}
+	<br><br>
+	<div class="container">
+		<nav class="navbar navbar-expand-sm  navbar-dark ">
+			<a class="navbar-brand mx-auto" href="#CorpoCH"><img class="rounded-circle" src="{% static 'mainapp/images/corpo.png' %}"><span> Corpo Clone Hero Bot</span></a>
+			<button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#navbarCollapse">
+				<span class="navbar-toggler-icon"></span>
+			</button>
+			<li class="nav-item">
+				<a class="nav-link" href="/livematches", target="_blank" rel="noopener noreferer">Live Matches</a>
+			</li>
+		</nav> 
+	</div>
+	<div class="container" style="padding-top: 3vh;">
+		<div class="jumbotron">
+			<h1><strong id="Corpo">Corpo</strong></h1>
+			<div id="Corpo">
+				<h4>Privancy and Terms</h4>
+				<p>Corpo is a passion/hobby project. It will remain free to use, and never charge money.</p>
+			</div>
+			<div id="Privacy">
+				<h4>Collected Information</h4>
+				<h6>Users</h6>
+				<p>The only information collected from users are the public discord fields associated with your account. While logging into the main website does allow Corpo to read some of the information about the guilds you are in, this information is only used to check what guilds you're in that are also running a tournament so that it can retreieve your playstats (when updated to do so).</p>
+				<h6>Guilds</h6>
+				<p>If you invite Corpo to a discord guild, by-default it will collect no information from the guild. When a tournament is setup to run in a server, that then triggers the bot to start collecting the Channel Listing, Roles, and the public information. This is used to configure the tools to run in the right channels/etc.</p>
+				<h6>Terms</h6>
+				<p>For now, really just don't abuse the tools. If you've been given admin access into the system, behave. This service is provided to the Clone Hero Tournament community as a whole. The servers/resources involved need to be shared.</h6>
+				<p>If you have questions or comments, feel free to join the <a href="https://discord.gg/vEXqkt5pFa">CORPo Offices</a> for help!</p>
+			</div>
+		</div>	
+		<div id="Auth"><span><br></span>
+			<a href="{{auth_url}}" class="btn btn-lg shadow-none">Discord Login</button>
+		</div>	
+	</div>
+{% endblock %}
+{% block js %}
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script src="{% static 'mainapp/bootstrap/js/bootstrap.min.js' %}"></script>
+<script>
+	$(document).ready(() =>{
+		$(".navbar-brand").click(function(){
+			$('html, body').animate({
+				scrollTop: $($(this).attr("href")).offset().top
+			}, 1000);
+		});
+	});
+</script>
+{% endblock %}
+</body>
+</html>

@@ -1,7 +1,3 @@
-/*p, h1{
-	color: white;
-}
-*/
 *{
 	font-family: 'Varela';
 }
@@ -31,7 +27,6 @@ nav{
 	background-color: rgba(0, 0, 0, 0.2);
 }
 
-
 .jumbotron{
 	background-color: #003333;
 	color: white; 
@@ -39,19 +34,6 @@ nav{
 
 #Discord, #OAuth2, #About{
 	padding-top: 3vh;
-}
-
-#ShoK{
-	border-radius: 5px;
-	display: inline-flex;
-	background-color: #23272A;
-	padding-right:3vh;
-	flex-direction: row;
-	justify-content: space-between;
-}
-#ShoK p{
-	font-size: 2vh;
-	padding-left: 2vh;
 }
 
 #Auth, #Auth a{

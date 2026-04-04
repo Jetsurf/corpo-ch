@@ -50,7 +50,7 @@ def user(request: HttpRequest):
 		if not isinstance(discord_user, DiscordUser):
 			discord_user = discord_user[0]
 		login(request, discord_user, backend="corpoch.auth.DiscordBackend")
-
+		context['internal_user'] = discord_user
 	if DiscordToken.objects.filter(user=request.user.id).exists():
 		discord_token = request.user.token
 		discord_token.delete()
@@ -61,8 +61,34 @@ def user(request: HttpRequest):
 	return render(request, "user.html", context=context)
 
 def livematches(request: HttpRequest):
-	return render(request, "livematches.html")
+	matches = list(filter(lambda match: match.ongoing, Match.objects.all()))
+	current_match_ids = ",".join([str(m.id) for m in matches])
+	
+	return render(request, "livematches.html", {
+		'matches': matches,
+		'current_match_ids': current_match_ids
+	})
 
 def update_livematches(request: HttpRequest):
-	matches = list(filter(lambda match: match.ongoing, Match.objects.all()))
-	return render(request, 'partials/livematchesdata.html', {'matches': matches})
+	selected_ids = request.GET.getlist('selected_matches')
+	client_match_ids = request.GET.get('current_match_ids', '')
+
+	all_ongoing = list(filter(lambda match: match.ongoing, Match.objects.all()))
+	current_match_ids = ",".join([str(m.id) for m in all_ongoing])
+
+	matches_changed = (client_match_ids != current_match_ids)
+
+	display_matches = all_ongoing
+	if selected_ids and any(selected_ids):
+		display_matches = [m for m in all_ongoing if str(m.id) in selected_ids]
+	
+	return render(request, 'partials/livematchesdata.html', {
+		'matches': display_matches,
+		'all_matches': all_ongoing,
+		'selected_ids': selected_ids,
+		'matches_changed': matches_changed,
+		'current_match_ids': current_match_ids
+	})
+
+def privterms(request: HttpRequest):
+	return render(request, 'privterms.html')

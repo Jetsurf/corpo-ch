@@ -1,17 +1,17 @@
-from pydantic import BaseModel
 import requests_cache, json, io, hashlib, re, gspread, asyncio, discord, os, uuid, platform, subprocess, pytesseract, shutil
 
 from datetime import datetime
-from typing import Optional, Union, Literal
-from random import randbytes
-from PIL import Image, ImageEnhance
 from django.db import models
+from PIL import Image, ImageEnhance
+from pydantic import BaseModel
+from random import randbytes
+from typing import Optional, Union, Literal
 
 from corpoch import __user_agent__
 from corpoch import settings
 from corpoch.models import GSheetAPI, Chart, Tournament, Match, Qualifier, QualifierSubmission
-from corpoch.utils.hydra.hydra.hyutil import analyze_chart_bytes_chart, analyze_chart_bytes_mid
 from corpoch.types import StegScreenshot, SearchResponse, CH_DIFFICULTIES, CH_INSTRUMENTS
+from corpoch.utils.hydra.hydra.hyutil import analyze_chart_bytes_chart, analyze_chart_bytes_mid
 from corpoch.utils.snghandler import SNGHandler
 
 class EncoreClient:
@@ -59,9 +59,9 @@ class CHOpt:
 		speed: int = 100
 		lazy: int = 0
 		delay: int = 0
-		instrument: CH_INSTRUMENTS = CH_INSTRUMENTS[0]
-		difficulty: CH_DIFFICULTIES = CH_DIFFICULTIES[0]
-
+		instrument: str = CH_INSTRUMENTS[0][0]
+		difficulty: str = CH_DIFFICULTIES[0][0]
+		#Do check for tuple force string
 	def __init__(self):
 		self._path = settings.CHOPT_PATH
 		self._chopt = f"{self._path}/CHOpt.exe" if platform.system() == 'Windows' else f"{self._path}/CHOpt"
@@ -189,11 +189,11 @@ class CHStegTool:
 
 	def _get_over_strums(self):
 		outStr = pytesseract.image_to_string(self.img)
-		osCnt = re.findall("(?<=Overstrums )([O|o|0-9]+)", outStr)
+		osCnt = re.findall("(?<=Overstrums )([O|0-9]+)", outStr)
 		for i, cnt in enumerate(osCnt):
 			osCnt[i] = cnt.replace('O', '0')
 		for i, player in enumerate(self.output.players):
-			if len(osCnt) == len(self.output.players):
+			if len(osCnt) == len(self.output.players) and osCnt[i].isdigit():
 				player.excess_hits = int(osCnt[i])
 			else:
 				player.excess_hits = -1
@@ -224,7 +224,7 @@ class CHStegTool:
 				for i, player in enumerate(self.output.players):
 					player.notes_missed = player.total_notes - player.notes_hit
 			elif err == 'Error: InvalidScreenshotData\n':
-				print(f"STEG: Error - invalid no steg data found in image {self.img_name}")
+				print(f"STEG: Error - invalid steg data found in image {self.img_name}")
 				self.output = None
 		except Exception as e:
 			print(f"STEG: Call failed: {e}")
@@ -246,21 +246,21 @@ class CHStegTool:
 	def buildStatsEmbed(self, title: str) -> discord.Embed:
 		embed = discord.Embed(colour=0x3FFF33)
 		embed.title = title
-		chartStr = f"Chart Name: {self.output.song_name}" + f" ({self.output.playback_speed}%)\n" if self.output.playback_speed != 100 else '\n'
+		chartStr = f"Chart: `{self.output.artist_name}" + f" - {self.output.song_name}" + (f" ({self.output.playback_speed}%)" if self.output.playback_speed != 100 else '') + f" ({self.output.charter_name})`\n"
 		chartStr += f"Run Time: <t:{int(self.output.score_timestamp.timestamp())}:f>\n"
-		chartStr += f"Game Version: {self.output.game_version}"
+		chartStr += f"Game Version: `{self.output.game_version}`"
 		embed.add_field(name="Submission Stats", value=chartStr, inline=False)
-		embed.set_footer(text=f"Chart md5 {self.output.checksum}")
+		#embed.set_footer(text=f"Chart md5 `{self.output.checksum}`")
 		for i, player in enumerate(self.output.players):
-			plyStr = ""
-			plyStr += f"Player Name: {player.profile_name}\n"
-			plyStr += f"Score: {player.score}\n"
-			plyStr += f"Notes Hit: {player.notes_hit}/{player.total_notes} - {(player.notes_hit/player.total_notes) * 100:.2f}% {' - 👑' if player.is_fc else f'(-{player.notes_missed})'}\n"
-			plyStr += f"Overstrums: (+){player.excess_hits}\n"
-			plyStr += f"Ghosts: {player.frets_ghosted}\n"
-			plyStr += f"SP Phrases: {player.sp_phrases_earned}/{player.sp_phrases_total}\n"
-			embed.add_field(name=f"Player {i+1}", value=plyStr, inline=False)
-
+			#plyStr = ""
+			#plyStr += f"Player Name: `{player.profile_name}`\n"
+			plyStr = f"Score: `{player.score}`\n"
+			plyStr += f"Notes Hit: `{player.notes_hit}/{player.total_notes} - {(player.notes_hit/player.total_notes) * 100:.2f}% {' - 👑' if player.is_fc else f'(-{player.notes_missed})'}`\n"
+			plyStr += f"Overstrums: `(+){player.excess_hits}`\n"
+			plyStr += f"Ghosts: `{player.frets_ghosted}`\n"
+			plyStr += f"SP Phrases: `{player.sp_phrases_earned}/{player.sp_phrases_total}`\n"
+			embed.add_field(name=f"Player: `{player.profile_name}`", value=plyStr, inline=False)
+		embed.add_field(name="", value=f"Chart MD5: `{self.output.checksum}`")
 		return embed
 
 class GSheets():
@@ -384,7 +384,7 @@ class GSheets():
 				excess = ply.excess_hits
 				ghosts = ply.frets_ghosted
 				phrases = ply.sp_phrases_earned
-				ts = f"{self._submission.ended_on.strftime('%Y-%m-%d %H:%M:%S')}-UTC"
+				ts = f"{rnd.created.strftime('%Y-%m-%d %H:%M:%S')}-UTC"
 				link = f'=HYPERLINK("https://{settings.BASE_URL}{rnd.screenshot.url}", "Screenshot Link")'
 				retLines.append([matchId, bracket, group, match, picked, song, chName, score, wl, missed, hit, excess, ghosts, phrases, ts, link])
 		return retLines

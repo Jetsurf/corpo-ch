@@ -1,25 +1,22 @@
-import sys, os, discord, asyncio, time, json, logging, logging, time
-from discord.ext import commands, tasks
-
-#Django
-import pendulum
-import django
+import sys, discord, time, logging, django, random
 import django.db
-from socket import timeout
+
+from discord.ext import commands, tasks
 from django.apps import apps
-from corpoch.dbot import settings
 from django.utils import timezone
-from corpoch.dbot import autoreload
 from kombu import Connection, Consumer, Queue
 from kombu.utils.limits import TokenBucket
 from redis import asyncio as aioredis
-from dotenv import load_dotenv
+from socket import timeout
+
 from corpoch.dbot import bot_tasks
+from corpoch.dbot import settings
 
 logger = logging.getLogger(__name__)
 
 class CorpoDbot(commands.Bot):
 	def __init__(self):
+		random.seed()
 		sys.stdout.reconfigure(line_buffering = True)
 		sys.stderr.reconfigure(line_buffering = True)
 		print("--- Pre-startup ---")
@@ -55,13 +52,8 @@ class CorpoDbot(commands.Bot):
 		sys.exit(0)
 
 	def on_queue_message(self, body, message):
-		task = message.headers["task"].replace("corpoch.dbot.tasks.", '')
-		_task = getattr(bot_tasks, task, False)
-		_args = body[0]
-		_kwargs = body[1]
-		print(f"Got task.{task}({_args}, {_kwargs})")
+		self.tasks.append((getattr(bot_tasks, message.headers["task"].replace("corpoch.dbot.tasks.", ''), False), body[0], body[1]))
 		message.ack()
-		self.tasks.append((_task, _args, _kwargs))
 
 	async def on_interaction(self, interaction):
 		try:
@@ -98,7 +90,25 @@ class CorpoDbot(commands.Bot):
 		if not bot_tasks.run_tasks.is_running():
 			bot_tasks.run_tasks.start(self)
 
+	@tasks.loop(seconds=300)
+	async def switch_status(self):
+		from corpoch.models import Match, QualifierSubmission, MatchRound
+		matches = Match.objects.all().filter(finished=False)
+		if len(matches) > 0:
+			rand = random.randrange(0, len(matches), 1)
+			activity = discord.Activity(name=f"{matches[rand].tournament.short_name} - {matches[rand].short_name} {matches[rand].score}", type=discord.ActivityType(3))
+		else:
+			rand = random.randrange(0, 2, 1)
+			if rand == 0:
+				activity = discord.Game(f"{len(Match.objects.all())} Tracked Matches")
+			elif rand == 1:
+				activity = discord.Game(f"{len(MatchRound.objects.all())} Tracked Match Rounds")
+			elif rand == 2:
+				activity = discord.Game(f"{len(QualifierSubmission.objects.all())} Tracked Qualifier Submissions")
+		await self._bot.change_presence(status=discord.Status.online, activity=activity)
+
 	async def close(self):
+		self.switch_status.stop()
 		self.poll_queue.stop()
 		bot_tasks.run_tasks.stop()
 		await super().close()
@@ -122,6 +132,7 @@ class CorpoDbot(commands.Bot):
 			print("Starting tasks")
 			self.message_consumer.consume(no_ack=False)
 			self.poll_queue.start()
+			self.switch_status.start()
 
 		print('------Done with Startup------')
 

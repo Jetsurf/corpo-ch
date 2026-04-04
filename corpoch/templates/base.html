@@ -12,37 +12,27 @@
 	<link href="{% static 'mainapp/css/Varela.css' %}" rel='stylesheet'>
 	<link href="{% static 'mainapp/fontawesome-free-5.15.3-web/css/all.min.css'%}" rel="stylesheet" type="text/css">
     {% endblock %}
-
 </head>
 <body {% block body%}{% endblock %}>
-
     {% block content %}
     {% endblock %}
-
     {% block footer %}
 	<footer class="text-center text-white">
         <!-- Grid container -->
         <div class="container">
-          <!-- Section: Social media -->
           <section>
             <!-- Github -->
             <a class="btn btn-lg btn-outline-light btn-floating m-3 ml-auto" href="https://github.com/Jetsurf/corpo-ch" role="button"
               target="_blank"><i class="fab fa-github"></i
             ></a>
           </section>
-          <!-- Section: Social media -->
         </div>
-  
-        <!-- Copyright -->
         <div class="text-center p-3 footer">
           [CORP] Gang!
         </div>
-        <!-- Copyright -->
       </footer>
     {% endblock %}
-
     {% block js %}
     {% endblock %}    
 </body>
-
 </html>

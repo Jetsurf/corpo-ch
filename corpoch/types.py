@@ -68,6 +68,13 @@ BAN_RULESETS = (
 	("deferboth", "High Seed can defers both ban/pick"),
 )
 
+class CH_Name(pydantic.BaseModel):
+	ch_name: str
+	is_primary: bool
+
+class PlayerConfig(pydantic.BaseModel):
+	names_list: list[CH_Name] = []
+
 #This is for v6 steg
 class StegScreenshotPlayer(pydantic.BaseModel):
 	accent_notes_hit : int = 0
@@ -113,7 +120,7 @@ class StegScreenshot(pydantic.BaseModel):
 	players : list[StegScreenshotPlayer] = []
 	score_timestamp: datetime = datetime.now()
 
-
+#Encore API Models
 class BaseEncoreModel(pydantic.BaseModel):
 	model_config = pydantic.ConfigDict(
 		alias_generator=pydantic.alias_generators.to_camel,
