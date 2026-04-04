@@ -252,16 +252,8 @@ class QualifierAdmin(admin.ModelAdmin):
 
 	@admin.action(description="Submit Final Top Scores")
 	def submit_final_scores(modeladmin, request, queryset):
-		sheet = GSheets(fin=True)
-		sheet.login()
 		for quali in queryset:
-			for ply in TournamentPlayer.objects.all().filter(tournament=quali.tournament):
-				objs = QualifierSubmission.objects.all().filter(player=ply)
-				subs = sorted(objs, key=lambda i: i.steg.players[0].score)
-				if len(subs) >= quali.required_submissions:
-					print(f"Submitting Final Score for {ply} - {subs[-1].steg.players[0].score}")
-					sheet.set_submission(subs[-1])
-					sheet.submit_qualifier()
+			corpoch.tasks.submit_final_sheet.apply_async(args=[quali.id])
 
 class SeedingInline(SortableStackedInline):
 	model = GroupSeed
