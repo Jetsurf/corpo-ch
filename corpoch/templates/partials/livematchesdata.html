@@ -3,10 +3,18 @@
 <div class="livematches">
 	{% for match in matches %}
 		<div class="match">
-			<h1>{{match.high_seed.player_ch_name}} vs {{match.low_seed.player_ch_name}}</h1>
-			<h1>{{match.score}}</h1>
+			<table class="player-table">
+				<thead>
+					<tr>
+						<th class="header-highseed">{{match.high_seed.player_ch_name}}</th>
+						<th class="header-vs">vs</th>
+						<th class="header-lowseed">{{match.low_seed.player_ch_name}}</th>
+					</tr>
+				</thead>
+			</table>
+			<h1 class="score">{{match.score}}</h1>
 
-			<table>
+			<table class="match-table">
 				<thead>
 					<tr>
 						<th class="header-player1">Player 1</th>
