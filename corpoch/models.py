@@ -260,7 +260,7 @@ class TournamentPlayer(models.Model):
 	name = models.CharField(verbose_name="Discord Name", max_length=128, null=True, blank=True) #This is the users tournament guild display name
 	tournament = models.ForeignKey(Tournament, related_name="players", verbose_name="Tournament", on_delete=models.CASCADE)
 	is_active = models.BooleanField(verbose_name="Player Active", default=False)
-	ch_name = models.CharField(verbose_name="Clone Hero Name", max_length=128, default="</Null>")
+	#ch_name = models.CharField(verbose_name="Clone Hero Name", max_length=128, default="</Null>")
 	config = SchemaField(PlayerConfig, verbose_name="Player Configuration", blank=True)
 
 	class Meta:
@@ -280,7 +280,7 @@ class TournamentPlayer(models.Model):
 			return False
 
 		return any(item.ch_name == name_to_find for item in self.config.names_list)
-'''
+
 	@property
 	def ch_name(self) -> str:
 		"""
@@ -350,7 +350,6 @@ class TournamentPlayer(models.Model):
 			return [item.ch_name for item in self.config.names_list]
 		except pydantic.ValidationError:
 			return []
-'''
 
 class GroupSeed(models.Model):
 	id = models.AutoField(primary_key=True)

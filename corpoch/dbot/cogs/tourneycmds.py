@@ -187,7 +187,7 @@ class DiscordMatch():
 		outStr = self.format_bans_player(ply1, bans1)
 		outStr += self.format_bans_player(ply2, bans2)
 		if bantb:
-			outStr += f"***TIEBREAKER BAN***\n{bantb.player.ch_name} bans {bantb.chart.tournament_name}"
+			outStr += f"***TIEBREAKER BAN***\n{bantb.player.player_ch_name} bans {bantb.chart.tournament_name}"
 		return outStr
 
 	@property
