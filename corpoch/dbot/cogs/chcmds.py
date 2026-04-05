@@ -32,7 +32,10 @@ class Path():
 
 	async def showResult(self, interaction):
 		if len(self.chart_paths) > 1:
-			respond = await self.ctx.channel.create_thread(name="CH Path Results Thread", message=interaction)
+			if isinstance(self.ctx.channel, discord.DMChannel):
+				respond = self.ctx.channel
+			else:
+				respond = await self.ctx.channel.create_thread(name="CH Path Results Thread", message=interaction)
 		else:
 			respond = interaction.followup
 
