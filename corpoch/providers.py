@@ -116,6 +116,7 @@ class CHOpt:
 				content = self._encore.download_from_url(chart.url)
 			self.opts.speed = chart.speed
 			self.opts.instrument = chart.instrument
+			self.opts.difficulty = chart.difficulty
 		else:
 			content = self._encore.download_from_url(self._encore.url(chart))
 			self.opts.instrument = self.opts.instrument[0]
@@ -123,7 +124,7 @@ class CHOpt:
 		self._sng = SNGHandler(content)
 		self._prep_chart()
 		self._out_png = f"{self._output}/{self._file_id}.png"
-		choptCall = f"{self._chopt} -s {self.opts.speed} --ew {self.opts.whammy} --sqz {self.opts.squeeze} -f {self._tmp}/{'notes.chart' if self._sng.is_chart_format else 'notes.mid'} -i {self.opts.instrument} -d {self.opts.difficulty[0]} --lazy {self.opts.lazy} --delay {self.opts.delay} -o {self._out_png}"
+		choptCall = f"{self._chopt} -s {self.opts.speed} --ew {self.opts.whammy} --sqz {self.opts.squeeze} -f {self._tmp}/{'notes.chart' if self._sng.is_chart_format else 'notes.mid'} -i {self.opts.instrument} -d {self.opts.difficulty} --lazy {self.opts.lazy} --delay {self.opts.delay} -o {self._out_png}"
 		try:
 			subprocess.run(choptCall, check=True, shell=True, stdout=subprocess.DEVNULL)
 		except Exception as e:
