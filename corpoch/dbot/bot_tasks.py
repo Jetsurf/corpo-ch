@@ -163,7 +163,6 @@ async def update_user(bot, user_id):
 	dbuser.global_name = duser.global_name if duser.global_name else duser.display_name
 	dbuser.avatar = duser.display_avatar.url
 	for ply in dbuser.tournaments.all().filter(is_active=True):
-		print(f"Player {ply} {ply.tournament} {ply.tournament.guild}")
 		guild = bot.get_guild(ply.tournament.guild.id)
 		if guild:
 			member = await guild.fetch_member(dbuser.id)
