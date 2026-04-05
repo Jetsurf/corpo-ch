@@ -2,12 +2,12 @@ import discord
 
 from discord.ext import commands
 
-from corpoch.dbot.models import CHEmoji
-from corpoch.dbot.view.helpers import get_chart_emoji
-from corpoch.providers import CHOpt, EncoreClient, CHStegTool, Hydra
 from corpoch.models import Chart
 from corpoch.chdedi.models import GlobalConfig
+from corpoch.dbot.models import CHEmoji
+from corpoch.dbot.view.helpers import get_chart_emoji
 from corpoch.dbot.view.path import PathView
+from corpoch.providers import CHOpt, EncoreClient, CHStegTool, Hydra
 
 class Path():
 	def __init__(self, bot, ctx):
@@ -32,7 +32,10 @@ class Path():
 
 	async def showResult(self, interaction):
 		if len(self.chart_paths) > 1:
-			respond = await self.ctx.channel.create_thread(name="CH Path Results Thread", message=interaction)
+			if isinstance(self.ctx.channel, discord.DMChannel):
+				respond = self.ctx.channel
+			else:
+				respond = await self.ctx.channel.create_thread(name="CH Path Results Thread", message=interaction)
 		else:
 			respond = interaction.followup
 
@@ -152,7 +155,7 @@ class CHCmds(commands.Cog):
 		await path.show()
 
 	@ch.command(name='servers', description="List of CH Server's Corpo is currently running", integration_types={discord.IntegrationType.guild_install, discord.IntegrationType.user_install})
-	async def servers(self, ctx, ephemeral: discord.Option(input_type=bool, default=True, description="Message shows only to you", required=True)):
+	async def servers(self, ctx, ephemeral: bool):
 		embed = discord.Embed(colour=0x00F2FF)
 		embed.title = "Corpo Clone Hero Dedicated Servers"
 		outStr = "settings.ini file in `C:\\Users\\YOURUSERNAME\\Documents\\Clone Hero` find the [Server] section and copy+paste the server list below it. For Linux the file is `~/.clonehero/settings.ini`\n\nRestart your game and the servers should be available!"

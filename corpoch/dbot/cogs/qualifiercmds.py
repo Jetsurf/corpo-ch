@@ -1,8 +1,5 @@
-import json, base64, io, os, uuid
+import base64, discord, io, json, os, pydantic, pytz, uuid
 
-import discord
-import pydantic
-import pytz
 from discord.ext import commands
 from discord.ui import *
 from discord.enums import ComponentType, InputTextStyle

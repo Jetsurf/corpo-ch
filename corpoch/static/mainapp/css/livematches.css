@@ -52,18 +52,31 @@ main {
 	width: 100%;
 }
 
-.match h1 {
+.player-table {
+	color: var(--text-color);
+	border: none;
+	font-size: 2.5rem;
+	margin-bottom: none;
+}
+
+.score {
+	text-align: center;
+	margin-top: none;
+	font-weight: bold;
+}
+
+.match-table h1 {
 	color: var(--text-color);
 	text-align: center;
 }
 
-.match table {
+.match-table {
 	width: 100%;
 	table-layout: fixed;
 	border-collapse: collapse;
 }
 
-.match th, td {
+.match-table th, td {
 	border: 3px solid var(--match-border);
 	padding: 8px;
 	text-align: left;
@@ -75,6 +88,22 @@ main {
 
 .no-matches {
 	color: var(--text-color);
+	text-align: center;
+}
+
+.header-highseed {
+	width: 50%;
+	text-align: right;
+}
+
+.header-lowseed {
+	width: 50%;
+	text-align: left;
+}
+
+.header-vs {
+	padding-left: 1rem;
+	padding-right: 1rem;
 	text-align: center;
 }
 

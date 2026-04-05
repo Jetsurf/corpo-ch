@@ -1,5 +1,4 @@
-import sys, discord, time, logging, django, random
-import django.db
+import discord, django, django.db, logging, random, sys, time
 
 from discord.ext import commands, tasks
 from django.apps import apps
@@ -63,7 +62,7 @@ class CorpoDbot(commands.Bot):
 			logger.error(f"Interaction Failed {e}", stack_info=True)
 		django.db.close_old_connections()
 
-	async def retrieveOwners(self):
+	async def retrieve_owners(self):
 		print("Retrieving bot owners...")
 		app = await self.application_info()
 		if app.team:
@@ -93,7 +92,7 @@ class CorpoDbot(commands.Bot):
 	@tasks.loop(seconds=300)
 	async def switch_status(self):
 		from corpoch.models import Match, QualifierSubmission, MatchRound
-		matches = Match.objects.all().filter(finished=False)
+		matches = Match.objects.all().filter(complete=False)
 		if len(matches) > 0:
 			rand = random.randrange(0, len(matches), 1)
 			activity = discord.Activity(name=f"{matches[rand].tournament.short_name} - {matches[rand].short_name} {matches[rand].score}", type=discord.ActivityType(3))
@@ -115,8 +114,7 @@ class CorpoDbot(commands.Bot):
 
 	async def on_ready(self, once=True):
 		print(f"Logged in as {self.user.name}#{self.user.discriminator} id {self.user.id}")
-
-		await self.retrieveOwners()
+		await self.retrieve_owners()
 		print("Loading on-going matches")
 		from corpoch.dbot.cogs.tourneycmds import DiscordMatch
 		from corpoch.models import Match

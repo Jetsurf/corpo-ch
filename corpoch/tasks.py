@@ -76,6 +76,20 @@ def update_gsheet(submission_id, *args, **kwargs):
 		sheet.update_qualifier()
 
 @app.task
+def submit_final_sheet(qualifier_id, *args, **kwargs):
+	sheet = GSheets(fin=True)
+	sheet.login()
+	quali = Qualifier.objects.get(id=qualifier_id)
+	print(f"Submitting final scores for qualifier {quali}")
+	for ply in TournamentPlayer.objects.all().filter(tournament=quali.tournament):
+		objs = QualifierSubmission.objects.all().filter(player=ply)
+		subs = sorted(objs, key=lambda i: i.steg.players[0].score)
+		if len(subs) > 0 and len(subs) >= quali.required_submissions:
+			print(f"Submitting Final Score for {ply} - {subs[-1].steg.players[0].score}")
+			sheet.set_submission(subs[-1])
+			sheet.submit_qualifier()
+
+@app.task
 def encore_import(chart_id, *args, **kwargs):
 	chartdb = Chart.objects.get(id=chart_id)
 	encore = EncoreClient()

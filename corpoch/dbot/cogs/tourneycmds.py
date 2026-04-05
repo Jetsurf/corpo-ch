@@ -20,7 +20,6 @@ class DiscordMatch():
 		self.bracket = None
 		self.group = None
 		self.seeding = []
-		self.seeding_discord = []
 		self.bans = []
 		self.rounds = []
 		self.matchDb = uuid
@@ -35,8 +34,6 @@ class DiscordMatch():
 			#Finish loading async
 			self.msg = await self.channel.fetch_message(self.matchDb.message)
 			self.referee = await self.guild.fetch_member(self.matchDb.referee.id)
-			for seed in self.seeding:
-				self.seeding_discord.append(await self.guild.fetch_member(seed.user.id))
 			if not self.complete and len(self.bans) == self.ruleset.total_bans and (len(self.rounds) == 0 or self.rounds[-1].winner):
 				self.add_round()
 		try:
@@ -45,9 +42,9 @@ class DiscordMatch():
 			await self.msg.respond("No active tourney - running exhibition mode not supported now", ephemeral=True)
 			return
 		try:
-			self.bracket = await Bracket.objects.select_related("ruleset").aget(score_log__id=self.msg.channel.id)
+			self.bracket = await Bracket.objects.select_related("ruleset").aget(score_log__id=self.msg.channel.id, is_active=True)
 		except Bracket.DoesNotExist: 
-			await self.msg.respond("Channel is not a score log channel - please use this command in a match reporting channel.", ephemeral=True)
+			await self.msg.respond("Channel is not a score log channel or no brackets are currently active.", ephemeral=True)
 			return
 
 		if isinstance(self.msg, discord.ApplicationContext):
@@ -310,7 +307,7 @@ class DiscordMatch():
 			embed.add_field(name="Player Select", value=f"Select which players the match is for", inline=False)
 		else:
 			embed.title = f"{self.group}\n{self.seeding[0]} vs {self.seeding[1]}"
-			embed.add_field(name="Match VS", value=f"{self.seeding_discord[0].mention} vs {self.seeding_discord[1].mention}")
+			embed.add_field(name="Match VS", value=f"{self.seeding[0].mention} vs {self.seeding[1].mention}")
 			embed.add_field(name="Score", value=f"{self.score[0]} - {self.score[1]}", inline=False)
 			if self.defer:
 				embed.add_field(name="Deferal", value=f"{self.matchDb.high_seed.player.ch_name} has deferred.")

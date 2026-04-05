@@ -176,7 +176,6 @@ class TournamentConfig(models.Model):
 	tournament = models.OneToOneField(Tournament, related_name="config", verbose_name="Tournament Configuration", on_delete=models.CASCADE)
 	rules = models.TextField(verbose_name="Rules", max_length=1024, default="Some rules go here")
 	ref_role = models.ForeignKey("dbot.Roles", verbose_name="Discord Ref Role", on_delete=models.SET_NULL, null=True, blank=True)
-	proof_channel = models.ForeignKey("dbot.Channels", verbose_name="Discord Proof Channel", on_delete=models.SET_NULL, null=True, blank=True)#This isn't presently used
 	enable_gsheets = models.BooleanField(verbose_name="Gsheets Integration", default=True)
 	gsheet = models.URLField(verbose_name="Match Reporting Google Sheet", null=True, blank=True)
 	version = models.CharField(verbose_name="Clone Hero Version", choices=CH_VERSIONS, max_length=32, default=CH_VERSIONS[0][0])
@@ -256,11 +255,10 @@ class Group(models.Model):
 
 class TournamentPlayer(models.Model):
 	id = models.AutoField(primary_key=True)
-	user = models.ForeignKey(DiscordUser, verbose_name="User", on_delete=models.SET_NULL, db_index=True, blank=True, null=True)
-	name = models.CharField(verbose_name="Discord Name", max_length=128, null=True, blank=True) #This is the users tournament guild display name
+	user = models.ForeignKey(DiscordUser, related_name="tournaments", verbose_name="User", on_delete=models.SET_NULL, db_index=True, blank=True, null=True)
+	name = models.CharField(verbose_name="Server Discord Name", max_length=128, null=True, blank=True) #This is the users tournament guild display name
 	tournament = models.ForeignKey(Tournament, related_name="players", verbose_name="Tournament", on_delete=models.CASCADE)
 	is_active = models.BooleanField(verbose_name="Player Active", default=False)
-	#ch_name = models.CharField(verbose_name="Clone Hero Name", max_length=128, default="</Null>")
 	config = SchemaField(PlayerConfig, verbose_name="Player Configuration", blank=True)
 
 	class Meta:
@@ -275,11 +273,15 @@ class TournamentPlayer(models.Model):
 	def brackets(self):
 		return self.tournament.brackets.objects.select_related('player').filter(players__id=self.id)
 
-	def check_ch_name(self, name_to_find: str) -> bool:
-		if not self.config or not self.config.names_list:
-			return False
-
-		return any(item.ch_name == name_to_find for item in self.config.names_list)
+	@property
+	def ch_aliases(self) -> list[str]:
+		"""Returns a list of all Clone Hero names associated with this player."""
+		if not self.config:
+			return []
+		try:
+			return [item.ch_name for item in self.config.names_list]
+		except pydantic.ValidationError:
+			return []
 
 	@property
 	def ch_name(self) -> str:
@@ -304,6 +306,11 @@ class TournamentPlayer(models.Model):
 
 		except pydantic.ValidationError:
 			return "</Null>"
+
+	@property
+	def mention(self) -> str:
+		"""Returns a discord formatted mention string to @ a user"""
+		return f"<@{self.user.id}>"
 
 	@ch_name.setter
 	def ch_name(self, new_name: str):
@@ -340,16 +347,11 @@ class TournamentPlayer(models.Model):
 		config_obj.names_list = names_list
 		self.config = config_obj
 
+	def check_ch_name(self, name_to_find: str) -> bool:
+		if not self.config or not self.config.names_list:
+			return False
 
-	@property
-	def ch_aliases(self) -> list[str]:
-		"""Returns a list of all Clone Hero names associated with this player."""
-		if not self.config:
-			return []
-		try:
-			return [item.ch_name for item in self.config.names_list]
-		except pydantic.ValidationError:
-			return []
+		return any(item.ch_name == name_to_find for item in self.config.names_list)
 
 class GroupSeed(models.Model):
 	id = models.AutoField(primary_key=True)
@@ -368,20 +370,27 @@ class GroupSeed(models.Model):
 		return f"{player_name} ({self.seed})"
 
 	@property
-	def seed_num(self):
-		return str(self.seed)
+	def full_name(self):
+		return f"{self.group.tournament.short_name} - {self.group.bracket.name} - Group {self.group.name} - Seed {self.seed}"
+
+	@property
+	def mention(self) -> str:
+		"""Returns a discord formatted mention string to @ a user"""
+		return f"<@{self.player.user.id}>"
 
 	@property
 	def player_ch_name(self):
 		return self.player.ch_name if self.player else "</Null>"
 
 	@property
-	def user(self):
-		return self.player.user if self.player else None
+	def seed_num(self):
+		"""Returns the seed placement"""
+		return str(self.seed)
 
 	@property
-	def full_name(self):
-		return f"{self.group.tournament.short_name} - {self.group.bracket.name} - Group {self.group.name} - Seed {self.seed}"
+	def user(self):
+		"""Returns the associated DiscordUser"""
+		return self.player.user if self.player else None
 
 	def check_ch_name(self, testname):
 		if not self.player:
