@@ -22,4 +22,8 @@ class Migration(migrations.Migration):
             name='name',
             field=models.CharField(blank=True, max_length=128, null=True, verbose_name='Server Discord Name'),
         ),
+        migrations.RemoveField(
+            model_name='tournamentconfig',
+            name='proof_channel',
+        ),
     ]

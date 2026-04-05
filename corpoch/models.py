@@ -176,7 +176,6 @@ class TournamentConfig(models.Model):
 	tournament = models.OneToOneField(Tournament, related_name="config", verbose_name="Tournament Configuration", on_delete=models.CASCADE)
 	rules = models.TextField(verbose_name="Rules", max_length=1024, default="Some rules go here")
 	ref_role = models.ForeignKey("dbot.Roles", verbose_name="Discord Ref Role", on_delete=models.SET_NULL, null=True, blank=True)
-	proof_channel = models.ForeignKey("dbot.Channels", verbose_name="Discord Proof Channel", on_delete=models.SET_NULL, null=True, blank=True)#This isn't presently used
 	enable_gsheets = models.BooleanField(verbose_name="Gsheets Integration", default=True)
 	gsheet = models.URLField(verbose_name="Match Reporting Google Sheet", null=True, blank=True)
 	version = models.CharField(verbose_name="Clone Hero Version", choices=CH_VERSIONS, max_length=32, default=CH_VERSIONS[0][0])
@@ -260,7 +259,6 @@ class TournamentPlayer(models.Model):
 	name = models.CharField(verbose_name="Server Discord Name", max_length=128, null=True, blank=True) #This is the users tournament guild display name
 	tournament = models.ForeignKey(Tournament, related_name="players", verbose_name="Tournament", on_delete=models.CASCADE)
 	is_active = models.BooleanField(verbose_name="Player Active", default=False)
-	#ch_name = models.CharField(verbose_name="Clone Hero Name", max_length=128, default="</Null>")
 	config = SchemaField(PlayerConfig, verbose_name="Player Configuration", blank=True)
 
 	class Meta:
