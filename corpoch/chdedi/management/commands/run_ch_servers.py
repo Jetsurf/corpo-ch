@@ -16,10 +16,6 @@ class CHManager:
 		signal.signal(signal.SIGINT, self.sig_term)
 
 	def __del__(self):
-		for server in self._servers:
-			server.pid = None
-			server.save()
-
 		self.global_config.pid = None
 		self.global_config.save()
 
@@ -47,10 +43,13 @@ class CHManager:
 		asyncio.create_task(self._monitor.run())
 		if not self._skip_startup:
 			for server in self._servers:
-				if server.pid:
-					await self.stop(server)
-				await self.run(server)
-
+				if server.pid and psutil.pid_exists(server.pid):
+					print(f"Reattaching to {server} {server.pid}")
+					process = psutil.Process(server.pid)
+					process.returncode = None
+					self._monitor.process_ownership[server.pid] = process
+				else:
+					await self.run(server)
 		while True:
 			async for server in self.global_config.to_restart.all():
 				await self.restart(server)
