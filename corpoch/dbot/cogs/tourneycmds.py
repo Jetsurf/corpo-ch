@@ -40,7 +40,7 @@ class DiscordMatch():
 			if not self.complete and len(self.bans) == self.ruleset.total_bans and (len(self.rounds) == 0 or self.rounds[-1].winner):
 				self.add_round()
 		try:
-			self.tourney = await Tournament.objects.select_related().aget(guild=self.msg.guild.id, is_active=True)
+			self.tourney = await Tournament.objects.select_related().aget(guild=self.msg.guild.id, active=True)
 		except Tournament.DoesNotExist:
 			await self.msg.respond("No active tourney - running exhibition mode not supported now", ephemeral=True)
 			return

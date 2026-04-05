@@ -101,7 +101,6 @@ class Guilds:
 		self.__tournaments = []
 		for guild in guilds:
 			for tourney in Tournament.objects.all().filter(guild__id=guild['id']):
-				print(f"Hit with tournament {tourney.id} - {guild['id']}")
 				self.__guilds.append(guild)
 				self.__tournaments.append(tourney)
 				
