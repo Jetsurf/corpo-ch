@@ -2,12 +2,12 @@ import discord
 
 from discord.ext import commands
 
-from corpoch.dbot.models import CHEmoji
-from corpoch.dbot.view.helpers import get_chart_emoji
-from corpoch.providers import CHOpt, EncoreClient, CHStegTool, Hydra
 from corpoch.models import Chart
 from corpoch.chdedi.models import GlobalConfig
+from corpoch.dbot.models import CHEmoji
+from corpoch.dbot.view.helpers import get_chart_emoji
 from corpoch.dbot.view.path import PathView
+from corpoch.providers import CHOpt, EncoreClient, CHStegTool, Hydra
 
 class Path():
 	def __init__(self, bot, ctx):

@@ -1,7 +1,8 @@
 import os
-from django.contrib import admin
 
+from django.contrib import admin
 from django_jsonform.widgets import JSONFormWidget
+
 from django_pydantic_field import fields
 from solo.admin import SingletonModelAdmin
 

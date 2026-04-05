@@ -1,4 +1,4 @@
-import asyncio, atexit, os, signal, psutil, sys
+import asyncio, atexit, os, psutil, signal, sys
 from contextlib import chdir
 
 from django.core.management.base import BaseCommand
