@@ -197,7 +197,6 @@ class PlayerSelect(discord.ui.Select):
 		for ply in self.values:
 			seed = self.retOpts[ply]
 			self.match.seeding.append(seed)
-			self.match.seeding_discord.append(await self.match.guild.fetch_member(seed.user.id))
 		await self.match.showTool(interaction)
 
 class DiscordMatchView(discord.ui.View):
