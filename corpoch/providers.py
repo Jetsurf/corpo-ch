@@ -130,10 +130,6 @@ class CHOpt:
 		except Exception as e:
 			print(f"CHOPT: died on chart {chart.name}")
 			print(f"CHOpt: call failed with exception: {e}")
-
-		try:
-			self.img = Image.open(self._out_png)
-		except:
 			return None
 
 		print(f"CHOPT: Output PNG: {self._out_png}")
@@ -317,16 +313,16 @@ class GSheets():
 			ws = self._sheet.add_worksheet(title=f"{self._submission.qualifier} - Final Top Scores", rows=1, cols=12)
 		ws.update([["Qualifier ID", "Discord Name", "Clone Hero Name", "Score", "Notes Missed", "Notes Hit", "Overstrums", "Ghosts", "Phrases Hit", "Submission Timestamp", "Screenshot Timestamp", "Screenshot", "Game Version" ]], "A1:M1")
 		ws.format("A1:M1", self._format_header)
-		ws.freeze("A1:M1")
+		#ws.freeze("A1:M1")
 		#TODO - Add any graphs/viewables that'd be nice to add
 		return ws
 
 	def setup_completed_sheet(self) -> bool:
 		print(f"Creating Match Air Table {self._submission.tournament} worksheet in sheet {self._url}")
 		ws = self._sheet.add_worksheet(title=f"{self._submission.tournament.short_name} - Match Data", rows=1, cols=16)
-		ws.update([["Match ID", "Bracket", "Group", "Match", "Pick" "Song", "Player", "Score", "W/L",  "Notes Missed", "Notes Hit", "Overstrums", "Ghosts", "Phrases Hit", "imestamp", "Screenshot"]], "A1:P1")
+		ws.update([["Match ID", "Bracket", "Group", "Match", "PickSong", "Song", "Player", "Score", "W/L",  "Notes Missed", "Notes Hit", "Overstrums", "Ghosts", "Phrases Hit", "imestamp", "Screenshot"]], "A1:P1")
 		ws.format("A1:P1", self._format_header)
-		ws.freeze("A1:P1")
+		#ws.freeze("A1:P1")
 		#TODO - Add "the live table formatting/formulas for the viewable worksheets
 		return ws
 

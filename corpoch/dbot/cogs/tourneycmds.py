@@ -40,14 +40,14 @@ class DiscordMatch():
 			if not self.complete and len(self.bans) == self.ruleset.total_bans and (len(self.rounds) == 0 or self.rounds[-1].winner):
 				self.add_round()
 		try:
-			self.tourney = await Tournament.objects.select_related().aget(guild=self.msg.guild.id, active=True)
+			self.tourney = await Tournament.objects.select_related().aget(guild=self.msg.guild.id, is_active=True)
 		except Tournament.DoesNotExist:
 			await self.msg.respond("No active tourney - running exhibition mode not supported now", ephemeral=True)
 			return
 		try:
-			self.bracket = await Bracket.objects.select_related("ruleset").aget(score_log__id=self.msg.channel.id)
+			self.bracket = await Bracket.objects.select_related("ruleset").aget(score_log__id=self.msg.channel.id, is_active=True)
 		except Bracket.DoesNotExist: 
-			await self.msg.respond("Channel is not a score log channel - please use this command in a match reporting channel.", ephemeral=True)
+			await self.msg.respond("Channel is not a score log channel or no brackets are currently active.", ephemeral=True)
 			return
 
 		if isinstance(self.msg, discord.ApplicationContext):

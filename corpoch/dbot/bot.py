@@ -93,7 +93,7 @@ class CorpoDbot(commands.Bot):
 	@tasks.loop(seconds=300)
 	async def switch_status(self):
 		from corpoch.models import Match, QualifierSubmission, MatchRound
-		matches = Match.objects.all().filter(finished=False)
+		matches = Match.objects.all().filter(completed=False)
 		if len(matches) > 0:
 			rand = random.randrange(0, len(matches), 1)
 			activity = discord.Activity(name=f"{matches[rand].tournament.short_name} - {matches[rand].short_name} {matches[rand].score}", type=discord.ActivityType(3))

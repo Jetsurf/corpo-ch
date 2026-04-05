@@ -121,11 +121,12 @@ class TournamentAdmin(admin.ModelAdmin):
 		for tourney in queryset:
 			role = tourney.role
 			guild = tourney.guild
-			for bracket in tourney.brackets.all():
-				for group in bracket.groups.all():
-					for seed in group.seeding.all():
-						ply = seed.player.user
-						corpoch.dbot.tasks.set_group_role(ply, guild, role)
+			if role:
+				for bracket in tourney.brackets.all():
+					for group in bracket.groups.all():
+						for seed in group.seeding.all():
+							ply = seed.player.user
+							corpoch.dbot.tasks.set_group_role(ply.id, guild.id, role.id)
 
 	@admin.action(description="Set players as active")
 	def set_players_active(modeladmin, request, queryset):
@@ -170,13 +171,13 @@ class BracketAdmin(admin.ModelAdmin):
 	@admin.action(description="Set bracket role for players")
 	def set_bracket_role(modeladmin, request, queryset):
 		for bracket in queryset:
-			tourney = bracket.tournament
+			guild = bracket.tournament.guild
 			role = bracket.role
-			guild = tourney.guild
-			for group in bracket.groups.all():
-				for seed in group.seeding.all():
-					ply = seed.player.user
-					corpoch.dbot.tasks.set_group_role(ply, guild, role)
+			if role:
+				for group in bracket.groups.all():
+					for seed in group.seeding.all():
+						ply = seed.player.user
+						corpoch.dbot.tasks.set_group_role(ply.id, guild.id, role.id)
 
 @admin.register(TournamentPlayer)
 class TournamentPlayerAdmin(admin.ModelAdmin):
@@ -210,18 +211,17 @@ class TournamentPlayerAdmin(admin.ModelAdmin):
 	@admin.action(description="Set tournament roles")
 	def set_tournament_roles(modeladmin, request, queryset):
 		for ply in queryset:
-			tourney = ply.tournament
+			guild = ply.tournament.guild
 			for seed in ply.group_seeding.all():
-				grole = seed.group.role.id if seed.group.role else None
-				brole = seed.group.bracket.role.id if seed.group.bracket.role else None
-				trole = tourney.role.id if tourney.role.id else None
-				print(f"Setting group roles for {ply.ch_name} {grole} - {brole} - {trole}")
+				grole = seed.group.role if seed.group.role else None
+				brole = seed.group.bracket.role if seed.group.bracket.role else None
+				trole = tourney.role if tourney.role else None
 				if grole is not None:
-					corpoch.dbot.tasks.set_group_role(ply.user, ply.tournament.guild, grole)
+					corpoch.dbot.tasks.set_group_role(ply.user.id, guild.id, grole.id)
 				if brole is not None:
-					corpoch.dbot.tasks.set_group_role(ply.user, ply.tournament.guild, brole)
+					corpoch.dbot.tasks.set_group_role(ply.user.id, guild.id, brole.id)
 				if trole is not None:
-					corpoch.dbot.tasks.set_group_role(ply.user, ply.tournament.guild, trole)
+					corpoch.dbot.tasks.set_group_role(ply.user.id, guild.id, trole.id)
 
 @admin.register(Qualifier)
 class QualifierAdmin(admin.ModelAdmin):
@@ -297,12 +297,12 @@ class GroupAdmin(SortableAdminBase, admin.ModelAdmin):
 	@admin.action(description="Set group role for players")
 	def set_group_role(modeladmin, request, queryset):
 		for group in queryset:
-			tourney = group.bracket.tournament
-			role = group.role.id
-			guild = tourney.guild.id
-			for seed in group.seeding.all():
-				ply = seed.player.user
-				corpoch.dbot.tasks.set_group_role(ply, guild, role)
+			guild = group.bracket.tournament.guild
+			role = group.role
+			if role:
+				for seed in group.seeding.all():
+					ply = seed.player.user
+					corpoch.dbot.tasks.set_group_role(ply.id, guild.id, role.id)
 
 @admin.register(QualifierSubmission)
 class QualifierSubmissionAdmin(admin.ModelAdmin):
