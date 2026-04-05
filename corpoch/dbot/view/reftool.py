@@ -130,7 +130,7 @@ class PlayerRoundSelect(discord.ui.Select):
 		for i, seed in enumerate(self.match.seeding):
 			auuid = str(uuid.uuid1())
 			self.retOpts[auuid] = seed
-			opts.append(discord.SelectOption(label=f"{seed.player.ch_name} ({seed.seed})", value=auuid, description=f"@{self.match.seeding_discord[i].display_name}"))
+			opts.append(discord.SelectOption(label=f"{seed.player.ch_name} ({seed.seed})", value=auuid, description=f"@{self.match.seeding.player.name}"))
 		super().__init__(placeholder="Round Winner", max_values=1, options=opts, custom_id="roundwin_sel", disabled=self.dis)
 
 	async def callback(self, interaction: discord.Integration):
@@ -188,8 +188,7 @@ class PlayerSelect(discord.ui.Select):
 		async for seed in self.match.group.seeding.select_related('player').all():
 			if seed.player.is_active:
 				self.retOpts[str(seed.user.id)] = seed
-				mem = await self.match.guild.fetch_member(seed.user.id)
-				seeding.append(discord.SelectOption(label=str(seed), value=str(seed.user.id), description=f"@{mem.display_name}"))
+				seeding.append(discord.SelectOption(label=str(seed), value=str(seed.user.id), description=f"@{seed.player.name}"))
 		plys = self.match.ruleset.num_players
 		super().__init__(placeholder="Players", min_values=plys, max_values=plys, options=seeding, custom_id="player_sel")
 
