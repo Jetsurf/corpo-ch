@@ -10,7 +10,6 @@ class DiscordBackend(ModelBackend):
 		except UserModel.DoesNotExist:
 			check_user = UserModel.objects.create_new_discord_user(user)
 		else:
-			check_user.username = user.global_name if user.global_name else user.display_name
 			check_user.global_name = user.global_name if user.global_name else user.display_name
 			check_user.avatar = user.avatar
 			check_user.public_flags = user.public_flags
