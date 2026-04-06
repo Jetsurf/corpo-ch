@@ -29,6 +29,7 @@ class DiscordUserAdmin(admin.ModelAdmin):
 	list_display = ('_avatar', 'id', 'global_name')
 	readonly_fields = ['global_name', 'mfa_enabled', '_id', 'avatar', 'locale', 'flags', 'public_flags', 'last_login', 'date_joined']
 	exclude = ['password', 'first_name', 'last_name', 'email', 'username']
+	search_fields = ['id']
 	actions = ['update_discord_user']
 
 	def _id(self, obj):

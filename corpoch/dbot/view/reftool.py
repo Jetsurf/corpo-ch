@@ -302,7 +302,7 @@ class DiscordMatchView(discord.ui.View):
 			return True
 		try:
 			self.match.matchDb.players.get(player__user__id=interaction.user.id)
-		except TournamentPlayer.DoesNotExist:
+		except GroupSeed.DoesNotExist:
 			await interaction.response.send_message("You are not the ref for, nor a player in this match!", ephemeral=True, delete_after=10)
 			return False
 
