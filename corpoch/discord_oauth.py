@@ -15,17 +15,20 @@ class AuthError(Exception):
 		super().__init__(msg)
 
 class Auth(Session):
-	BASE, HEADERS = "https://discord.com/api/v9/", {'Content-Type': 'application/x-www-form-urlencoded'}
+	BASE, HEADERS = "https://discord.com/api/v10/", {'Content-Type': 'application/x-www-form-urlencoded'}
 
-	def __init__(self, code=None,*args, **kwargs) -> None:
-		self.__data = { "client_id": client_id,	"client_secret": client_secret,	"grant_type": "authorization_code",	"code": code, "redirect_uri": redirect_uri,	}
-		self.__token = ""
-		self.__refresh_token = ""
+	def __init__(self, code=None, access_token=None, refresh_token=None, *args, **kwargs) -> None:
+		if not code:
+			self.__data = { "client_id": client_id,	"client_secret": client_secret,	"grant_type": "refresh_token",	"refresh_token": refresh_token, "redirect_uri": redirect_uri, }
+			self.__token = access_token
+			self.__refresh_token = refresh_token
+		else:
+			self.__data = { "client_id": client_id,	"client_secret": client_secret,	"grant_type": "authorization_code",	"code": code, "redirect_uri": redirect_uri,	}
+			self.__token = ""
+			self.__refresh_token = ""
 		super().__init__(*args, **kwargs)
 	
 	def __exchange_code(self) -> str:
-		if not self.__data['code']:
-			raise AuthError("Code undefined, if you have AuthToken use from user or guilds method")
 		response = self.post(self.BASE + "oauth2/token", data=self.__data, headers=self.HEADERS)
 		if response.status_code == 200:
 			json = response.json()

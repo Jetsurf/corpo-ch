@@ -3,8 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest
 from django.shortcuts import redirect, render
 
-from corpoch.discord_oauth.DiscordOAuth import *
-from corpoch.models import Match, DiscordUser, DiscordToken
+from corpoch.discord_oauth import *
 
 def null(request: HttpRequest):
   return redirect("home")
@@ -32,7 +31,7 @@ def auth(request: HttpRequest):
 
 def user(request: HttpRequest):
 	access_token = request.session.get("access_token")
-	refresh_token = request.session["refresh_token"]
+	refresh_token = request.session.get("refresh_token")
 	if access_token:
 		OAuth = Auth()
 		try:
@@ -43,7 +42,7 @@ def user(request: HttpRequest):
 		url = request.build_absolute_uri().split("/")
 		url.pop()
 		return redirect("/".join([i for i in url]))
-
+	from corpoch.models import DiscordUser, DiscordToken
 	if context:
 		discord_user = authenticate(request, user=context['user'])
 		if not isinstance(discord_user, DiscordUser):
@@ -71,7 +70,7 @@ def livematches(request: HttpRequest):
 def update_livematches(request: HttpRequest):
 	selected_ids = request.GET.getlist('selected_matches')
 	client_match_ids = request.GET.get('current_match_ids', '')
-
+	from corpoch.models import Match
 	all_ongoing = list(filter(lambda match: match.ongoing, Match.objects.all()))
 	current_match_ids = ",".join([str(m.id) for m in all_ongoing])
 
