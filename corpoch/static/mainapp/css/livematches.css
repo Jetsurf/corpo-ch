@@ -52,7 +52,7 @@ main {
 	width: 100%;
 }
 
-.player-table {
+.header-table {
 	color: var(--text-color);
 	border: none;
 	font-size: 2.5rem;
@@ -91,20 +91,20 @@ main {
 	text-align: center;
 }
 
-.header-highseed {
+.header-left {
 	width: 50%;
 	text-align: right;
 }
 
-.header-lowseed {
-	width: 50%;
-	text-align: left;
-}
-
-.header-vs {
+.header-middle {
 	padding-left: 1rem;
 	padding-right: 1rem;
 	text-align: center;
+}
+
+.header-right {
+	width: 50%;
+	text-align: left;
 }
 
 .header-player1 { width: 95% / 7%; }
