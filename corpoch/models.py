@@ -529,6 +529,28 @@ class Match(models.Model):
 		self.tournament.config.version
 
 	@property
+	def high_seed_score(self):
+		if self.high_seed and self.low_seed:
+			score = 0
+			for round in self.rounds:
+				if round.winner_id and round.winner_id == self.high_seed.player_id:
+					score += 1
+			return score
+		else:
+			return 0
+		
+	@property
+	def low_seed_score(self):
+		if self.high_seed and self.low_seed:
+			score = 0
+			for round in self.rounds:
+				if round.winner_id and round.winner_id == self.low_seed.player_id:
+					score += 1
+			return score
+		else:
+			return 0
+
+	@property
 	def score(self):
 		if self.high_seed and self.low_seed:
 			score1 = 0
