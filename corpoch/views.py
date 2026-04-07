@@ -59,6 +59,7 @@ def user(request: HttpRequest):
 	return render(request, "user.html", context=context)
 
 def livematches(request: HttpRequest):
+	from corpoch.models import Match
 	matches = list(filter(lambda match: match.ongoing, Match.objects.all()))
 	current_match_ids = ",".join([str(m.id) for m in matches])
 	
