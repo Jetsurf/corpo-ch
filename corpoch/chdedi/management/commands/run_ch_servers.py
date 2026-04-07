@@ -2,6 +2,7 @@ import asyncio, atexit, os, psutil, signal, sys
 from contextlib import chdir
 
 from django.core.management.base import BaseCommand
+from django.db import close_old_connections
 
 from subprocess_monitor import SubprocessMonitor
 
@@ -51,6 +52,7 @@ class CHManager:
 				else:
 					await self.run(server)
 		while True:
+			close_old_connections()
 			async for server in self.global_config.to_restart.all():
 				await self.restart(server)
 				self.global_config.to_restart.remove(server)

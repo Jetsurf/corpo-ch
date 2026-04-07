@@ -79,6 +79,7 @@ class CorpoDbot(commands.Bot):
 
 	@tasks.loop(seconds=1.0)
 	async def poll_queue(self):
+		close_old_connections()
 		message_avail = True
 		while message_avail:
 			try:
@@ -88,9 +89,11 @@ class CorpoDbot(commands.Bot):
 				message_avail = False
 		if not bot_tasks.run_tasks.is_running():
 			bot_tasks.run_tasks.start(self)
+		close_old_connections()
 
 	@tasks.loop(seconds=300)
 	async def switch_status(self):
+		close_old_connections()
 		from corpoch.models import Match, QualifierSubmission, MatchRound
 		matches = Match.objects.all().filter(complete=False)
 		if len(matches) > 0:
@@ -105,6 +108,7 @@ class CorpoDbot(commands.Bot):
 			elif rand == 2:
 				activity = discord.Game(f"{len(QualifierSubmission.objects.all())} Tracked Qualifier Submissions")
 		await self._bot.change_presence(status=discord.Status.online, activity=activity)
+		close_old_connections()
 
 	async def close(self):
 		self.switch_status.stop()
