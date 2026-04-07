@@ -8,6 +8,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 BASE_URL = os.getenv("BASE_URL")
 ALLOWED_HOSTS = [ BASE_URL ]
+
 CSRF_TRUSTED_ORIGINS=[f"https://{BASE_URL}"]
 SALT_KEY = os.getenv("DB_CRYPT_KEY")
 SECRET_KEY = os.getenv("BOT_SECRET")
@@ -109,10 +110,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 REST_FRAMEWORK = {
 	'DEFAULT_AUTHENTICATION_CLASSES': [],
-	'DEFAULT_PERMISSION_CLASSES': [],
-	#'DEFAULT_PERMISSION_CLASSES': [
-	#    'rest_framework.permissions.IsAuthenticatedOrReadOnly',
-	#]
+	'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.IsAuthenticatedOrReadOnly'],
 }
 
 # Internationalization
