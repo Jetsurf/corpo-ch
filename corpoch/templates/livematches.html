@@ -18,17 +18,41 @@
 {% block content %}
 <main>
 	<div class="control-panel">
-		<label for="match-selector" class="match-selection-label">Filter Matches:</label></br>
-		<select id="match-selector" 
-			name="selected_matches" 
-			class="match-selection" 
-			multiple>
-			{% for match in matches %}
-			<option value="{{ match.id }}">
-				{{ match.high_seed.player_ch_name }} vs {{ match.low_seed.player_ch_name }}
-			</option>
-			{% endfor %}
-		</select>
+		<div class="match-selection">
+			<label for="match-selector" class="match-selection-label">Filter Matches:</label></br>
+			<select id="match-selector" 
+				name="selected_matches" 
+				class="match-selection" 
+				multiple>
+				{% for match in matches %}
+				<option value="{{ match.id }}">
+					{{ match.high_seed.player_ch_name }} vs {{ match.low_seed.player_ch_name }}
+				</option>
+				{% endfor %}
+			</select>
+		</div>
+		<div class="color-selection">
+			<label for="color-selector" class="color-selection-label">Customize Theme:</label>
+			<div id="color-selection">
+				<div class="color-selector-group">
+					<label for="color-bg" class="color-selector-label">Background</label>
+					<input type="color" class="color-selector" id="color-bg" value="#31005b" title="Choose background color">
+					<button id="reset-background" class="reset-button">Reset</button>
+				</div>
+				<br>
+				<div class="color-selector-group">
+					<label for="color-text" class="color-selector-label">Text</label>
+					<input type="color" class="color-selector" id="color-text" value="#ffffff" title="Choose text color">
+					<button id="reset-text" class="reset-button">Reset</button>
+				</div>
+				<br>
+				<div class="color-selector-group">
+					<label for="color-border" class="color-selector-label">Borders</label>
+					<input type="color" class="color-selector" id="color-border" value="#000000" title="Choose border color">
+					<button id="reset-border" class="reset-button">Reset</button>
+				</div>
+			</div>
+		</div>
 	</div>
 
 	<div id="match-display-area"
@@ -43,6 +67,57 @@
 {% endblock %}
 {% block js %}
 <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+<script>
+	document.addEventListener("DOMContentLoaded", function() {
+		const root = document.documentElement;
+		
+		const themeConfigs = [
+			{ id: 'color-bg', varName: '--color-bg', default: '#31005b' },
+			{ id: 'color-text', varName: '--color-text', default: '#ffffff' },
+			{ id: 'color-border', varName: '--color-border', default: '#000000' }
+		];
+
+		themeConfigs.forEach(config => {
+			const inputElement = document.getElementById(config.id);
+			const savedColor = localStorage.getItem(config.varName);
+			
+			if (savedColor) {
+				root.style.setProperty(config.varName, savedColor);
+				inputElement.value = savedColor;
+			}
+
+			inputElement.addEventListener('input', function(e) {
+				const newColor = e.target.value;
+				root.style.setProperty(config.varName, newColor);
+				localStorage.setItem(config.varName, newColor);
+			});
+		});
+
+		document.getElementById('reset-background').addEventListener('click', function() {
+			let config = themeConfigs[0];
+			const inputElement = document.getElementById(config.id);
+			root.style.setProperty(config.varName, config.default);
+			inputElement.value = config.default;
+			localStorage.removeItem(config.varName);
+		});
+		
+		document.getElementById('reset-text').addEventListener('click', function() {
+			let config = themeConfigs[1];
+			const inputElement = document.getElementById(config.id);
+			root.style.setProperty(config.varName, config.default);
+			inputElement.value = config.default;
+			localStorage.removeItem(config.varName);
+		});
+		
+		document.getElementById('reset-border').addEventListener('click', function() {
+			let config = themeConfigs[2];
+			const inputElement = document.getElementById(config.id);
+			root.style.setProperty(config.varName, config.default);
+			inputElement.value = config.default;
+			localStorage.removeItem(config.varName);
+		});
+	});
+</script>
 {% endblock %}
 </body>
 </html>
