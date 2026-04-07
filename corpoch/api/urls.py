@@ -29,15 +29,20 @@ schema_view = get_schema_view(
 )
 
 router = routers.DefaultRouter()
+router.register(r"tournaments", views.TournamentViewSet)
+router.register(r"brackets", views.BracketViewSet)
 router.register(r"discord/users", views.DiscordUserViewSet)
 router.register(r"discord/guilds", views.DiscordGuildViewSet)
 router.register(r"discord/channels", views.DiscordChannelViewSet)
 router.register(r"discord/roles", views.DiscordRoleViewSet)
 router.register(r"matches", views.MatchViewSet)
 router.register(r"players", views.TournamentPlayerViewSet)
-router.register(r"brackets", views.BracketViewSet)
 router.register(r"groups", views.GroupViewSet)
 router.register(r"seeding", views.GroupSeedViewSet)
+router.register(r"chart", views.ChartViewSet)
+router.register(r"chart/icon", views.CHIconViewSet)
+router.register(r"qualifiers", views.QualifierViewSet)
+router.register(r"qualifiers/submissions", views.QualifierSubmissionViewSet)
 
 urlpatterns = [
 	path("", include(router.urls)),

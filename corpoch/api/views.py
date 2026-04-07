@@ -1,4 +1,7 @@
-from django.contrib.auth.models import Group, User
+from datetime import timedelta
+
+from django.utils import timezone
+
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import api_view
 
@@ -53,6 +56,34 @@ class DiscordRoleViewSet(viewsets.ModelViewSet):
 		try:
 			return dbotmodels.Roles.objects.get(id=role.id)
 		except dbotmodels.Roles.DoesNotExist:
+			return None
+
+class TournamentViewSet(viewsets.ModelViewSet):
+	"""
+	API endpoint that gets and edits Tournaments.
+	"""
+	queryset = corpomodels.Tournament.objects.all().order_by("id")
+	serializer_class = serializers.TournamentSerializer
+
+	@api_view
+	def get_match(self, chart: corpomodels.Tournament) -> corpomodels.Tournament | None:
+		try:
+			return corpomodels.Tournament.objects.get(id=chart.id)
+		except corpomodels.Tournament.DoesNotExist:
+			return None
+
+class BracketRulesViewSet(viewsets.ModelViewSet):
+	"""
+	API endpoint that gets and edits Bracket Rules.
+	"""
+	queryset = corpomodels.BracketRules.objects.all()
+	serializer_class = serializers.BracketRulesSerializer
+
+	@api_view
+	def get_bracket(self, bracket: corpomodels.BracketRules) -> corpomodels.BracketRules | None:
+		try:
+			return corpomodels.BracketRules.objects.get(bracket__id=bracket.id)
+		except corpomodels.Bracket.DoesNotExist:
 			return None
 
 class BracketViewSet(viewsets.ModelViewSet):
@@ -111,6 +142,34 @@ class MatchViewSet(viewsets.ModelViewSet):
 		except corpomodels.Match.DoesNotExist:
 			return None
 
+class CHIconViewSet(viewsets.ModelViewSet):
+	"""
+	API endpoint that gets and edits Chart Icons.
+	"""
+	queryset = corpomodels.CHIcon.objects.all()
+	serializer_class = serializers.CHIconSerializer
+
+	@api_view
+	def get_match(self, match: corpomodels.CHIcon) -> corpomodels.CHIcon | None:
+		try:
+			return corpomodels.CHIcon.objects.get(id=match.id)
+		except corpomodels.CHIcon.DoesNotExist:
+			return None
+
+class ChartViewSet(viewsets.ModelViewSet):
+	"""
+	API endpoint that gets and edits Charts.
+	"""
+	queryset = corpomodels.Chart.objects.all().filter(brackets__revealed=True).order_by("id")
+	serializer_class = serializers.ChartSerializer
+
+	@api_view
+	def get_match(self, chart: corpomodels.Chart) -> corpomodels.Chart | None:
+		try:
+			return corpomodels.Chart.objects.get(id=chart.id, brackets__revealed=True)
+		except corpomodels.Chart.DoesNotExist:
+			return None
+
 class TournamentPlayerViewSet(viewsets.ModelViewSet):
 	"""
 	API endpoint that gets and edits Players.
@@ -123,4 +182,32 @@ class TournamentPlayerViewSet(viewsets.ModelViewSet):
 		try:
 			return TournamentPlayer.objects.get(id=player.id)
 		except TournamentPlayer.DoesNotExist:
+			return None
+
+class QualifierSubmissionViewSet(viewsets.ModelViewSet):
+	"""
+	API endpoint that gets and edits Tournament Qualifier Submissions for finished Qualifiers.
+	"""
+	queryset = corpomodels.QualifierSubmission.objects.all().filter(qualifier__end_time__lt=timezone.now() + timedelta(hours=2)).order_by("-submit_time")
+	serializer_class = serializers.QualifierSubmissionSerializer
+
+	@api_view
+	def get_match(self, qualisub: corpomodels.QualifierSubmission) -> corpomodels.QualifierSubmission | None:
+		try:
+			return corpomodels.Qualifier.objects.get(id=qualisub.id)
+		except corpomodels.Qualifier.DoesNotExist:
+			return None
+
+class QualifierViewSet(viewsets.ModelViewSet):
+	"""
+	API endpoint that gets and edits Tournament Qualifiers.
+	"""
+	queryset = corpomodels.Qualifier.objects.all().order_by("id")
+	serializer_class = serializers.QualifierSerializer
+
+	@api_view
+	def get_match(self, quali: corpomodels.Qualifier) -> corpomodels.Qualifier | None:
+		try:
+			return corpomodels.Qualifier.objects.get(id=quali.id)
+		except corpomodels.Qualifier.DoesNotExist:
 			return None

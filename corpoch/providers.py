@@ -299,6 +299,10 @@ class GSheets():
 				ws = self.setup_qualifier_sheet()
 		elif isinstance(self._submission, Match):
 			try:
+				ws = self._sheet.worksheet((f"{self._submission.tournament.short_name} - Bans Data")) 
+			except gspread.exceptions.WorksheetNotFound:
+				ws = self.setup_bans_sheet()
+			try:
 				ws = self._sheet.worksheet((f"{self._submission.tournament.short_name} - Match Data"))
 			except gspread.exceptions.WorksheetNotFound:
 				ws = self.setup_completed_sheet()
@@ -308,23 +312,46 @@ class GSheets():
 	def setup_qualifier_sheet(self) -> gspread.Worksheet:
 		print(f"Creating qualifier {self._submission.qualifier} worksheet in sheet {self._url}")
 		if not self._final:
-			ws = self._sheet.add_worksheet(title=f"{self._submission.qualifier} - Data", rows=1, cols=12)
+			ws = self._sheet.add_worksheet(title=f"{self._submission.qualifier} - Data", rows=1, cols=13)
 		else:
-			ws = self._sheet.add_worksheet(title=f"{self._submission.qualifier} - Final Top Scores", rows=1, cols=12)
-		ws.update([["Qualifier ID", "Discord Name", "Clone Hero Name", "Score", "Notes Missed", "Notes Hit", "Overstrums", "Ghosts", "Phrases Hit", "Submission Timestamp", "Screenshot Timestamp", "Screenshot", "Game Version" ]], "A1:M1")
-		ws.format("A1:M1", self._format_header)
+			ws = self._sheet.add_worksheet(title=f"{self._submission.qualifier} - Final Top Scores", rows=1, cols=13)
+		ws.update([["Qualifier ID", "Discord Name", "Clone Hero Name", "Score", "Notes Missed", "Notes Hit", "Is FC", "Overstrums", "Ghosts", "Phrases Hit", "Submission Timestamp", "Screenshot Timestamp", "Screenshot", "Game Version" ]], "A1:N1")
+		
+		ws.format("A1:N1", self._format_header)
 		#ws.freeze("A1:M1")
 		#TODO - Add any graphs/viewables that'd be nice to add
 		return ws
 
 	def setup_completed_sheet(self) -> bool:
 		print(f"Creating Match Air Table {self._submission.tournament} worksheet in sheet {self._url}")
-		ws = self._sheet.add_worksheet(title=f"{self._submission.tournament.short_name} - Match Data", rows=1, cols=16)
-		ws.update([["Match ID", "Bracket", "Group", "Match", "PickSong", "Song", "Player", "Score", "W/L",  "Notes Missed", "Notes Hit", "Overstrums", "Ghosts", "Phrases Hit", "imestamp", "Screenshot"]], "A1:P1")
-		ws.format("A1:P1", self._format_header)
+		ws = self._sheet.add_worksheet(title=f"{self._submission.tournament.short_name} - Match Data", rows=1, cols=17)
+		ws.update([["Match ID", "Bracket", "Group", "Match", "PickSong", "Song", "Player", "Score", "W/L",  "Notes Missed", "Notes Hit", "Is FC", "Overstrums", "Ghosts", "Phrases Hit", "Timestamp", "Screenshot"]], "A1:Q1")
+		ws.format("A1:Q1", self._format_header)
 		#ws.freeze("A1:P1")
 		#TODO - Add "the live table formatting/formulas for the viewable worksheets
 		return ws
+
+	def setup_bans_sheet(self) -> bool:
+		print(f"Creating Match Air Table {self._submission.tournament} worksheet in sheet {self._url}")
+		ws = self._sheet.add_worksheet(title=f"{self._submission.tournament.short_name} - Bans Data", rows=1, cols=6)
+		ws.update([["Match ID", "Bracket", "Group", "Match", "Player", "Ban"]], "A1:F1")
+		ws.format("A1:F1", self._format_header)
+		#ws.freeze("A1:P1")
+		#TODO - Add "the live table formatting/formulas for the viewable worksheets
+		return ws
+
+	def _switch_match_sheet(self):
+		"""
+		Private function to switch between Match data worksheet and Bans data Worksheet
+		"""
+		if "Bans Data" in self._ws.title:
+			name = f"{self._submission.tournament.short_name} - Match Data"
+		else:
+			name = f"{self._submission.tournament.short_name} - Bans Data"
+		try:
+			self._ws = self._sheet.worksheet((name))
+		except gspread.exceptions.WorksheetNotFound:
+			self._ws = self.setup_completed_sheet()
 
 	def submit_qualifier(self):
 		self._ws.append_row(self.qualifier_line, value_input_option="USER_ENTERED")
@@ -333,6 +360,8 @@ class GSheets():
 
 	def submit_completed(self) -> bool:
 		self._ws.append_rows(self.completed_lines, value_input_option="USER_ENTERED")
+		self._switch_match_sheet()
+		self._ws.append_rows(self.ban_lines)
 
 	def update_qualifier(self):
 		cell = self._ws.find(self._submission.id)
@@ -350,6 +379,7 @@ class GSheets():
 		score = self._submission.steg.players[0].score
 		missed = self._submission.steg.players[0].notes_missed
 		hit = self._submission.steg.players[0].notes_hit
+		fc = self._submission.steg.players[0].is_fc
 		excess = self._submission.steg.players[0].excess_hits
 		ghosts = self._submission.steg.players[0].frets_ghosted
 		phrases = self._submission.steg.players[0].sp_phrases_earned
@@ -357,7 +387,7 @@ class GSheets():
 		screenshotTimestamp = f"{self._submission.steg.score_timestamp.strftime('%Y-%m-%d %H:%M:%S')}-UTC"
 		link = f'=HYPERLINK("https://{settings.BASE_URL}{self._submission.screenshot.url}", "Screenshot Link")'
 		gameVer = self._submission.qualifier.tournament.config.version
-		return [qid, self._submission.player.name, chName, score, missed, hit, excess, ghosts, phrases, submissionTimestamp, screenshotTimestamp, link, gameVer]
+		return [qid, self._submission.player.name, chName, score, missed, hit, fc, excess, ghosts, phrases, submissionTimestamp, screenshotTimestamp, link, gameVer]
 
 	@property
 	def completed_lines(self):
@@ -370,7 +400,7 @@ class GSheets():
 			for ply in rnd.steg.players:
 				picked = str(rnd.picked.ch_name) if rnd.picked else '"Ref"'
 				song = rnd.chart.tournament_name
-				chName = ply.profile_name
+				chName = ply.profile_name #This should probably switch to tournament player.ch_name
 				score = ply.score
 				if rnd.winner.check_ch_name(chName):
 					wl = "W"
@@ -378,10 +408,25 @@ class GSheets():
 					wl = "L"
 				missed = ply.notes_missed
 				hit = ply.notes_hit
+				phrases = ply.sp_phrases_earned
+				fc = ply.is_fc
 				excess = ply.excess_hits
 				ghosts = ply.frets_ghosted
 				phrases = ply.sp_phrases_earned
 				ts = f"{rnd.created.strftime('%Y-%m-%d %H:%M:%S')}-UTC"
 				link = f'=HYPERLINK("https://{settings.BASE_URL}{rnd.screenshot.url}", "Screenshot Link")'
-				retLines.append([matchId, bracket, group, match, picked, song, chName, score, wl, missed, hit, excess, ghosts, phrases, ts, link])
+				retLines.append([matchId, bracket, group, match, picked, song, chName, score, wl, missed, hit, fc, excess, ghosts, phrases, ts, link])
+		return retLines
+
+	@property
+	def ban_lines(self):
+		retLines = []
+		matchId = self._submission.id
+		bracket = str(self._submission.bracket)
+		group = str(self._submission.group)
+		match = self._submission.short_name
+		for ban in self._submission.match_bans.all():
+			ply = ban.player.player_ch_name
+			chart = ban.chart.tournament_name
+			retLines.append([matchId, bracket, group, match, ply, chart])
 		return retLines
