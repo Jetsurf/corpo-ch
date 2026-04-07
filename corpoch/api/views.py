@@ -118,7 +118,7 @@ class GroupSeedViewSet(viewsets.ModelViewSet):
 	"""
 	API endpoint that gets GroupSeed objects, which are a Players seeding for a specific tournament group.
 	"""
-	queryset = corpomodels.GroupSeed.objects.all().order_by("id")
+	queryset = corpomodels.GroupSeed.objects.all().order_by("seed")
 	serializer_class = serializers.GroupSeedSerializer
 
 	@api_view

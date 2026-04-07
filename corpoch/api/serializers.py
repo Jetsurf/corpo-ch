@@ -30,6 +30,11 @@ class TournamentSerializer(serializers.ModelSerializer):
         model = corpomodels.Tournament
         fields = '__all__'
 
+class TournamentPlayerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = corpomodels.TournamentPlayer
+        fields = '__all__'
+
 class BracketRulesSerializer(serializers.ModelSerializer):
     class Meta:
         model = corpomodels.BracketRules
@@ -42,14 +47,16 @@ class BracketSerializer(serializers.ModelSerializer):
         model = corpomodels.Bracket
         fields = '__all__'
 
-class GroupSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = corpomodels.Group
-        fields = '__all__'
-
 class GroupSeedSerializer(serializers.ModelSerializer):
+    player = TournamentPlayerSerializer()
     class Meta:
         model = corpomodels.GroupSeed
+        fields = '__all__'
+
+class GroupSerializer(serializers.ModelSerializer):
+    seeding = GroupSeedSerializer(many=True)
+    class Meta:
+        model = corpomodels.Group
         fields = '__all__'
 
 class MatchBanSerializer(serializers.ModelSerializer):
@@ -61,11 +68,6 @@ class MatchRoundSerializer(serializers.ModelSerializer):
     steg = SchemaField(StegScreenshot)
     class Meta:
         model = corpomodels.MatchRound
-        fields = '__all__'
-
-class TournamentPlayerSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = corpomodels.TournamentPlayer
         fields = '__all__'
 
 class MatchSerializer(serializers.ModelSerializer):

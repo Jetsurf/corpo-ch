@@ -39,15 +39,18 @@ class GSheetAPI(SingletonModel):
 		verbose_name = "Google Sheets API"
 
 class DiscordUser(AbstractUser):
+	"""
+	Represents a Discord User. 
+	"""
 	objects = DiscordOAuth2Manager()
-	id = models.BigIntegerField(primary_key=True, unique=True)
-	global_name = models.CharField(max_length=255, null=True, blank=True)
-	public_flags = models.IntegerField(null=True, blank=True)
+	id = models.BigIntegerField(primary_key=True, unique=True, help_text="Discord snowflake ID of user.")
+	global_name = models.CharField(max_length=255, null=True, blank=True, help_text="Global or display name used on the account.")
+	public_flags = models.IntegerField(null=True, blank=True, help_text="Discord account badge/flag's.")
 	flags = models.IntegerField(null=True, blank=True)
-	avatar = models.CharField(max_length=255, null=True, blank=True)
-	locale = models.CharField(max_length=255, null=True, blank=True)
-	mfa_enabled = models.BooleanField(default=False)
-	last_login = models.DateTimeField(null=True, blank=True)
+	avatar = models.CharField(max_length=255, null=True, blank=True, help_text="URL of users discord avatar.")
+	locale = models.CharField(max_length=255, null=True, blank=True, help_text="Users's Discord locale")
+	mfa_enabled = models.BooleanField(default=False, help_text="Does user have MFA enabled for their Discord account.")
+	last_login = models.DateTimeField(null=True, blank=True, help_text="User's last login time.")
 
 	username = None
 	USERNAME_FIELD = 'id'
@@ -68,8 +71,11 @@ class DiscordToken(models.Model):
 		return f"self.discord_user.global_name"
 
 class CHIcon(models.Model):
-	name = models.CharField(verbose_name="Name", blank=False, max_length=32, default="newicon", primary_key=True)
-	img = models.ImageField(upload_to="chicons/", verbose_name="Image", null=True, blank=True)
+	"""
+	Represents an Icon for a chart used in a Tournament. 
+	"""
+	name = models.CharField(verbose_name="Name", blank=False, max_length=32, default="newicon", primary_key=True, help_text="The icon name.")
+	img = models.ImageField(upload_to="chicons/", verbose_name="Image", null=True, blank=True, help_text="URL of the chart icon.")
 
 	class Meta:
 		verbose_name = "Chart Icon"
@@ -83,23 +89,26 @@ class CHIcon(models.Model):
 		return self.discord if self.discord else None
 
 class Chart(models.Model):
-	id = models.AutoField(primary_key=True)
-	name = models.CharField(verbose_name="Chart Name", max_length=256, blank=True)
-	artist = models.CharField(verbose_name="Artist", max_length=256, blank=True)
-	album = models.CharField(verbose_name="Album", max_length=256, blank=True)
-	charter = models.CharField(verbose_name="Charter", max_length=32, blank=True)
-	tiebreaker = models.BooleanField(verbose_name="Tiebreaker", default=False)
-	difficulty = models.CharField(verbose_name="Difficulty", choices=CH_DIFFICULTIES, max_length=16, default=CH_DIFFICULTIES[0][0])
+	"""
+	Represents a Chart for a Bracket setlist or Qualifier. 
+	"""
+	id = models.AutoField(primary_key=True, help_text="Internal ID of a chart.")
+	name = models.CharField(verbose_name="Chart Name", max_length=256, blank=True, help_text="Name of the chart.")
+	artist = models.CharField(verbose_name="Artist", max_length=256, blank=True, help_text="Artist of the song.")
+	album = models.CharField(verbose_name="Album", max_length=256, blank=True, help_text="Album the song is from.")
+	charter = models.CharField(verbose_name="Charter", max_length=32, blank=True, help_text="Author of a chart.")
+	tiebreaker = models.BooleanField(verbose_name="Tiebreaker", default=False, help_text="Is this chart a tiebreaker in a setlist.")
+	difficulty = models.CharField(verbose_name="Difficulty", choices=CH_DIFFICULTIES, max_length=16, default=CH_DIFFICULTIES[0][0], help_text="Difficulty this chart is to be played on.")
 	instrument = models.CharField(verbose_name="Instrument", choices=CH_INSTRUMENTS, max_length=32, default=CH_INSTRUMENTS[0][0])
-	modifiers = MultiSelectField("Modifiers", choices=CH_MODIFIERS, default=CH_MODIFIERS[0][0])
-	speed = models.PositiveIntegerField(verbose_name="Speed", validators=[MinValueValidator(5), MaxValueValidator(1000)], default=100)
+	modifiers = MultiSelectField("Modifiers", choices=CH_MODIFIERS, default=CH_MODIFIERS[0][0], help_text="Modifiers expected to be used.")
+	speed = models.PositiveIntegerField(verbose_name="Speed", validators=[MinValueValidator(5), MaxValueValidator(1000)], default=100, help_text="Expected playback speed.")
 	category = models.CharField(verbose_name="Chart Category", choices=CHART_CATEGORIES, max_length=16, default=CHART_CATEGORIES[0][0])#This needs to be choices
-	brackets = models.ManyToManyField("Bracket", related_name="setlist", verbose_name="Bracket Setlist", blank=True)
-	md5 = models.CharField(verbose_name="MD5 Hash", max_length=32, blank=True)
-	blake3 = models.CharField(verbose_name="Blake3 Hash", max_length=32, blank=True)
-	url = models.URLField(verbose_name="Chart URL", blank=True)
-	icon = models.ForeignKey(CHIcon, related_name="charts", verbose_name="CH Icon", null=True, blank=True, on_delete=models.SET_NULL)
-	sngfile = models.FileField(upload_to="sngfiles/", validators=[validate_chart_file], verbose_name="SNG File", null=True, blank=True)
+	brackets = models.ManyToManyField("Bracket", related_name="setlist", verbose_name="Bracket Setlist", blank=True, help_text="Bracket setlists this chart is used in.")
+	md5 = models.CharField(verbose_name="MD5 Hash", max_length=32, blank=True, help_text="The md5sum of the notes.chart/mid file. Used for steg verification.")
+	blake3 = models.CharField(verbose_name="Blake3 Hash", max_length=32, blank=True, help_text="The Encore blake3 hash for a chart to import.")
+	url = models.URLField(verbose_name="Chart URL", blank=True, help_text="URL this chart is available at.")
+	icon = models.ForeignKey(CHIcon, related_name="charts", verbose_name="CH Icon", null=True, blank=True, on_delete=models.SET_NULL, help_text="The in-game setlist icon for the chart.")
+	sngfile = models.FileField(upload_to="sngfiles/", validators=[validate_chart_file], verbose_name="SNG File", null=True, blank=True, help_text="The chart file. Stored as .sng but available as old .chart format.")
 
 	class Meta:
 		verbose_name = "Chart"
@@ -143,12 +152,15 @@ class Chart(models.Model):
 		super().save()
 
 class Tournament(models.Model):
-	id = models.AutoField(primary_key=True)
-	guild = models.ForeignKey("dbot.Guilds", verbose_name="Discord Guild", db_index=True, on_delete=models.SET_NULL, null=True)
-	name = models.CharField(verbose_name="Name", max_length=128, default="New Tournament")
-	short_name = models.CharField(verbose_name="Short Name", max_length=16, default="NT1")
-	role = models.ForeignKey("dbot.Roles", verbose_name="Participant Role", on_delete=models.SET_NULL, null=True, blank=True, db_index=True)
-	active = models.BooleanField(verbose_name="In-Progress", default=False)
+	"""
+	Represents a Clone Hero Tournament. 
+	"""
+	id = models.AutoField(primary_key=True, help_text="Internal ID of a tournament.")
+	guild = models.ForeignKey("dbot.Guilds", verbose_name="Discord Guild", db_index=True, on_delete=models.SET_NULL, null=True, help_text="Discord Guild the tournament is running in.")
+	name = models.CharField(verbose_name="Name", max_length=128, default="New Tournament", help_text="Full name of the tournament.")
+	short_name = models.CharField(verbose_name="Short Name", max_length=16, default="NT1", help_text="Short/abbreviated name for this tournament.")
+	role = models.ForeignKey("dbot.Roles", verbose_name="Participant Role", on_delete=models.SET_NULL, null=True, blank=True, db_index=True, help_text="Discord Role to assign to players in this tournament.")
+	active = models.BooleanField(verbose_name="In-Progress", default=False, help_text="Is tournament active/running.")
 
 	class Meta:
 		verbose_name = "Tournament"
@@ -172,13 +184,16 @@ class Tournament(models.Model):
 		TournamentConfig.objects.get_or_create(tournament=self) if is_new else None
 
 class TournamentConfig(models.Model):
-	id = models.AutoField(primary_key=True)
-	tournament = models.OneToOneField(Tournament, related_name="config", verbose_name="Tournament Configuration", on_delete=models.CASCADE)
-	rules = models.TextField(verbose_name="Rules", max_length=1024, default="Some rules go here")
-	ref_role = models.ForeignKey("dbot.Roles", verbose_name="Discord Ref Role", on_delete=models.SET_NULL, null=True, blank=True)
-	enable_gsheets = models.BooleanField(verbose_name="Gsheets Integration", default=True)
-	gsheet = models.URLField(verbose_name="Match Reporting Google Sheet", null=True, blank=True)
-	version = models.CharField(verbose_name="Clone Hero Version", choices=CH_VERSIONS, max_length=32, default=CH_VERSIONS[0][0])
+	"""
+	Represents a configuration for a Tournament. 
+	"""
+	id = models.AutoField(primary_key=True, help_text="Internal ID of a config.")
+	tournament = models.OneToOneField(Tournament, related_name="config", verbose_name="Tournament Configuration", on_delete=models.CASCADE, help_text="Tournament a configuration is for.")
+	rules = models.TextField(verbose_name="Rules", max_length=1024, default="Some rules go here", help_text="Rules shown to players.")
+	ref_role = models.ForeignKey("dbot.Roles", verbose_name="Discord Ref Role", on_delete=models.SET_NULL, null=True, blank=True, help_text="Discord Role for referee's to start matches.")
+	enable_gsheets = models.BooleanField(verbose_name="GSheets Integration", default=True, help_text="Are GSheets in use for this tournament")
+	gsheet = models.URLField(verbose_name="Match Reporting Google Sheet", null=True, blank=True, help_text="GSheet URL to post match results to.")
+	version = models.CharField(verbose_name="Clone Hero Version", choices=CH_VERSIONS, max_length=32, default=CH_VERSIONS[0][0], help_text="Clone Hero verison the tournament is using.")
 
 	class Meta:
 		verbose_name = "Config"
@@ -188,13 +203,16 @@ class TournamentConfig(models.Model):
 		return f"{self.tournament.name} - Configuration"
 
 class Bracket(models.Model):
-	id = models.AutoField(primary_key=True)
-	name = models.CharField(verbose_name="Bracket Name", max_length=128, default="New Bracket")
-	tournament = models.ForeignKey(Tournament, related_name="brackets", on_delete=models.CASCADE, verbose_name="Tournament")
+	"""
+	Represents a Bracket for a Tournament. 
+	"""
+	id = models.AutoField(primary_key=True, help_text="Internal ID of a bracket.")
+	name = models.CharField(verbose_name="Bracket Name", max_length=128, default="New Bracket", help_text="Name of the bracket")
+	tournament = models.ForeignKey(Tournament, related_name="brackets", on_delete=models.CASCADE, verbose_name="Tournament", help_text="Tournament this bracket is for.")
 	score_log = models.ForeignKey("dbot.Channels", verbose_name="Score Log Channel", on_delete=models.SET_NULL, null=True, blank=True)
-	is_active = models.BooleanField(verbose_name="Bracket Active", default=False)
-	revealed = models.BooleanField("Setlist Revealed", default=False)
-	role = models.ForeignKey("dbot.Roles", verbose_name="Bracket Role", null=True, on_delete=models.SET_NULL, blank=True, db_index=True)
+	is_active = models.BooleanField(verbose_name="Bracket Active", default=False, help_text="Is bracket active/matches are allowed to start.")
+	revealed = models.BooleanField("Setlist Revealed", default=False, help_text="Is the setlist revealed. If True, the charts for a setlist are made available.")
+	role = models.ForeignKey("dbot.Roles", verbose_name="Bracket Role", null=True, on_delete=models.SET_NULL, blank=True, db_index=True, help_text="Discord role to assign to players in this bracket.")
 
 	class Meta:
 		verbose_name = "Bracket"
@@ -212,13 +230,16 @@ class Bracket(models.Model):
 		BracketRules.objects.create(bracket=self) if is_new or not self.ruleset else None
 
 class BracketRules(models.Model):
-	bracket = models.OneToOneField(Bracket, primary_key=True, related_name="ruleset", on_delete=models.CASCADE, verbose_name="Bracket Rules", null=False)
-	num_players = models.PositiveIntegerField(verbose_name="Players", validators=[MinValueValidator(2), MaxValueValidator(4)], default=2)
-	num_bans = models.IntegerField(verbose_name="Bans Per-Player", validators=[MinValueValidator(1), MaxValueValidator(4)], default=1)
-	num_rounds = models.PositiveIntegerField(verbose_name="Best Of", validators=[MinValueValidator(3), MaxValueValidator(25)], default=7)
-	ban_ruleset = models.CharField(verbose_name="Match Bans Ruleset", choices=BAN_RULESETS, max_length=32, default=BAN_RULESETS[0][0])
-	pick_ruleset = models.CharField(verbose_name="'Who Picks' Ruleset", choices=PICK_RULESETS, max_length=32, default=PICK_RULESETS[0][0])
-	tb_ruleset = models.CharField(verbose_name="Tiebreaker Ruleset", choices=TB_RULESETS, max_length=32, default=TB_RULESETS[0][0])
+	"""
+	Represents a Ruleset for a Tournament Bracket. 
+	"""
+	bracket = models.OneToOneField(Bracket, primary_key=True, related_name="ruleset", on_delete=models.CASCADE, verbose_name="Bracket Rules", null=False, help_text="Bracket this ruleset is for.")
+	num_players = models.PositiveIntegerField(verbose_name="Players", validators=[MinValueValidator(2), MaxValueValidator(4)], default=2, help_text="Number of players in a match.")
+	num_bans = models.IntegerField(verbose_name="Bans Per-Player", validators=[MinValueValidator(1), MaxValueValidator(4)], default=1, help_text="Number of bans per-player in a match.")
+	num_rounds = models.PositiveIntegerField(verbose_name="Best Of", validators=[MinValueValidator(3), MaxValueValidator(25)], default=7, help_text="Maximum number of rounds per-match.")
+	ban_ruleset = models.CharField(verbose_name="Match Bans Ruleset", choices=BAN_RULESETS, max_length=32, default=BAN_RULESETS[0][0], help_text="Ruleset to determine how bans work.")
+	pick_ruleset = models.CharField(verbose_name="'Who Picks' Ruleset", choices=PICK_RULESETS, max_length=32, default=PICK_RULESETS[0][0], help_text="Ruleset to determine who picks the next song for a round.")
+	tb_ruleset = models.CharField(verbose_name="Tiebreaker Ruleset", choices=TB_RULESETS, max_length=32, default=TB_RULESETS[0][0], help_text="Ruleset to determine how tiebreakers player.")
 
 	class Meta:
 		verbose_name = "Bracket Rules"
@@ -233,14 +254,13 @@ class BracketRules(models.Model):
 		return self.num_bans * self.num_players
 
 class Group(models.Model):
-	id = models.AutoField(primary_key=True, db_index=True)
-	""" ID of the Group """
-	name = models.CharField(verbose_name="Group Name", max_length=8, default="A")
-	""" Group Name, full name constructed from tournament.short_name + bracket.name """
-	role = models.ForeignKey("dbot.Roles", verbose_name="Group Role", on_delete=models.SET_NULL, null=True, blank=True, db_index=True)
-	""" Discord Role associated with the group """
-	bracket = models.ForeignKey(Bracket, related_name="groups", verbose_name="Bracket", on_delete=models.CASCADE)
-	""" Tournament Bracket the group is a part of """
+	"""
+	Represents a Group in a Bracket for a Tournament. 
+	"""
+	id = models.AutoField(primary_key=True, db_index=True, help_text="The ID of the Group")
+	name = models.CharField(verbose_name="Group Name", max_length=8, default="A", help_text="Group Name, full name constructed from tournament.short_name + bracket.name + group.name")
+	role = models.ForeignKey("dbot.Roles", verbose_name="Group Role", on_delete=models.SET_NULL, null=True, blank=True, db_index=True, help_text="Discord role from Tournament Guild to be assigned to group members",)
+	bracket = models.ForeignKey(Bracket, related_name="groups", verbose_name="Bracket", on_delete=models.CASCADE, help_text="Bracket this Group belongs to")
 
 	class Meta:
 		verbose_name = "Group"
@@ -258,12 +278,15 @@ class Group(models.Model):
 		return f"{self.tournament.short_name} - {self.bracket.name} - {self.name}"
 
 class TournamentPlayer(models.Model):
-	id = models.AutoField(primary_key=True)
-	user = models.ForeignKey(DiscordUser, related_name="tournaments", verbose_name="User", on_delete=models.SET_NULL, db_index=True, blank=True, null=True)
-	name = models.CharField(verbose_name="Server Discord Name", max_length=128, null=True, blank=True) #This is the users tournament guild display name
-	tournament = models.ForeignKey(Tournament, related_name="players", verbose_name="Tournament", on_delete=models.CASCADE)
-	is_active = models.BooleanField(verbose_name="Player Active", default=False)
-	config = SchemaField(PlayerConfig, verbose_name="Player Configuration", blank=True)
+	"""
+	Represents a Player (Tied to a DiscordUser) in a Tournament. 
+	"""
+	id = models.AutoField(primary_key=True, help_text="Internal ID of the Player")
+	user = models.ForeignKey(DiscordUser, related_name="tournaments", verbose_name="User", on_delete=models.SET_NULL, db_index=True, blank=True, null=True, help_text="Discord User for Player")
+	name = models.CharField(verbose_name="Guild Discord Name", max_length=128, null=True, blank=True, help_text="Display name of user in Tournament Guild")
+	tournament = models.ForeignKey(Tournament, related_name="players", verbose_name="Tournament", on_delete=models.CASCADE, help_text="Tournament player signed up for.")
+	is_active = models.BooleanField(verbose_name="Player Active", default=False, help_text="Is player active. False means DNF/Did not enter.")
+	config = SchemaField(PlayerConfig, verbose_name="Player Configuration", blank=True, help_text="JSON Configuration feild for player")
 
 	class Meta:
 		verbose_name = "Player"
@@ -358,10 +381,13 @@ class TournamentPlayer(models.Model):
 		return any(item.ch_name == name_to_find for item in self.config.names_list)
 
 class GroupSeed(models.Model):
-	id = models.AutoField(primary_key=True)
-	seed = models.PositiveIntegerField(blank=False, null=False)
-	group = models.ForeignKey(Group, related_name="seeding", verbose_name="Group Seeding", null=True, on_delete=models.CASCADE)
-	player = models.ForeignKey(TournamentPlayer, related_name="group_seeding", verbose_name="Group Seed", null=True, on_delete=models.SET_NULL)
+	"""
+	Represents a Seeding for a player in a Tournament Group. 
+	"""
+	id = models.AutoField(primary_key=True, help_text="Internal ID for this seed")
+	seed = models.PositiveIntegerField(blank=False, null=False, help_text="Player seed within this group")
+	group = models.ForeignKey(Group, related_name="seeding", verbose_name="Group Seeding", null=True, on_delete=models.CASCADE, help_text="Group this seed is for")
+	player = models.ForeignKey(TournamentPlayer, related_name="group_seeding", verbose_name="Group Seed", null=True, on_delete=models.SET_NULL, help_text='Player with this seeding in the group')
 
 	class Meta:
 		verbose_name = "Seed Placement"
@@ -402,18 +428,21 @@ class GroupSeed(models.Model):
 		return self.player.check_ch_name(testname)
 
 class Qualifier(models.Model):
-	id = models.AutoField(primary_key=True)
-	tournament = models.ForeignKey(Tournament, related_name='qualifier', verbose_name="Tournament", on_delete=models.CASCADE)
-	bracket = models.ForeignKey(Bracket, related_name='qualifier', verbose_name="Bracket", blank=True, null=True, on_delete=models.CASCADE)
-	charts = models.ManyToManyField(Chart, related_name="charts", verbose_name="Qualifier Chart(s)")
-	limit_submissions = models.BooleanField(verbose_name="Limit Submissions to # Required", default=False)
-	required_submissions = models.PositiveIntegerField(verbose_name="Required Submissions", default=1)
-	form_link = models.URLField(verbose_name="Google Form Link", null=True, blank=True)
-	end_time = models.DateTimeField(verbose_name="End Time", default=timezone.now)
-	rules = models.TextField(verbose_name="Rules", max_length=1024, default="Placeholder rules")
-	channel = models.ForeignKey("dbot.Channels", verbose_name="Submission Discord Channel", on_delete=models.SET_NULL, db_index=True, blank=True, null=True)
-	gsheet = models.URLField(verbose_name="Submissions Google Sheet", null=True, blank=True)
-	output = models.BooleanField(verbose_name="Msg On Submission", default=True)
+	"""
+	Represents a Seeding for a player in a Tournament Group. 
+	"""
+	id = models.AutoField(primary_key=True, help_text="Internal ID of this Qualifier")
+	tournament = models.ForeignKey(Tournament, related_name='qualifier', verbose_name="Tournament", on_delete=models.CASCADE, help_text="Tournament this qualifer is for.")
+	bracket = models.ForeignKey(Bracket, related_name='qualifier', verbose_name="Bracket", blank=True, null=True, on_delete=models.CASCADE, help_text="Specific bracket in a tournament this qualifier is for.")
+	charts = models.ManyToManyField(Chart, related_name="charts", verbose_name="Qualifier Chart(s)", help_text="Chart(s) that this qualifier uses.")
+	limit_submissions = models.BooleanField(verbose_name="Limit Submissions to # Required", default=False, help_text="Limit players to single qualifier submission.")
+	required_submissions = models.PositiveIntegerField(verbose_name="Required Submissions", default=1, help_text="If limit_submissions=False, the number of submissions required for a player to qualify.")
+	form_link = models.URLField(verbose_name="Google Form Link", null=True, blank=True, help_text="Google Form link to show players while submitting their qualifier.")
+	end_time = models.DateTimeField(verbose_name="End Time", default=timezone.now, help_text="UTC Time this qualifier ends. +2 hours from this time, the results are allowed in the API.")
+	rules = models.TextField(verbose_name="Rules", max_length=1024, default="Placeholder rules", help_text="Rules shown to players for this qualifier.")
+	channel = models.ForeignKey("dbot.Channels", verbose_name="Submission Discord Channel", on_delete=models.SET_NULL, db_index=True, blank=True, null=True, help_text="Discord Channel users will submit scores in.")
+	gsheet = models.URLField(verbose_name="Submissions Google Sheet", null=True, blank=True, help_text="Google Sheet to submit qualifier scores to.")
+	output = models.BooleanField(verbose_name="Msg On Submission", default=True, help_text="Publically post in discord when user submits a qualifier.")
 
 	class Meta:
 		verbose_name = "Qualifier"
@@ -426,13 +455,16 @@ class Qualifier(models.Model):
 			return f"{self.tournament.short_name}"
 
 class QualifierSubmission(models.Model):
-	id = models.CharField(primary_key=True, verbose_name="Qualifier ID", max_length=40, default=uuid.uuid1)
-	player = models.ForeignKey(TournamentPlayer, related_name="qualifiers", verbose_name="Submittor", on_delete=models.CASCADE)
-	submit_time = models.DateTimeField(verbose_name="Submission Time", auto_now_add=True)
-	screenshot = models.ImageField(upload_to=quali_upload_dir, verbose_name="Screenshot", null=True, blank=True)
-	qualifier = models.ForeignKey(Qualifier, related_name='submissions', verbose_name="Tournament Qualifier", on_delete=models.CASCADE)
-	steg = SchemaField(StegScreenshot, verbose_name="Steg Data", null=True, blank=True)
-	submitted = models.BooleanField(verbose_name="Uploaded to GSheet", default=False)
+	"""
+	Represents a Submission for a qualifier for a Tournament or Bracket. 
+	"""
+	id = models.CharField(primary_key=True, verbose_name="Qualifier ID", max_length=40, default=uuid.uuid1, help_text="UUID of the submission.")
+	player = models.ForeignKey(TournamentPlayer, related_name="qualifiers", verbose_name="Submittor", on_delete=models.CASCADE, help_text="The Player that submitted a qualifier.")
+	submit_time = models.DateTimeField(verbose_name="Submission Time", auto_now_add=True, help_text="Submission timestamp.")
+	screenshot = models.ImageField(upload_to=quali_upload_dir, verbose_name="Screenshot", null=True, blank=True, help_text="The screenshot for a submission.")
+	qualifier = models.ForeignKey(Qualifier, related_name='submissions', verbose_name="Tournament Qualifier", on_delete=models.CASCADE, help_text="Qualifier that a submission was sent for.")
+	steg = SchemaField(StegScreenshot, verbose_name="Steg Data", null=True, blank=True, help_text="Clone Hero screenshot steg data.")
+	submitted = models.BooleanField(verbose_name="Uploaded to GSheet", default=False, help_text="Is submission sent to associated GSheet.")
 
 	class Meta:
 		verbose_name = "Qualifier Submission"
@@ -456,21 +488,24 @@ class QualifierSubmission(models.Model):
 		super().save()
 
 class Match(models.Model):
-	id = models.CharField(primary_key=True, verbose_name="Match ID", max_length=40, default=uuid.uuid1)
-	players = models.ManyToManyField(GroupSeed, related_name="match_players", verbose_name="Players", blank=True)
-	loser = models.ForeignKey(TournamentPlayer, related_name="matches_lost", null=True, blank=True, on_delete=models.SET_NULL)
-	winner = models.ForeignKey(TournamentPlayer, related_name="matches_won", null=True, blank=True, on_delete=models.SET_NULL)
-	defer = models.BooleanField(verbose_name="Deferral Used", default=False)
-	group = models.ForeignKey(Group, related_name='matches', verbose_name="Group", on_delete=models.CASCADE)
-	started_on = models.DateTimeField(verbose_name="Match Start Time", auto_now_add=True)
-	ended_on = models.DateTimeField(verbose_name="Match End Time", null=True, blank=True)
-	complete = models.BooleanField(verbose_name="'Complete'", default=False)#Match is finalized, but waiting for screenshots
-	finished = models.BooleanField(verbose_name="Finished", default=False)#Match is finished and has all screenshots/data
-	submitted = models.BooleanField(verbose_name="GSheet", default=False)#Match is uploaded to GSheet for tournament
-	channel = models.ForeignKey("dbot.Channels", verbose_name="Ref-Tool Discord Channel", on_delete=models.SET_NULL, null=True, blank=True)
-	message = models.BigIntegerField(verbose_name="Ref-Tool Discord Message ID", null=True, blank=True)
-	referee = models.ForeignKey(DiscordUser, related_name="matches_reffed", verbose_name="Referee", on_delete=models.SET_NULL, db_index=True, blank=True, null=True)
-	exhibition = models.BooleanField(default=False)
+	"""
+	Represents a Match played for a Tournament. 
+	"""
+	id = models.CharField(primary_key=True, verbose_name="Match ID", max_length=40, default=uuid.uuid1, help_text="UUID for a match.")
+	players = models.ManyToManyField(GroupSeed, related_name="match_players", verbose_name="Players", blank=True, help_text="Players that participated in a match.")
+	loser = models.ForeignKey(TournamentPlayer, related_name="matches_lost", null=True, blank=True, on_delete=models.SET_NULL, help_text="Player that lost the match.")
+	winner = models.ForeignKey(TournamentPlayer, related_name="matches_won", null=True, blank=True, on_delete=models.SET_NULL, help_text="Player that won the match.")
+	defer = models.BooleanField(verbose_name="Deferral Used", default=False, help_text="Was a deferral used.")
+	group = models.ForeignKey(Group, related_name='matches', verbose_name="Group", on_delete=models.CASCADE, help_text="Group the match was played for.")
+	started_on = models.DateTimeField(verbose_name="Match Start Time", auto_now_add=True, help_text="Match start time.")
+	ended_on = models.DateTimeField(verbose_name="Match End Time", null=True, blank=True, help_text="Match end time.")
+	complete = models.BooleanField(verbose_name="'Complete'", default=False, help_text="Match is finalized, but waiting for screenshots.")
+	finished = models.BooleanField(verbose_name="Finished", default=False, help_text="Match is finished and has all screenshots/data.")
+	submitted = models.BooleanField(verbose_name="GSheet", default=False, help_text="Match is uploaded to GSheet for Tournament.")
+	channel = models.ForeignKey("dbot.Channels", verbose_name="Ref-Tool Discord Channel", on_delete=models.SET_NULL, null=True, blank=True, help_text="Discord Channel the reftool was ran in for a match.")
+	message = models.BigIntegerField(verbose_name="Ref-Tool Discord Message ID", null=True, blank=True, help_text="Discord snowflake ID of the message for a match.")
+	referee = models.ForeignKey(DiscordUser, related_name="matches_reffed", verbose_name="Referee", on_delete=models.SET_NULL, db_index=True, blank=True, null=True, help_text="Discord User for the refree of a match.")
+	exhibition = models.BooleanField(default=False, help_text="Is a match an exhibition match (not an official match).")
 
 	class Meta:
 		ordering = ['-started_on']
@@ -605,23 +640,26 @@ class Match(models.Model):
 		super().save()
 
 class MatchRound(models.Model):
-	id = models.AutoField(primary_key=True)
-	num = models.PositiveIntegerField(blank=False, null=False)
-	match = models.ForeignKey(Match, related_name="match_rounds", verbose_name="Match ID", on_delete=models.CASCADE, null=True, blank=True)
-	picked = models.ForeignKey(TournamentPlayer, related_name="picks", verbose_name="Picker", on_delete=models.CASCADE, blank=True, null=True)
-	chart = models.ForeignKey(Chart, related_name="rounds_played", verbose_name="Chart Played", null=True, blank=True, on_delete=models.SET_NULL)
-	winner = models.ForeignKey(TournamentPlayer, related_name="rounds_won", verbose_name="Winner", null=True, blank=True, on_delete=models.SET_NULL)
+	"""
+	Represents a round of a Match played for a Tournament. 
+	"""
+	id = models.AutoField(primary_key=True, help_text="Internal ID for a round.")
+	num = models.PositiveIntegerField(blank=False, null=False, help_text="Round number of a specific match.")
+	match = models.ForeignKey(Match, related_name="match_rounds", verbose_name="Match ID", on_delete=models.CASCADE, null=True, blank=True, help_text="Match the round was played for.")
+	picked = models.ForeignKey(TournamentPlayer, related_name="picks", verbose_name="Picker", on_delete=models.CASCADE, blank=True, null=True, help_text="Player that picked the chart played.")
+	chart = models.ForeignKey(Chart, related_name="rounds_played", verbose_name="Chart Played", null=True, blank=True, on_delete=models.SET_NULL, help_text="Chart that was played.")
+	winner = models.ForeignKey(TournamentPlayer, related_name="rounds_won", verbose_name="Winner", null=True, blank=True, on_delete=models.SET_NULL, help_text="Winner of a round.")
 	#w_points = models.PositiveIntegerField(verbose_name="Players", validators=[MinValueValidator(1), MaxValueValidator(5)], default=1)
-	loser = models.ForeignKey(TournamentPlayer, related_name="rounds_lost", verbose_name="Loser", null=True, blank=True, on_delete=models.SET_NULL)
+	loser = models.ForeignKey(TournamentPlayer, related_name="rounds_lost", verbose_name="Loser", null=True, blank=True, on_delete=models.SET_NULL, help_text="Loser of a round.")
 	#l_points = models.PositiveIntegerField(verbose_name="Players", validators=[MinValueValidator(1), MaxValueValidator(5)], default=0)
-	steg = SchemaField(StegScreenshot, verbose_name="Steg Data", null=True, blank=True) #This is the players list in the steg data
-	screenshot = models.ImageField(upload_to=steg_upload_dir, verbose_name="Screenshot", null=True, blank=True)
-	created = models.DateTimeField(verbose_name="Created Time", auto_now_add=True, null=True, blank=True)
+	steg = SchemaField(StegScreenshot, verbose_name="Steg Data", null=True, blank=True, help_text="Clone Hero screenshot steg data.")
+	screenshot = models.ImageField(upload_to=steg_upload_dir, verbose_name="Screenshot", null=True, blank=True, help_text="Screenshot for a match.")
+	created = models.DateTimeField(verbose_name="Created Time", auto_now_add=True, null=True, blank=True, help_text="Timestamp the round was started.")
 
 	class Meta:
 		verbose_name = "Group Match Round"
 		verbose_name_plural = "Group Match Rounds"
-		ordering=['num']
+		ordering = ['num']
 
 	def __str__(self):
 		outStr = ""
@@ -645,12 +683,15 @@ class MatchRound(models.Model):
 #	id = models.PositiveIntegerField(blank=False, null=False)
 
 class MatchBan(models.Model):
-	id = models.AutoField(primary_key=True)
-	num = models.PositiveIntegerField(blank=False, null=False)
-	chart = models.ForeignKey(Chart, related_name="bans", verbose_name="Chart Banned", null=True, blank=True, on_delete=models.SET_NULL)
-	player = models.ForeignKey(GroupSeed, related_name="player_bans", verbose_name="Player", null=True, blank=True, on_delete=models.SET_NULL)
-	match = models.ForeignKey(Match, related_name="match_bans", verbose_name="Match ID", on_delete=models.CASCADE, null=True, blank=True)
-	created = models.DateTimeField(verbose_name="Created Time", auto_now_add=True, null=True, blank=True)
+	"""
+	Represents a player ban for a Match played in a Tournament. 
+	"""
+	id = models.AutoField(primary_key=True, help_text="Internal ID for a ban.")
+	num = models.PositiveIntegerField(blank=False, null=False, help_text="Order in which a ban was picked.")
+	chart = models.ForeignKey(Chart, related_name="bans", verbose_name="Chart Banned", null=True, blank=True, on_delete=models.SET_NULL, help_text="The chart that was banned.")
+	player = models.ForeignKey(GroupSeed, related_name="player_bans", verbose_name="Player", null=True, blank=True, on_delete=models.SET_NULL, help_text="Player that chose a ban.")
+	match = models.ForeignKey(Match, related_name="match_bans", verbose_name="Match ID", on_delete=models.CASCADE, null=True, blank=True, help_text="Match a ban was made for.")
+	created = models.DateTimeField(verbose_name="Created Time", auto_now_add=True, null=True, blank=True, help_text="Timestamp a ban was chosen.")
 
 	class Meta:
 		verbose_name = "Match Ban"

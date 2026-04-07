@@ -40,7 +40,7 @@ router.register(r"players", views.TournamentPlayerViewSet)
 router.register(r"groups", views.GroupViewSet)
 router.register(r"groups/seeding", views.GroupSeedViewSet)
 router.register(r"charts", views.ChartViewSet)
-router.register(r"charts/icon", views.CHIconViewSet)
+router.register(r"charts/icons", views.CHIconViewSet)
 router.register(r"qualifiers", views.QualifierViewSet)
 router.register(r"qualifiers/submissions", views.QualifierSubmissionViewSet)
 
