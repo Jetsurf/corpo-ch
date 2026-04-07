@@ -10,32 +10,32 @@ class DiscordUserSerializer(serializers.HyperlinkedModelSerializer):
         model = corpomodels.DiscordUser
         fields = ['id', 'global_name', 'avatar', 'public_flags']
 
-class DiscordChannelSerializer(serializers.HyperlinkedModelSerializer):
+class DiscordChannelSerializer(serializers.ModelSerializer):
     class Meta:
         model = dbotmodels.Channels
         fields = '__all__'
 
-class DiscordRoleSerializer(serializers.HyperlinkedModelSerializer):
+class DiscordRoleSerializer(serializers.ModelSerializer):
     class Meta:
         model = dbotmodels.Roles
         fields = '__all__'
 
-class DiscordGuildSerializer(serializers.HyperlinkedModelSerializer):
+class DiscordGuildSerializer(serializers.ModelSerializer):
     class Meta:
         model = dbotmodels.Guilds
         fields = '__all__'
 
-class BracketSerializer(serializers.HyperlinkedModelSerializer):
+class BracketSerializer(serializers.ModelSerializer):
     class Meta:
         model = corpomodels.Bracket
         fields = '__all__'
 
-class GroupSerializer(serializers.HyperlinkedModelSerializer):
+class GroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = corpomodels.Group
         fields = '__all__'
 
-class GroupSeedSerializer(serializers.HyperlinkedModelSerializer):
+class GroupSeedSerializer(serializers.ModelSerializer):
     class Meta:
         model = corpomodels.GroupSeed
         fields = '__all__'
@@ -51,16 +51,16 @@ class MatchRoundSerializer(serializers.ModelSerializer):
         model = corpomodels.MatchRound
         fields = '__all__'
 
-class MatchSerializer(serializers.HyperlinkedModelSerializer):
-    match_rounds = MatchRoundSerializer(many=True)
-    match_bans = MatchBanSerializer(many=True)
-    class Meta:
-        model = corpomodels.Match
-        fields = '__all__'
-
 class TournamentPlayerSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = corpomodels.TournamentPlayer
         fields = '__all__'
 
+class MatchSerializer(serializers.ModelSerializer):
+    players = GroupSeedSerializer(many=True)
+    match_rounds = MatchRoundSerializer(many=True)
+    match_bans = MatchBanSerializer(many=True)
+    class Meta:
+        model = corpomodels.Match
+        fields = '__all__'

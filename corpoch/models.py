@@ -234,9 +234,13 @@ class BracketRules(models.Model):
 
 class Group(models.Model):
 	id = models.AutoField(primary_key=True, db_index=True)
+	""" ID of the Group """
 	name = models.CharField(verbose_name="Group Name", max_length=8, default="A")
+	""" Group Name, full name constructed from tournament.short_name + bracket.name """
 	role = models.ForeignKey("dbot.Roles", verbose_name="Group Role", on_delete=models.SET_NULL, null=True, blank=True, db_index=True)
+	""" Discord Role associated with the group """
 	bracket = models.ForeignKey(Bracket, related_name="groups", verbose_name="Bracket", on_delete=models.CASCADE)
+	""" Tournament Bracket the group is a part of """
 
 	class Meta:
 		verbose_name = "Group"
@@ -457,12 +461,12 @@ class Match(models.Model):
 	loser = models.ForeignKey(TournamentPlayer, related_name="matches_lost", null=True, blank=True, on_delete=models.SET_NULL)
 	winner = models.ForeignKey(TournamentPlayer, related_name="matches_won", null=True, blank=True, on_delete=models.SET_NULL)
 	defer = models.BooleanField(verbose_name="Deferral Used", default=False)
-	group = models.ForeignKey(Group, related_name='matches', verbose_name="Group", on_delete=models.CASCADE)#limit_options_to groups in bracket somehow?
+	group = models.ForeignKey(Group, related_name='matches', verbose_name="Group", on_delete=models.CASCADE)
 	started_on = models.DateTimeField(verbose_name="Match Start Time", auto_now_add=True)
 	ended_on = models.DateTimeField(verbose_name="Match End Time", null=True, blank=True)
-	complete = models.BooleanField(verbose_name="'Complete'", default=False)
-	finished = models.BooleanField(verbose_name="Finished", default=False) #Flag to match in-progress as complete, start triggers to move to completed
-	submitted = models.BooleanField(verbose_name="GSheet", default=False)
+	complete = models.BooleanField(verbose_name="'Complete'", default=False)#Match is finalized, but waiting for screenshots
+	finished = models.BooleanField(verbose_name="Finished", default=False)#Match is finished and has all screenshots/data
+	submitted = models.BooleanField(verbose_name="GSheet", default=False)#Match is uploaded to GSheet for tournament
 	channel = models.ForeignKey("dbot.Channels", verbose_name="Ref-Tool Discord Channel", on_delete=models.SET_NULL, null=True, blank=True)
 	message = models.BigIntegerField(verbose_name="Ref-Tool Discord Message ID", null=True, blank=True)
 	referee = models.ForeignKey(DiscordUser, related_name="matches_reffed", verbose_name="Referee", on_delete=models.SET_NULL, db_index=True, blank=True, null=True)
