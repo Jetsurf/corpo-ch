@@ -22,7 +22,7 @@ def upload_qualifiers_gsheet():
 		print(f"GSHEETS: Uploading ({quali}) to sheet")
 		sheet.set_submission(quali)
 		sheet.submit_qualifier()
-	django.db.close_old_connections()
+	close_old_connections()
 
 @app.task
 def upload_completed_match_gsheet():
