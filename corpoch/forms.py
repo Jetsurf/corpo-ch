@@ -1,7 +1,8 @@
 import pydantic
 from django import forms
-from .models import TournamentPlayer
+from .models import TournamentPlayer, Match
 from .types import PlayerConfig, CH_Name
+from .tasks import update_gsheet
 from django.utils.safestring import mark_safe
 
 class TournamentPlayerForm(forms.ModelForm):
@@ -34,6 +35,9 @@ class TournamentPlayerForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._old_primary_name = None
+        if self.instance and self.instance.pk:
+            self._old_primary_name = self.instance.ch_name
         self.fields['primary_ch_name_selection'].help_text = mark_safe('''
             <style>
                 #id_primary_ch_name_selection label {
@@ -139,3 +143,24 @@ class TournamentPlayerForm(forms.ModelForm):
         cleaned_data['delete_ch_name'] = ""
 
         return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if commit:
+            instance.save()
+
+        new_primary_name = instance.ch_name
+
+        if self._old_primary_name is not None and self._old_primary_name != new_primary_name:
+
+            submissions = instance.qualifiers.all()
+
+            for sub in submissions:
+                update_gsheet.delay(sub.id)
+
+            player_matches = Match.objects.filter(players__player=instance).distinct()
+
+            for match in player_matches:
+                update_gsheet.delay(match.id)
+
+        return instance

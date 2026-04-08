@@ -365,17 +365,21 @@ class GSheets():
 
 	def update_qualifier(self):
 		cell = self._ws.find(self._submission.id)
-		self._ws.update([self.qualifier_line], f"A{cell.row}:M{cell.row}", raw=False)
+		self._ws.update([self.qualifier_line], f"A{cell.row}:N{cell.row}", raw=False)
 
 	def update_match(self):
 		cell = self._ws.find(self._submission.id)
 		for i, line in enumerate(self.completed_lines):
-			self._ws.update([line], f"A{(cell.row + i)}:P{(cell.row + i)}", raw=False)
+			self._ws.update([line], f"A{(cell.row + i)}:Q{(cell.row + i)}", raw=False)
+		self._switch_match_sheet()
+		cell = self._ws.find(self._submission.id)
+		for i, line in enumerate(self.ban_lines):
+			self._ws.update([line], f"A{(cell.row + i)}:F{(cell.row + i)}", raw=False)
 
 	@property
 	def qualifier_line(self):
 		qid = self._submission.id
-		chName = self._submission.steg.players[0].profile_name
+		chName = self._submission.display_profile_name
 		score = self._submission.steg.players[0].score
 		missed = self._submission.steg.players[0].notes_missed
 		hit = self._submission.steg.players[0].notes_hit
@@ -403,8 +407,10 @@ class GSheets():
 				chName = ply.profile_name #This should probably switch to tournament player.ch_name
 				score = ply.score
 				if rnd.winner.check_ch_name(chName):
+					ch_Name = rnd.winner.ch_name
 					wl = "W"
 				else:
+					ch_Name = rnd.loser.ch_name
 					wl = "L"
 				missed = ply.notes_missed
 				hit = ply.notes_hit
@@ -415,7 +421,7 @@ class GSheets():
 				phrases = ply.sp_phrases_earned
 				ts = f"{rnd.created.strftime('%Y-%m-%d %H:%M:%S')}-UTC"
 				link = f'=HYPERLINK("https://{settings.BASE_URL}{rnd.screenshot.url}", "Screenshot Link")'
-				retLines.append([matchId, bracket, group, match, picked, song, chName, score, wl, missed, hit, fc, excess, ghosts, phrases, ts, link])
+				retLines.append([matchId, bracket, group, match, picked, song, ch_Name, score, wl, missed, hit, fc, excess, ghosts, phrases, ts, link])
 		return retLines
 
 	@property

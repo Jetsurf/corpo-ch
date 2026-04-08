@@ -477,6 +477,14 @@ class QualifierSubmission(models.Model):
 	def score(self):
 		return self.steg.players[0].score
 
+	@property
+	def display_profile_name(self) -> str:
+		"""
+		Always returns the current primary ch_name of the player, 
+		acting as a dynamic reference.
+		"""
+		return self.player.ch_name
+
 	def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
 		if self.screenshot and not self.steg:
 			from corpoch.providers import CHStegTool
