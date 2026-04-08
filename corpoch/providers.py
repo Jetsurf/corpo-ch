@@ -243,19 +243,19 @@ class CHStegTool:
 	def buildStatsEmbed(self, title: str) -> discord.Embed:
 		embed = discord.Embed(colour=0x3FFF33)
 		embed.title = title
-		chartStr = f"Chart: `{self.output.artist_name}" + f" - {self.output.song_name}" + (f" ({self.output.playback_speed}%)" if self.output.playback_speed != 100 else '') + f" ({self.output.charter_name})`\n"
+		chartStr = f"Chart: {self.output.artist_name}" + f" - {self.output.song_name}"+ f" ({self.output.charter_name})" + (f" [{self.output.playback_speed}%]" if self.output.playback_speed != 100 else '')+"\n"
 		chartStr += f"Run Time: <t:{int(self.output.score_timestamp.timestamp())}:f>\n"
-		chartStr += f"Game Version: `{self.output.game_version}`"
+		chartStr += f"Game Version: {self.output.game_version}"
 		embed.add_field(name="Submission Stats", value=chartStr, inline=False)
 		#embed.set_footer(text=f"Chart md5 `{self.output.checksum}`")
 		for i, player in enumerate(self.output.players):
 			#plyStr = ""
 			#plyStr += f"Player Name: `{player.profile_name}`\n"
-			plyStr = f"Score: `{player.score}`\n"
-			plyStr += f"Notes Hit: `{player.notes_hit}/{player.total_notes} - {(player.notes_hit/player.total_notes) * 100:.2f}% {' - 👑' if player.is_fc else f'(-{player.notes_missed})'}`\n"
-			plyStr += f"Overstrums: `(+){player.excess_hits}`\n"
-			plyStr += f"Ghosts: `{player.frets_ghosted}`\n"
-			plyStr += f"SP Phrases: `{player.sp_phrases_earned}/{player.sp_phrases_total}`\n"
+			plyStr = f"Score: {player.score}\n"
+			plyStr += f"Notes Hit: {player.notes_hit}/{player.total_notes} - {(player.notes_hit/player.total_notes) * 100:.2f}% {' - 👑' if player.is_fc else f'(-{player.notes_missed})'}\n"
+			plyStr += f"Overstrums: (+){player.excess_hits}\n"
+			plyStr += f"Ghosts: {player.frets_ghosted}\n"
+			plyStr += f"SP Phrases: {player.sp_phrases_earned}/{player.sp_phrases_total}\n"
 			embed.add_field(name=f"Player: `{player.profile_name}`", value=plyStr, inline=False)
 		embed.add_field(name="", value=f"Chart MD5: `{self.output.checksum}`")
 		return embed
