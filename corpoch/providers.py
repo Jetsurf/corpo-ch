@@ -243,19 +243,19 @@ class CHStegTool:
 	def buildStatsEmbed(self, title: str) -> discord.Embed:
 		embed = discord.Embed(colour=0x3FFF33)
 		embed.title = title
-		chartStr = f"Chart: `{self.output.artist_name}" + f" - {self.output.song_name}" + (f" ({self.output.playback_speed}%)" if self.output.playback_speed != 100 else '') + f" ({self.output.charter_name})`\n"
+		chartStr = f"Chart: {self.output.artist_name}" + f" - {self.output.song_name}"+ f" ({self.output.charter_name})" + (f" [{self.output.playback_speed}%]" if self.output.playback_speed != 100 else '')+"\n"
 		chartStr += f"Run Time: <t:{int(self.output.score_timestamp.timestamp())}:f>\n"
-		chartStr += f"Game Version: `{self.output.game_version}`"
+		chartStr += f"Game Version: {self.output.game_version}"
 		embed.add_field(name="Submission Stats", value=chartStr, inline=False)
 		#embed.set_footer(text=f"Chart md5 `{self.output.checksum}`")
 		for i, player in enumerate(self.output.players):
 			#plyStr = ""
 			#plyStr += f"Player Name: `{player.profile_name}`\n"
-			plyStr = f"Score: `{player.score}`\n"
-			plyStr += f"Notes Hit: `{player.notes_hit}/{player.total_notes} - {(player.notes_hit/player.total_notes) * 100:.2f}% {' - 👑' if player.is_fc else f'(-{player.notes_missed})'}`\n"
-			plyStr += f"Overstrums: `(+){player.excess_hits}`\n"
-			plyStr += f"Ghosts: `{player.frets_ghosted}`\n"
-			plyStr += f"SP Phrases: `{player.sp_phrases_earned}/{player.sp_phrases_total}`\n"
+			plyStr = f"Score: {player.score}\n"
+			plyStr += f"Notes Hit: {player.notes_hit}/{player.total_notes} - {(player.notes_hit/player.total_notes) * 100:.2f}% {' - 👑' if player.is_fc else f'(-{player.notes_missed})'}\n"
+			plyStr += f"Overstrums: (+){player.excess_hits}\n"
+			plyStr += f"Ghosts: {player.frets_ghosted}\n"
+			plyStr += f"SP Phrases: {player.sp_phrases_earned}/{player.sp_phrases_total}\n"
 			embed.add_field(name=f"Player: `{player.profile_name}`", value=plyStr, inline=False)
 		embed.add_field(name="", value=f"Chart MD5: `{self.output.checksum}`")
 		return embed
@@ -365,17 +365,21 @@ class GSheets():
 
 	def update_qualifier(self):
 		cell = self._ws.find(self._submission.id)
-		self._ws.update([self.qualifier_line], f"A{cell.row}:M{cell.row}", raw=False)
+		self._ws.update([self.qualifier_line], f"A{cell.row}:N{cell.row}", raw=False)
 
 	def update_match(self):
 		cell = self._ws.find(self._submission.id)
 		for i, line in enumerate(self.completed_lines):
-			self._ws.update([line], f"A{(cell.row + i)}:P{(cell.row + i)}", raw=False)
+			self._ws.update([line], f"A{(cell.row + i)}:Q{(cell.row + i)}", raw=False)
+		self._switch_match_sheet()
+		cell = self._ws.find(self._submission.id)
+		for i, line in enumerate(self.ban_lines):
+			self._ws.update([line], f"A{(cell.row + i)}:F{(cell.row + i)}", raw=False)
 
 	@property
 	def qualifier_line(self):
 		qid = self._submission.id
-		chName = self._submission.steg.players[0].profile_name
+		chName = self._submission.display_profile_name
 		score = self._submission.steg.players[0].score
 		missed = self._submission.steg.players[0].notes_missed
 		hit = self._submission.steg.players[0].notes_hit
@@ -403,8 +407,10 @@ class GSheets():
 				chName = ply.profile_name #This should probably switch to tournament player.ch_name
 				score = ply.score
 				if rnd.winner.check_ch_name(chName):
+					ch_Name = rnd.winner.ch_name
 					wl = "W"
 				else:
+					ch_Name = rnd.loser.ch_name
 					wl = "L"
 				missed = ply.notes_missed
 				hit = ply.notes_hit
@@ -415,7 +421,7 @@ class GSheets():
 				phrases = ply.sp_phrases_earned
 				ts = f"{rnd.created.strftime('%Y-%m-%d %H:%M:%S')}-UTC"
 				link = f'=HYPERLINK("https://{settings.BASE_URL}{rnd.screenshot.url}", "Screenshot Link")'
-				retLines.append([matchId, bracket, group, match, picked, song, chName, score, wl, missed, hit, fc, excess, ghosts, phrases, ts, link])
+				retLines.append([matchId, bracket, group, match, picked, song, ch_Name, score, wl, missed, hit, fc, excess, ghosts, phrases, ts, link])
 		return retLines
 
 	@property
