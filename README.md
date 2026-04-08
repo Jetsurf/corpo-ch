@@ -3,6 +3,15 @@ The Corpo CH Django App/Discord Bot
 
 Clone Hero Tournament organizer and tools.
 
+## Links
+
+Access [Corpo CH's main site](https://corpo-ch.org)
+ - [Live Matches/Stream Overlay](https://corpo-ch.org/livematches)
+ - [REST API](https://corpo-ch.org/api/swagger/)
+
+[Corpo Discord Bot](https://discord.com/discovery/applications/1381816611086012456)
+ - User install will allow you to use the non-tournament specific (matches/qualifiers) commands most anywhere in discord
+
 ## Installation
 
 Git clone this repo down to a new folder.

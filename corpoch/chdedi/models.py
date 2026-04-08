@@ -62,6 +62,7 @@ class CHDediServer(models.Model):
 	server_settings = SchemaField(CHServerSpecificSettings, verbose_name="Configuration", null=True, blank=True)
 
 	class Meta:
+		ordering = ["-id"]
 		verbose_name = "Servers"
 		verbose_name_plural = "Servers"
 

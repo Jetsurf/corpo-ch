@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-
+#from corpoch import views
 load_dotenv()
 from pathlib import Path
 
@@ -8,10 +8,13 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 BASE_URL = os.getenv("BASE_URL")
 ALLOWED_HOSTS = [ BASE_URL ]
+
 CSRF_TRUSTED_ORIGINS=[f"https://{BASE_URL}"]
 SALT_KEY = os.getenv("DB_CRYPT_KEY")
 SECRET_KEY = os.getenv("BOT_SECRET")
 AUTH_URL_DISCORD = os.getenv("AUTH_URL_DISCORD")
+
+#LOGIN_URL = [ 'views:auth' ]
 
 DEBUG = os.getenv("DEBUG", False)
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL")
@@ -30,6 +33,9 @@ INSTALLED_APPS = [
 	'django_celery_beat',
 	'django_jsonform',
 	'django_admin_logs',
+	'rest_framework',
+	'drf_yasg',
+	'corpoch.api',
 	'solo',
 	'encrypted_fields',
 	'redis',
@@ -88,19 +94,16 @@ AUTHENTICATION_BACKENDS = (
 )
 
 AUTH_PASSWORD_VALIDATORS = [
-	{
-		'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-	},
-	{
-		'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-	},
-	{
-		'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-	},
-	{
-		'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-	},
+	{ 'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator', },
+	{ 'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', },
+	{ 'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator', },
+	{ 'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator', },
 ]
+
+REST_FRAMEWORK = {
+	'DEFAULT_AUTHENTICATION_CLASSES': [],
+	'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.IsAuthenticatedOrReadOnly'],
+}
 
 # Internationalization
 # https://docs.djangoproject.com/en/3.2/topics/i18n/

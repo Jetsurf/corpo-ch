@@ -70,13 +70,21 @@ class SongRoundSelect(discord.ui.Select):
 	async def init(self):
 		selStr = ""
 		if len(self.match.rounds) == 1:
-			selStr += f"{self.match.seeding[0].player.ch_name} Picks"
+			if not self.match.defer:
+				selStr += f"{self.match.seeding[0].player_ch_name} Picks"
+				if not self.dis:
+					self.match.picking_player = self.match.seeding[0].player
+			else:
+				selStr += f"{self.match.seeding[1].player_ch_name} Picks"
+				if not self.dis:
+					self.match.picking_player = self.match.seeding[0].player
 		elif len(self.match.rounds) == self.match.ruleset.num_rounds and self.match.ruleset.tb_ruleset == 'refdecide':
 			selStr += f"Pick Song"
 		elif self.match.ruleset.pick_ruleset == "loserpicks":
 			selStr += f"{self.match.rounds[-2].loser.ch_name} Picks"
+			if not self.dis:
+				self.match.picking_player = self.match.rounds[-2].loser
 		else:
-			prevPicked = self.match.rounds[-1].loser
 			picked = list(self.match.seeding).difference(self.match.rounds[-1].picked)[0]
 			selStr += f"{picked.ch_name} Picks"
 			if not self.dis:
@@ -90,20 +98,18 @@ class SongRoundSelect(discord.ui.Select):
 			bansDone.append(ban.chart.id)
 
 		songOptsDone = []
+		for rnd in self.match.rounds:
+			if rnd.chart:
+				songOptsDone.append(rnd.chart.id)
 		if len(self.match.rounds) == self.match.ruleset.num_rounds:
 			if self.match.ruleset.tb_ruleset == 'refdecide':
-				for rnd in self.match.rounds:
-					if rnd.chart:
-						songOptsDone.append(rnd.chart.id)
 				charts = self.match.setlist.select_related('icon').filter().exclude(id__in=bansDone).exclude(id__in=songOptsDone)
 			elif self.match.ruleset.tb_ruleset == "banpick":
 				charts = self.match.setlist.select_related('icon').filter(tiebreaker=True).exclude(id__in=bansDone)
 			else:
 				charts = self.match.setlist.select_related('icon').filter(tiebreaker=True)
 		else:
-			for rnd in self.match.rounds:
-				if rnd.chart:
-					songOptsDone.append(rnd.chart.id)
+
 			charts = self.match.setlist.select_related('icon').filter(tiebreaker=False).exclude(id__in=songOptsDone).exclude(id__in=bansDone)
 
 		opts = []
@@ -127,10 +133,10 @@ class PlayerRoundSelect(discord.ui.Select):
 
 	async def init(self):
 		opts = []
-		for i, seed in enumerate(self.match.seeding):
+		for seed in self.match.seeding:
 			auuid = str(uuid.uuid1())
 			self.retOpts[auuid] = seed
-			opts.append(discord.SelectOption(label=f"{seed.player.ch_name} ({seed.seed})", value=auuid, description=f"@{self.match.seeding.player.name}"))
+			opts.append(discord.SelectOption(label=f"{seed.player.ch_name} ({seed.seed})", value=auuid, description=f"@{seed.player.name}"))
 		super().__init__(placeholder="Round Winner", max_values=1, options=opts, custom_id="roundwin_sel", disabled=self.dis)
 
 	async def callback(self, interaction: discord.Integration):
@@ -296,7 +302,7 @@ class DiscordMatchView(discord.ui.View):
 			return True
 		try:
 			self.match.matchDb.players.get(player__user__id=interaction.user.id)
-		except TournamentPlayer.DoesNotExist:
+		except GroupSeed.DoesNotExist:
 			await interaction.response.send_message("You are not the ref for, nor a player in this match!", ephemeral=True, delete_after=10)
 			return False
 

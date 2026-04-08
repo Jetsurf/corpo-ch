@@ -10,6 +10,8 @@ django-multiselectfield
 django-fernet-encrypted-fields
 django-admin-sortable2
 django-admin-logs
+django-rest-framework
+drf-yasg
 aiohttp
 redis
 django-celery-beat

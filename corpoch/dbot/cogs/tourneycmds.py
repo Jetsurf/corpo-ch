@@ -135,9 +135,9 @@ class DiscordMatch():
 		elif self.tiebreaker and self.ruleset.tb_ruleset == 'csc':
 			fret, strum = 0, 0
 			for rnd in self.rounds:
-				if rnd.chart.category[0] == "fret":
+				if rnd.chart.category == "fret":
 					fret += 1
-				elif rnd.chart.category[0] == "strum":
+				elif rnd.chart.category == "strum":
 					strum += 1
 
 			picked = None
@@ -194,12 +194,12 @@ class DiscordMatch():
 			if i == self.ruleset.num_rounds - 1:
 				outStr += "**TIEBREAKER**\n"
 
-			outStr += f"{rnd.picked.ch_name + ' picks ' if rnd.picked else 'Played Chart: '}{rnd.chart.tournament_name if rnd.chart else '---'}"
+			outStr += f"{('`' + rnd.picked.ch_name + '` picks ') if rnd.picked else 'Played Chart: '}{rnd.chart.tournament_name if rnd.chart else '---'}"
 			if rnd.winner:
-				outStr += f" - {rnd.winner} wins!"
+				outStr += f" - `{rnd.winner}` wins!"
 			outStr+= "\n"
 		if (self.matchDb and self.matchDb.finished):
-			outStr += f"\n**{self.rounds[-1].winner} WINS!**"
+			outStr += f"\n**`{self.rounds[-1].winner}` WINS!**"
 		return outStr
 
 	def remove_round(self):

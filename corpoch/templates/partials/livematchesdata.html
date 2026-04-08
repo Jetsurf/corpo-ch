@@ -3,24 +3,30 @@
 <div class="livematches">
 	{% for match in matches %}
 		<div class="match">
-			<table class="player-table">
+			<table class="header-table">
 				<thead>
 					<tr>
-						<th class="header-highseed">{{match.high_seed.player_ch_name}}</th>
-						<th class="header-vs">vs</th>
-						<th class="header-lowseed">{{match.low_seed.player_ch_name}}</th>
+						<th class="header-left">{{match.high_seed}}</th>
+						<th class="header-middle">vs</th>
+						<th class="header-right">{{match.low_seed}}</th>
 					</tr>
 				</thead>
 			</table>
-			<h1 class="score">{{match.score}}</h1>
+			<table class="header-table">
+				<thead>
+					<tr>
+						<th class="header-left">{{match.high_seed_score}}</th>
+						<th class="header-middle">-</th>
+						<th class="header-right">{{match.low_seed_score}}</th>
+					</tr>
+				</thead>
+			</table>
 
 			<table class="match-table">
 				<thead>
 					<tr>
-						<th class="header-player1">Player 1</th>
-						<th class="header-player2">Player 2</th>
-						<th class="header-bans1">Player 1 Bans</th>
-						<th class="header-bans2">Player 2 Bans</th>
+						<th class="header-bans1">{{match.high_seed.player_ch_name}} Bans</th>
+						<th class="header-bans2">{{match.low_seed.player_ch_name}} Bans</th>
 						<th class="header-pickers">Who Picked</th>
 						<th class="header-picks">Song Picked</th>
 						<th class="header-wins">Won</th>
@@ -28,8 +34,6 @@
 				</thead>
 				<tbody>
 					<tr>
-						<td>{{match.high_seed.player_ch_name}}</td>
-						<td>{{match.low_seed.player_ch_name}}</td>
 						<td>
 							{% for ban in match.high_seed_bans %}
 								{{ban}}
