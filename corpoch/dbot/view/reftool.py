@@ -49,13 +49,13 @@ class BanSelect(discord.ui.Select):
 	async def callback(self, interaction: discord.Interaction):
 		chart = self.retOpts[self.values[0]]
 		if len(self.match.rounds) < self.match.ruleset.num_rounds:
-			seed = self.match.seeding[self.index]
+			ply = self.match.seeding[self.index].player
 		else:
 			if self.match.seeding[0].player == self.match.rounds[-2].winner:
-				seed = self.match.seeding[0]
+				ply = self.match.seeding[0].player
 			else:
-				seed = self.match.seeding[1]
-		newBan = MatchBan(num=len(self.match.bans), player=seed, chart=chart, match=self.match.matchDb)
+				ply = self.match.seeding[1].player
+		newBan = MatchBan(num=len(self.match.bans), player=ply, chart=chart, match=self.match.matchDb)
 		await newBan.asave()
 		self.match.bans.append(newBan)
 		await self.match.showTool(interaction)

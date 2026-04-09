@@ -380,6 +380,12 @@ class TournamentPlayer(models.Model):
 
 		return any(item.ch_name == name_to_find for item in self.config.names_list)
 
+#class Exhibitionlayer(TournamentPlayer):
+#	class Meta:
+#		proxied = True
+#		verbose_name = "Exhibition Player"
+#		verbose_name_plural = "Exhibition Players"
+
 class GroupSeed(models.Model):
 	"""
 	Represents a Seeding for a player in a Tournament Group. 
@@ -697,7 +703,7 @@ class MatchBan(models.Model):
 	id = models.AutoField(primary_key=True, help_text="Internal ID for a ban.")
 	num = models.PositiveIntegerField(blank=False, null=False, help_text="Order in which a ban was picked.")
 	chart = models.ForeignKey(Chart, related_name="bans", verbose_name="Chart Banned", null=True, blank=True, on_delete=models.SET_NULL, help_text="The chart that was banned.")
-	player = models.ForeignKey(GroupSeed, related_name="player_bans", verbose_name="Player", null=True, blank=True, on_delete=models.SET_NULL, help_text="Player that chose a ban.")
+	player = models.ForeignKey(TournamentPlayer, related_name="player_bans", verbose_name="Player", null=True, blank=True, on_delete=models.SET_NULL, help_text="Player that chose a ban.")
 	match = models.ForeignKey(Match, related_name="match_bans", verbose_name="Match ID", on_delete=models.CASCADE, null=True, blank=True, help_text="Match a ban was made for.")
 	created = models.DateTimeField(verbose_name="Created Time", auto_now_add=True, null=True, blank=True, help_text="Timestamp a ban was chosen.")
 

@@ -25,7 +25,7 @@ class CorpoDbot(commands.Bot):
 		self.client = super().__init__(intents=intents, chunk_guilds_at_startup=False)
 		self.redis = self.loop.run_until_complete(aioredis.from_url(settings.CELERY_BROKER_URL, encoding="utf-8", decode_responses=True))
 		self.message_connection = Connection(settings.CELERY_BROKER_URL)
-		self.message_consumer = Consumer(self.message_connection, [Queue("corpoch.dbot")], callbacks=[self.on_queue_message])#, channel=self.chan)
+		self.message_consumer = Consumer(self.message_connection, [Queue("corpoch.dbot")], callbacks=[self.on_queue_message])
 		self.tasks = []
 		self.matches = {}
 		print(f"redis pool started {settings.CELERY_BROKER_URL}")
@@ -43,7 +43,7 @@ class CorpoDbot(commands.Bot):
 		try:
 			super().run(settings.BOT_TOKEN, reconnect=True)
 		except discord.PrivilegedIntentsRequired as e:
-			print("Unable to login to discord - missing discord.intentes.members privledge - Sleeping then exiting")
+			print("Unable to login to discord - missing discord.intents.members privledge - Sleeping then exiting")
 			print(f"    Please visit https://support-dev.discord.com/hc/en-us/articles/6207308062871-What-are-Privileged-Intents")
 			time.sleep(5)
 			sys.exit(1)
@@ -63,13 +63,13 @@ class CorpoDbot(commands.Bot):
 		django.db.close_old_connections()
 
 	async def retrieve_owners(self):
-		print("Retrieving bot owners...")
+		print("Retrieving bot owners.")
 		app = await self.application_info()
 		if app.team:
 			for mem in app.team.members:
 				owner = await self.fetch_user(mem.id)
 				if not owner:
-					print(f"  Can't get user object for team member {str(mem.name)}#{str(mem.discriminator)} id {mem.id}")
+					print(f"  Can't get user object for team member {str(mem.name)} id {mem.id}")
 				else:
 					self.owners.append(owner)
 					print(f"  Loaded owner: {str(owner.name)} id {owner.id}")

@@ -100,7 +100,6 @@ async def refresh_match_message(bot, match_id):
 		await bot.matches[match.id].showTool()
 
 async def update_guild(bot, guild_id):
-	print(f"Updating info for guild {guild_id}")
 	guild = bot.get_guild(guild_id)
 	from corpoch.dbot.models import Guilds
 	dbguild = Guilds.objects.get(id=guild_id)
@@ -119,7 +118,7 @@ async def update_guild(bot, guild_id):
 	for role in Roles.objects.all():
 		try:
 			grole = await guild.fetch_role(role.id)
-		except:
+		except discord.NotFound:
 			role.deleted = True
 		else:
 			role.name = grole.name
@@ -135,7 +134,7 @@ async def update_guild(bot, guild_id):
 	for channel in Channels.objects.all():
 		try:
 			gchannel = await guild.fetch_channel(channel.id)
-		except:
+		except discord.NotFound:
 			channel.deleted = True
 		else:
 			channel.name = gchannel.name
@@ -151,11 +150,11 @@ async def update_guild(bot, guild_id):
 	await dbguild.asave()
 
 async def update_user(bot, user_id):
-	print(f"Updating info for user {user_id}")
 	from corpoch.models import DiscordUser
 	dbuser = DiscordUser.objects.get(id=user_id)
-	duser = await bot.fetch_user(dbuser.id)
-	if not duser:
+	try:
+		duser = await bot.fetch_user(dbuser.id)
+	except discord.NotFound:
 		print(f"User {user_id} is no longer visible")
 		return
 
