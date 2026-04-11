@@ -550,14 +550,14 @@ class Match(models.Model):
 	@property
 	def high_seed_bans(self):
 		if self.high_seed:
-			return [ban for ban in self.bans if ban.player.player_id == self.high_seed.player_id]
+			return [ban for ban in self.bans if ban.player.id == self.high_seed.player_id]
 		else:
 			return []
 
 	@property
 	def low_seed_bans(self):
 		if self.low_seed:
-			return [ban for ban in self.bans if ban.player.player_id == self.low_seed.player_id]
+			return [ban for ban in self.bans if ban.player.id == self.low_seed.player_id]
 		else:
 			return []
 

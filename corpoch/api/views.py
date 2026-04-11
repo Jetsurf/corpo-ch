@@ -1,13 +1,18 @@
 from datetime import timedelta
 
+from django.core.paginator import Paginator
 from django.utils import timezone
 
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import api_view
+from rest_framework.pagination import PageNumberPagination
 
 import corpoch.models as corpomodels
 import corpoch.dbot.models as dbotmodels
 from corpoch.api import serializers 
+
+class LargeResultsSetPagination(PageNumberPagination):
+    page_size = 25
 
 class DiscordUserViewSet(viewsets.ModelViewSet):
 	"""
@@ -66,11 +71,12 @@ class TournamentViewSet(viewsets.ModelViewSet):
 	serializer_class = serializers.TournamentSerializer
 
 	@api_view
-	def get_match(self, chart: corpomodels.Tournament) -> corpomodels.Tournament | None:
+	def get_tournament(self, tournament: corpomodels.Tournament) -> corpomodels.Tournament | None:
 		try:
-			return corpomodels.Tournament.objects.get(id=chart.id)
+			return corpomodels.Tournament.objects.get(id=tournament.id)
 		except corpomodels.Tournament.DoesNotExist:
 			return None
+
 
 class BracketRulesViewSet(viewsets.ModelViewSet):
 	"""
@@ -80,7 +86,7 @@ class BracketRulesViewSet(viewsets.ModelViewSet):
 	serializer_class = serializers.BracketRulesSerializer
 
 	@api_view
-	def get_bracket(self, bracket: corpomodels.BracketRules) -> corpomodels.BracketRules | None:
+	def get_bracket_rules(self, bracket: corpomodels.BracketRules) -> corpomodels.BracketRules | None:
 		try:
 			return corpomodels.BracketRules.objects.get(bracket__id=bracket.id)
 		except corpomodels.Bracket.DoesNotExist:
@@ -108,7 +114,7 @@ class GroupViewSet(viewsets.ModelViewSet):
 	serializer_class = serializers.GroupSerializer
 
 	@api_view
-	def get_match(self, group: corpomodels.Group) -> corpomodels.Group | None:
+	def get_group(self, group: corpomodels.Group) -> corpomodels.Group | None:
 		try:
 			return corpomodels.Group.objects.get(id=group.id)
 		except corpomodels.Group.DoesNotExist:
@@ -122,7 +128,7 @@ class GroupSeedViewSet(viewsets.ModelViewSet):
 	serializer_class = serializers.GroupSeedSerializer
 
 	@api_view
-	def get_match(self, seed: corpomodels.GroupSeed) -> corpomodels.GroupSeed | None:
+	def get_group_seed(self, seed: corpomodels.GroupSeed) -> corpomodels.GroupSeed | None:
 		try:
 			return corpomodels.GroupSeed.objects.get(id=seed.id)
 		except corpomodels.Group.DoesNotExist:
@@ -134,6 +140,7 @@ class MatchViewSet(viewsets.ModelViewSet):
 	"""
 	queryset = corpomodels.Match.objects.all().order_by("id")
 	serializer_class = serializers.MatchSerializer
+	pagination_class = LargeResultsSetPagination
 
 	@api_view
 	def get_match(self, match: corpomodels.Match) -> corpomodels.Match | None:
@@ -150,9 +157,9 @@ class CHIconViewSet(viewsets.ModelViewSet):
 	serializer_class = serializers.CHIconSerializer
 
 	@api_view
-	def get_match(self, match: corpomodels.CHIcon) -> corpomodels.CHIcon | None:
+	def get_icon(self, icon: corpomodels.CHIcon) -> corpomodels.CHIcon | None:
 		try:
-			return corpomodels.CHIcon.objects.get(id=match.id)
+			return corpomodels.CHIcon.objects.get(id=icon.id)
 		except corpomodels.CHIcon.DoesNotExist:
 			return None
 

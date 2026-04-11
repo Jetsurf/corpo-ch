@@ -143,7 +143,7 @@ class DiscordMatch():
 			picked = None
 			if strum < fret:
 				chart = Chart.objects.get(category=CHART_CATEGORIES[3][0], tiebreaker=True)
-			if fret < strum:
+			elif fret < strum:
 				chart = Chart.objects.get(category=CHART_CATEGORIES[2][0], tiebreaker=True)
 			else:
 				chart = Chart.objects.get(category=CHART_CATEGORIES[1][0], tiebreaker=True)

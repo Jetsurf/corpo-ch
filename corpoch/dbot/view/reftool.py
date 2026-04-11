@@ -7,7 +7,7 @@ from django.utils import timezone
 from corpoch.dbot import settings
 from corpoch.providers import CHStegTool
 from corpoch.types import StegScreenshot, TB_RULESETS, PICK_RULESETS, BAN_RULESETS
-from corpoch.models import Tournament, Chart, Match, MatchRound, TournamentPlayer, MatchRound, MatchBan
+from corpoch.models import Tournament, Chart, GroupSeed, Match, MatchRound, TournamentPlayer, MatchRound, MatchBan
 from corpoch.dbot.models import CHEmoji
 from corpoch.dbot.view.helpers import get_chart_emoji
 

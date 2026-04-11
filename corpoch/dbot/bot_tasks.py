@@ -44,6 +44,7 @@ async def add_bot_emoji(bot, name):
 	from corpoch.dbot.models import CHEmoji
 	from corpoch.models import CHIcon
 	dbIcon = await CHIcon.objects.aget(name=name)
+	emojis = await bot.fetch_emojis()
 	with open(dbIcon.img.path, "rb") as f:
 		if len(name) < 2:
 			name += "_"
@@ -52,7 +53,7 @@ async def add_bot_emoji(bot, name):
 			emoji = await bot.create_emoji(name=squashed_name, image=f.read())
 		except discord.errors.HTTPException:
 			foundEmoji = False
-			for tst in await bot.fetch_emojis():
+			for tst in emojis:
 				if tst.name == squashed_name:
 					emoji = tst 
 					foundEmoji = True
@@ -100,7 +101,11 @@ async def refresh_match_message(bot, match_id):
 		await bot.matches[match.id].showTool()
 
 async def update_guild(bot, guild_id):
-	guild = bot.get_guild(guild_id)
+	try:
+		guild = bot.get_guild(guild_id)
+	except discord.Forbidden:
+		return
+
 	from corpoch.dbot.models import Guilds
 	dbguild = Guilds.objects.get(id=guild_id)
 
