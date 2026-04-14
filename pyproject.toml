@@ -26,7 +26,6 @@ include-package-data = false
 
 [tool.setuptools.packages.find]
 include = ["corpoch*"]
-exclude = ["DiscordOauth2*", 'discord_oauth']
 
 [tool.flit.module]
 name = "corpoch"

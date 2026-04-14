@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 from corpoch.models import DiscordUser, TournamentPlayer, Tournament
-from DiscordOauth2 import settings
+from corpoch import settings
 import corpoch.dbot.tasks 
 
 class Command(BaseCommand):
