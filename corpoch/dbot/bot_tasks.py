@@ -120,7 +120,7 @@ async def update_guild(bot, guild_id):
 		dbguild.icon = guild.icon.url
 
 	from corpoch.dbot.models import Roles
-	for role in Roles.objects.all():
+	for role in Roles.objects.all().filter(guild__id=guild_id):
 		try:
 			grole = await guild.fetch_role(role.id)
 		except discord.NotFound:
@@ -136,10 +136,10 @@ async def update_guild(bot, guild_id):
 		await theRole.asave()
 
 	from corpoch.dbot.models import Channels
-	for channel in Channels.objects.all():
+	for channel in Channels.objects.all().filter(guild__id=guild_id):
 		try:
 			gchannel = await guild.fetch_channel(channel.id)
-		except discord.NotFound:
+		except discord.Forbidden:
 			channel.deleted = True
 		else:
 			channel.name = gchannel.name

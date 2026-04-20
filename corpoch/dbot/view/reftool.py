@@ -306,19 +306,28 @@ class DiscordMatchView(discord.ui.View):
 			return True
 		if interaction.user.id == self.match.referee.id:
 			return True
+		if isinstance(interaction.user, discord.Member) and interaction.user.guild_permissions.administrator:
+			return True
 		try:
 			self.match.matchDb.players.get(player__user__id=interaction.user.id)
 		except GroupSeed.DoesNotExist:
 			await interaction.response.send_message("You are not the ref for, nor a player in this match!", ephemeral=True, delete_after=10)
 			return False
 
+		if self.match.complete:#If match is complete and player is part of match
+			return True
 		if self.match.player_input and (caller == "roundsong_sel" or caller == "ban_sel"):
 			if self.match.picking_player and self.match.picking_player.user.id == interaction.user.id:
 				return True
-		elif self.match.complete:
-			return True
-		await interaction.response.send_message("Not allowed or player input is disabled!", ephemeral=True, delete_after=10)
-		return False
+			else:
+				await interaction.response.send_message("Not your turn to pick!", ephemeral=True, delete_after=10)
+				return False
+		elif not self.player_input:
+			await interaction.response.send_message("Player input is disabled!", ephemeral=True, delete_after=10)
+			return False
+		else: #match.player_input is on but is from a caller object that isn't allowed for player input
+			await interaction.response.send_message("Selector/Button not allowed for player input!!", ephemeral=True, delete_after=10)
+			return False
 
 	async def plyinBtn(self, interaction: discord.Interaction):
 		self.match.player_input = not self.match.player_input
@@ -339,16 +348,13 @@ class DiscordMatchView(discord.ui.View):
 					self.match.rounds[-1].winner = None
 					await self.match.rounds[-1].asave()
 			elif self.match.rounds[-1].chart:
-				print("Removing round chart")
 				self.match.rounds[-1].chart = None
 			else:
 				self.match.remove_round()
 
 		if len(self.match.rounds) == 0 and len(self.match.bans) > 0:
-			print("Bans > 0 removing ban")
 			self.match.remove_ban()
 		elif len(self.match.seeding) > 0:
-			print("Removing seeding")
 			self.match.seeding = []
 
 		await self.match.showTool(interaction)
