@@ -28,7 +28,7 @@ class DiscordMatch():
 		self.player_input = False
 		self.picking_player = None
 
-	async def init(self):
+	async def init(self) -> bool:
 		if self.matchDb:
 			self.load_match()
 			#Finish loading async
@@ -40,17 +40,24 @@ class DiscordMatch():
 			self.tourney = await Tournament.objects.select_related().aget(guild=self.msg.guild.id, active=True)
 		except Tournament.DoesNotExist:
 			await self.msg.respond("No active tourney - running exhibition mode not supported now", ephemeral=True)
-			return
+			return False
+
+		ref_role = self.referee.get_role(self.tourney.config.ref_role.id)
+		if not ref_role and not self.referee.guild_permissions.administrator:
+			await self.msg.respond("You are not a ref for this tournament!", ephemeral=False)
+			return False
 		try:
 			self.bracket = await Bracket.objects.select_related("ruleset").aget(score_log__id=self.msg.channel.id, is_active=True)
 		except Bracket.DoesNotExist: 
 			await self.msg.respond("Channel is not a score log channel or no brackets are currently active.", ephemeral=True)
-			return
+			return False
 
 		if isinstance(self.msg, discord.ApplicationContext):
 			await self.msg.respond("Setting up")
+			return True
 		else:
 			await self.showTool(self.msg)
+			return True
 
 	async def finishMatch(self, interaction):
 		print(f"Finishing match {self.id}")
@@ -310,7 +317,7 @@ class DiscordMatch():
 			embed.add_field(name="Match VS", value=f"{self.seeding[0].mention} vs {self.seeding[1].mention}")
 			embed.add_field(name="Score", value=f"{self.score[0]} - {self.score[1]}", inline=False)
 			if self.defer:
-				embed.add_field(name="Deferal", value=f"{self.matchDb.high_seed.player.ch_name} has deferred.")
+				embed.add_field(name="Deferral", value=f"{self.matchDb.high_seed.player.ch_name} has deferred.")
 			if len(self.bans) < self.ruleset.num_bans:
 				embed.add_field(name="Bans", value=f"{self.formatted_bans}\nSelect next ban", inline=False)
 			elif self.ruleset.tb_ruleset == 'banpick' and len(self.rounds) == self.ruleset.num_rounds:
@@ -338,8 +345,8 @@ class TourneyCmds(commands.Cog):
 	@tourney.command(name='match',description='Match reporting done within discord', integration_types={discord.IntegrationType.guild_install})
 	async def discordMatchCmd(self, ctx):
 		match = DiscordMatch(self.bot, message=ctx)
-		await match.init()
-		await match.showTool(ctx)
+		if await match.init():
+			await match.showTool(ctx)
 
 def setup(bot):
 	bot.add_cog(TourneyCmds(bot))

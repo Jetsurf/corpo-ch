@@ -104,7 +104,7 @@ async def update_guild(bot, guild_id):
 	try:
 		guild = bot.get_guild(guild_id)
 	except discord.Forbidden:
-		return
+		pass
 
 	from corpoch.dbot.models import Guilds
 	dbguild = Guilds.objects.get(id=guild_id)
