@@ -166,10 +166,14 @@ async def update_user(bot, user_id):
 	dbuser.username = duser.global_name if duser.global_name else duser.display_name
 	dbuser.global_name = duser.global_name if duser.global_name else duser.display_name
 	dbuser.avatar = duser.display_avatar.url
-	for ply in dbuser.tournaments.all().filter(is_active=True):
+	for ply in dbuser.tournaments.all():
 		guild = bot.get_guild(ply.tournament.guild.id)
 		if guild:
-			member = await guild.fetch_member(dbuser.id)
-			ply.name = member.global_name if member.global_name else member.display_name
-
+			try:
+				member = await guild.fetch_member(dbuser.id)
+			except discord.NotFound:
+				continue
+			else:
+				ply.name = member.display_name if member.display_name else member.global_name
+				await ply.asave()
 	await dbuser.asave()
