@@ -313,16 +313,17 @@ class DiscordMatchView(discord.ui.View):
 		except GroupSeed.DoesNotExist:
 			await interaction.response.send_message("You are not the ref for, nor a player in this match!", ephemeral=True, delete_after=10)
 			return False
-
 		if self.match.complete:#If match is complete and player is part of match
 			return True
 		if self.match.player_input and (caller == "roundsong_sel" or caller == "ban_sel"):
+			if self.match.picking_player:
+				print(f"User: {interaction.user.id} picking player {self.match.picking_player.user.id}")
 			if self.match.picking_player and self.match.picking_player.user.id == interaction.user.id:
 				return True
 			else:
 				await interaction.response.send_message("Not your turn to pick!", ephemeral=True, delete_after=10)
 				return False
-		elif not self.player_input:
+		elif not self.match.player_input:
 			await interaction.response.send_message("Player input is disabled!", ephemeral=True, delete_after=10)
 			return False
 		else: #match.player_input is on but is from a caller object that isn't allowed for player input
@@ -351,10 +352,11 @@ class DiscordMatchView(discord.ui.View):
 				self.match.rounds[-1].chart = None
 			else:
 				self.match.remove_round()
-
-		if len(self.match.rounds) == 0 and len(self.match.bans) > 0:
+			if len(self.match.rounds) == 0: #If we removed the last round, also remove a ban
+				self.match.remove_ban()
+		elif len(self.match.rounds) == 0 and len(self.match.bans) > 0:
 			self.match.remove_ban()
-		elif len(self.match.seeding) > 0:
+		elif len(self.match.seeding) > 0 and len(self.match.bans) == 0:
 			self.match.seeding = []
 
 		await self.match.showTool(interaction)
