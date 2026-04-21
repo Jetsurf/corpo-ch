@@ -109,7 +109,6 @@ class SongRoundSelect(discord.ui.Select):
 			else:
 				charts = self.match.setlist.select_related('icon').filter(tiebreaker=True)
 		else:
-
 			charts = self.match.setlist.select_related('icon').filter(tiebreaker=False).exclude(id__in=songOptsDone).exclude(id__in=bansDone)
 
 		opts = []
@@ -316,8 +315,6 @@ class DiscordMatchView(discord.ui.View):
 		if self.match.complete:#If match is complete and player is part of match
 			return True
 		if self.match.player_input and (caller == "roundsong_sel" or caller == "ban_sel"):
-			if self.match.picking_player:
-				print(f"User: {interaction.user.id} picking player {self.match.picking_player.user.id}")
 			if self.match.picking_player and self.match.picking_player.user.id == interaction.user.id:
 				return True
 			else:
