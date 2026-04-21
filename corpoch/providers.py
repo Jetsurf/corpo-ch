@@ -432,7 +432,7 @@ class GSheets():
 		group = str(self._submission.group)
 		match = self._submission.short_name
 		for ban in self._submission.match_bans.all():
-			ply = ban.player.player_ch_name
+			ply = ban.player.ch_name
 			chart = ban.chart.tournament_name
 			retLines.append([matchId, bracket, group, match, ply, chart])
 		return retLines
