@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "corpoch"
-version = "1.4.1"
+version = "1.4.2"
 description = "Corpo CH Tournament Bot"
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -26,7 +26,6 @@ include-package-data = false
 
 [tool.setuptools.packages.find]
 include = ["corpoch*"]
-exclude = ["DiscordOauth2*", 'discord_oauth']
 
 [tool.flit.module]
 name = "corpoch"

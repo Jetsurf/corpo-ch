@@ -390,15 +390,15 @@ class BansInline(SortableStackedInline):
 		if db_field.name == "player":
 			if 'object_id' in request.resolver_match.kwargs:
 				match = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
-				kwargs['queryset'] = match.players.all()
+				kwargs['queryset'] = TournamentPlayer.objects.all().filter(id__in=match.players.all().values("player"))
 			else:
-				kwargs["queryset"] = GroupSeed.objects.none()
+				kwargs["queryset"] = TournamentPlayer.objects.none()
 		if db_field.name == 'chart':
 			if 'object_id' in request.resolver_match.kwargs:
 				match = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
 				kwargs["queryset"] = match.bracket.setlist.all()
 			else:
-				kwargs["queryset"] = TournamentPlayer.objects.none()
+				kwargs["queryset"] = Chart.objects.none()
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 @admin.register(Match)

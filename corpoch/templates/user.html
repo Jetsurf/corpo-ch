@@ -61,7 +61,6 @@
 						<thead>
 							<tr>
 								<th>Icon</th>
-								<th>ID</th>
 								<th>Name</th>
 								<th>Owner</th>
 								<th>Administrator</th>                                
@@ -71,7 +70,6 @@
 							{% for guild in guilds %}
 							<tr>
 								<td ><img class="rounded-circle" src="{{guild.icon}}"></td>
-								<td><span>{{guild.id}}</span></td>
 								<td><span>{{guild.name}}</span></td>
 								<td><i {% if guild.owner %} class="text-success text-center fas fa-check" {% else %} class="text-danger text-center fas fa-times" {% endif %}></i></td>
 								<td><i {% if guild.user_is_administrator %} class="text-success text-center fas fa-check" {% else %} class="text-danger text-center fas fa-times" {% endif %}></i></td>                                

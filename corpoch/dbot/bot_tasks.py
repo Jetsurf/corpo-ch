@@ -44,6 +44,7 @@ async def add_bot_emoji(bot, name):
 	from corpoch.dbot.models import CHEmoji
 	from corpoch.models import CHIcon
 	dbIcon = await CHIcon.objects.aget(name=name)
+	emojis = await bot.fetch_emojis()
 	with open(dbIcon.img.path, "rb") as f:
 		if len(name) < 2:
 			name += "_"
@@ -52,7 +53,7 @@ async def add_bot_emoji(bot, name):
 			emoji = await bot.create_emoji(name=squashed_name, image=f.read())
 		except discord.errors.HTTPException:
 			foundEmoji = False
-			for tst in await bot.fetch_emojis():
+			for tst in emojis:
 				if tst.name == squashed_name:
 					emoji = tst 
 					foundEmoji = True
@@ -100,8 +101,11 @@ async def refresh_match_message(bot, match_id):
 		await bot.matches[match.id].showTool()
 
 async def update_guild(bot, guild_id):
-	print(f"Updating info for guild {guild_id}")
-	guild = bot.get_guild(guild_id)
+	try:
+		guild = bot.get_guild(guild_id)
+	except discord.Forbidden:
+		pass
+
 	from corpoch.dbot.models import Guilds
 	dbguild = Guilds.objects.get(id=guild_id)
 
@@ -116,10 +120,10 @@ async def update_guild(bot, guild_id):
 		dbguild.icon = guild.icon.url
 
 	from corpoch.dbot.models import Roles
-	for role in Roles.objects.all():
+	for role in Roles.objects.all().filter(guild__id=guild_id):
 		try:
 			grole = await guild.fetch_role(role.id)
-		except:
+		except discord.NotFound:
 			role.deleted = True
 		else:
 			role.name = grole.name
@@ -132,10 +136,10 @@ async def update_guild(bot, guild_id):
 		await theRole.asave()
 
 	from corpoch.dbot.models import Channels
-	for channel in Channels.objects.all():
+	for channel in Channels.objects.all().filter(guild__id=guild_id):
 		try:
 			gchannel = await guild.fetch_channel(channel.id)
-		except:
+		except discord.Forbidden:
 			channel.deleted = True
 		else:
 			channel.name = gchannel.name
@@ -151,11 +155,11 @@ async def update_guild(bot, guild_id):
 	await dbguild.asave()
 
 async def update_user(bot, user_id):
-	print(f"Updating info for user {user_id}")
 	from corpoch.models import DiscordUser
 	dbuser = DiscordUser.objects.get(id=user_id)
-	duser = await bot.fetch_user(dbuser.id)
-	if not duser:
+	try:
+		duser = await bot.fetch_user(dbuser.id)
+	except discord.NotFound:
 		print(f"User {user_id} is no longer visible")
 		return
 

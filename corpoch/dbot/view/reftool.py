@@ -7,7 +7,7 @@ from django.utils import timezone
 from corpoch.dbot import settings
 from corpoch.providers import CHStegTool
 from corpoch.types import StegScreenshot, TB_RULESETS, PICK_RULESETS, BAN_RULESETS
-from corpoch.models import Tournament, Chart, Match, MatchRound, TournamentPlayer, MatchRound, MatchBan
+from corpoch.models import Tournament, Chart, GroupSeed, Match, MatchRound, TournamentPlayer, MatchRound, MatchBan
 from corpoch.dbot.models import CHEmoji
 from corpoch.dbot.view.helpers import get_chart_emoji
 
@@ -49,13 +49,13 @@ class BanSelect(discord.ui.Select):
 	async def callback(self, interaction: discord.Interaction):
 		chart = self.retOpts[self.values[0]]
 		if len(self.match.rounds) < self.match.ruleset.num_rounds:
-			seed = self.match.seeding[self.index]
+			ply = self.match.seeding[self.index].player
 		else:
 			if self.match.seeding[0].player == self.match.rounds[-2].winner:
-				seed = self.match.seeding[0]
+				ply = self.match.seeding[0].player
 			else:
-				seed = self.match.seeding[1]
-		newBan = MatchBan(num=len(self.match.bans), player=seed, chart=chart, match=self.match.matchDb)
+				ply = self.match.seeding[1].player
+		newBan = MatchBan(num=len(self.match.bans), player=ply, chart=chart, match=self.match.matchDb)
 		await newBan.asave()
 		self.match.bans.append(newBan)
 		await self.match.showTool(interaction)
@@ -109,7 +109,6 @@ class SongRoundSelect(discord.ui.Select):
 			else:
 				charts = self.match.setlist.select_related('icon').filter(tiebreaker=True)
 		else:
-
 			charts = self.match.setlist.select_related('icon').filter(tiebreaker=False).exclude(id__in=songOptsDone).exclude(id__in=bansDone)
 
 		opts = []
@@ -215,12 +214,18 @@ class DiscordMatchView(discord.ui.View):
 		self.cancel.callback = self.cancelBtn
 
 		self.back = discord.ui.Button(label="Back", style=discord.ButtonStyle.secondary, custom_id="backBtn")
+		if len(self.match.seeding) == 0:
+			self.back.disabled = True
 		self.back.callback = self.backBtn
 
 		self.defer = discord.ui.Button(label="Defer", style=discord.ButtonStyle.secondary, custom_id="deferBtn")
 		self.defer.callback = self.deferBtn
 
-		self.plyin = discord.ui.Button(label="Allow player input", style=discord.ButtonStyle.secondary, custom_id="plyinBtn")
+		if self.match.player_input:
+			label = "Player Input ✅"
+		else:
+			label = "Player input ❌"
+		self.plyin = discord.ui.Button(label=label, style=discord.ButtonStyle.secondary, custom_id="plyinBtn")
 		self.plyin.callback = self.plyinBtn # Future idea
 
 		self.upload = discord.ui.Button(label="Upload Screenshots", style=discord.ButtonStyle.secondary, custom_id="uploadBtn")
@@ -300,26 +305,30 @@ class DiscordMatchView(discord.ui.View):
 			return True
 		if interaction.user.id == self.match.referee.id:
 			return True
+		if isinstance(interaction.user, discord.Member) and interaction.user.guild_permissions.administrator:
+			return True
 		try:
 			self.match.matchDb.players.get(player__user__id=interaction.user.id)
 		except GroupSeed.DoesNotExist:
 			await interaction.response.send_message("You are not the ref for, nor a player in this match!", ephemeral=True, delete_after=10)
 			return False
-
+		if self.match.complete:#If match is complete and player is part of match
+			return True
 		if self.match.player_input and (caller == "roundsong_sel" or caller == "ban_sel"):
 			if self.match.picking_player and self.match.picking_player.user.id == interaction.user.id:
 				return True
-		elif self.match.complete:
-			return True
-		await interaction.response.send_message("Not allowed or player input is disabled!", ephemeral=True, delete_after=10)
-		return False
+			else:
+				await interaction.response.send_message("Not your turn to pick!", ephemeral=True, delete_after=10)
+				return False
+		elif not self.match.player_input:
+			await interaction.response.send_message("Player input is disabled!", ephemeral=True, delete_after=10)
+			return False
+		else: #match.player_input is on but is from a caller object that isn't allowed for player input
+			await interaction.response.send_message("Selector/Button not allowed for player input!!", ephemeral=True, delete_after=10)
+			return False
 
 	async def plyinBtn(self, interaction: discord.Interaction):
 		self.match.player_input = not self.match.player_input
-		if self.match.player_input:
-			await interaction.response.send_message("Player input allowed on bans/songs!", ephemeral=True, delete_after=10)
-		else:
-			await interaction.response.send_message("Player input disallowed!", ephemeral=True, delete_after=10)
 		await self.match.showTool(interaction)
 
 	async def backBtn(self, interaction: discord.Interaction):
@@ -338,14 +347,13 @@ class DiscordMatchView(discord.ui.View):
 					await self.match.rounds[-1].asave()
 			elif self.match.rounds[-1].chart:
 				self.match.rounds[-1].chart = None
-				print("Removed chart")
 			else:
 				self.match.remove_round()
-			if len(self.match.rounds) == 0:
+			if len(self.match.rounds) == 0: #If we removed the last round, also remove a ban
 				self.match.remove_ban()
-		elif len(self.match.bans) > 0:
+		elif len(self.match.rounds) == 0 and len(self.match.bans) > 0:
 			self.match.remove_ban()
-		elif len(self.match.seeding) > 0:
+		elif len(self.match.seeding) > 0 and len(self.match.bans) == 0:
 			self.match.seeding = []
 
 		await self.match.showTool(interaction)

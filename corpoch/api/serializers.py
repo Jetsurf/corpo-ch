@@ -90,14 +90,6 @@ class ChartSerializer(serializers.ModelSerializer):
         model = corpomodels.Chart
         fields = '__all__'
 
-class MatchSerializer(serializers.ModelSerializer):
-    players = GroupSeedSerializer(many=True)
-    match_rounds = MatchRoundSerializer(many=True)
-    match_bans = MatchBanSerializer(many=True)
-    class Meta:
-        model = corpomodels.Match
-        fields = '__all__'
-
 class QualifierSerializer(serializers.ModelSerializer):
     class Meta:
         model = corpomodels.Qualifier

@@ -544,14 +544,14 @@ class Match(models.Model):
 	@property
 	def high_seed_bans(self):
 		if self.high_seed:
-			return [ban for ban in self.bans if ban.player.player_id == self.high_seed.player_id]
+			return [ban for ban in self.bans if ban.player.id == self.high_seed.player_id]
 		else:
 			return []
 
 	@property
 	def low_seed_bans(self):
 		if self.low_seed:
-			return [ban for ban in self.bans if ban.player.player_id == self.low_seed.player_id]
+			return [ban for ban in self.bans if ban.player.id == self.low_seed.player_id]
 		else:
 			return []
 
@@ -697,7 +697,7 @@ class MatchBan(models.Model):
 	id = models.AutoField(primary_key=True, help_text="Internal ID for a ban.")
 	num = models.PositiveIntegerField(blank=False, null=False, help_text="Order in which a ban was picked.")
 	chart = models.ForeignKey(Chart, related_name="bans", verbose_name="Chart Banned", null=True, blank=True, on_delete=models.SET_NULL, help_text="The chart that was banned.")
-	player = models.ForeignKey(GroupSeed, related_name="player_bans", verbose_name="Player", null=True, blank=True, on_delete=models.SET_NULL, help_text="Player that chose a ban.")
+	player = models.ForeignKey(TournamentPlayer, related_name="player_bans", verbose_name="Player", null=True, blank=True, on_delete=models.SET_NULL, help_text="Player that chose a ban.")
 	match = models.ForeignKey(Match, related_name="match_bans", verbose_name="Match ID", on_delete=models.CASCADE, null=True, blank=True, help_text="Match a ban was made for.")
 	created = models.DateTimeField(verbose_name="Created Time", auto_now_add=True, null=True, blank=True, help_text="Timestamp a ban was chosen.")
 

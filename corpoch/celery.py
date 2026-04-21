@@ -1,9 +1,8 @@
-# celery.py
 import os
 from celery import Celery
 from celery.app import trace
-# Set default Django settings
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'DiscordOauth2.settings')
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'corpoch.settings')
 
 # Initialize Celery with Django loader
 app = Celery('corpoch')

@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 from corpoch.models import DiscordUser
-from DiscordOauth2 import settings
+from corpoch import settings
 
 class Command(BaseCommand):
 	help = 'Load CH Icons'

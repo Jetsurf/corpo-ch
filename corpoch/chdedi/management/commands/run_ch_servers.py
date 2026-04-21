@@ -32,7 +32,14 @@ class CHManager:
 	async def run(self, server):
 		print(f"Starting CH Server: {server}")
 		with chdir(server.path):
-			settings = server.write_settings()
+			try:
+				settings = server.write_settings()
+			except Exception as e:
+				print(f"Exception writing settings for {server} - stopping.")
+				server.pid = None
+				server.global_config.to_stop.add(server)
+				return
+
 			server.pid = await self._monitor.start_subprocess({ "cmd" : server.exec_str, "args" : [] })
 			await server.asave()
 
