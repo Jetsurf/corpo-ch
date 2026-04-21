@@ -172,7 +172,7 @@ async def update_user(bot, user_id):
 			try:
 				member = await guild.fetch_member(dbuser.id)
 			except discord.NotFound:
-				return
+				continue
 			else:
 				ply.name = member.display_name if member.display_name else member.global_name
 				await ply.asave()
