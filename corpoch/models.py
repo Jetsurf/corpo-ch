@@ -380,12 +380,6 @@ class TournamentPlayer(models.Model):
 
 		return any(item.ch_name == name_to_find for item in self.config.names_list)
 
-#class Exhibitionlayer(TournamentPlayer):
-#	class Meta:
-#		proxied = True
-#		verbose_name = "Exhibition Player"
-#		verbose_name_plural = "Exhibition Players"
-
 class GroupSeed(models.Model):
 	"""
 	Represents a Seeding for a player in a Tournament Group. 
