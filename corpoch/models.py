@@ -97,6 +97,7 @@ class Chart(models.Model):
 	artist = models.CharField(verbose_name="Artist", max_length=256, blank=True, help_text="Artist of the song.")
 	album = models.CharField(verbose_name="Album", max_length=256, blank=True, help_text="Album the song is from.")
 	charter = models.CharField(verbose_name="Charter", max_length=32, blank=True, help_text="Author of a chart.")
+	boss = models.BooleanField(verbose_name="Boss Song", default=False, help_text="Is chart a 'boss' song.")
 	tiebreaker = models.BooleanField(verbose_name="Tiebreaker", default=False, help_text="Is this chart a tiebreaker in a setlist.")
 	difficulty = models.CharField(verbose_name="Difficulty", choices=CH_DIFFICULTIES, max_length=16, default=CH_DIFFICULTIES[0][0], help_text="Difficulty this chart is to be played on.")
 	instrument = models.CharField(verbose_name="Instrument", choices=CH_INSTRUMENTS, max_length=32, default=CH_INSTRUMENTS[0][0])
@@ -191,7 +192,6 @@ class TournamentConfig(models.Model):
 	tournament = models.OneToOneField(Tournament, related_name="config", verbose_name="Tournament Configuration", on_delete=models.CASCADE, help_text="Tournament a configuration is for.")
 	rules = models.TextField(verbose_name="Rules", max_length=1024, default="Some rules go here", help_text="Rules shown to players.")
 	ref_role = models.ForeignKey("dbot.Roles", verbose_name="Discord Ref Role", on_delete=models.SET_NULL, null=True, blank=True, help_text="Discord Role for referee's to start matches.")
-	enable_gsheets = models.BooleanField(verbose_name="GSheets Integration", default=True, help_text="Are GSheets in use for this tournament")
 	gsheet = models.URLField(verbose_name="Match Reporting Google Sheet", null=True, blank=True, help_text="GSheet URL to post match results to.")
 	version = models.CharField(verbose_name="Clone Hero Version", choices=CH_VERSIONS, max_length=32, default=CH_VERSIONS[0][0], help_text="Clone Hero verison the tournament is using.")
 
@@ -237,6 +237,8 @@ class BracketRules(models.Model):
 	num_players = models.PositiveIntegerField(verbose_name="Players", validators=[MinValueValidator(2), MaxValueValidator(4)], default=2, help_text="Number of players in a match.")
 	num_bans = models.IntegerField(verbose_name="Bans Per-Player", validators=[MinValueValidator(1), MaxValueValidator(4)], default=1, help_text="Number of bans per-player in a match.")
 	num_rounds = models.PositiveIntegerField(verbose_name="Best Of", validators=[MinValueValidator(3), MaxValueValidator(25)], default=7, help_text="Maximum number of rounds per-match.")
+	boss_active = models.BooleanField("Boss Songs Active", default=False, help_text="Are 'Boss' songs allowed to be picked.")
+	boss_bannable = models.BooleanField(verbose_name="Boss Songs Bannable", default=False, help_text="Are 'Boss' songs bannable.")
 	ban_ruleset = models.CharField(verbose_name="Match Bans Ruleset", choices=BAN_RULESETS, max_length=32, default=BAN_RULESETS[0][0], help_text="Ruleset to determine how bans work.")
 	pick_ruleset = models.CharField(verbose_name="'Who Picks' Ruleset", choices=PICK_RULESETS, max_length=32, default=PICK_RULESETS[0][0], help_text="Ruleset to determine who picks the next song for a round.")
 	tb_ruleset = models.CharField(verbose_name="Tiebreaker Ruleset", choices=TB_RULESETS, max_length=32, default=TB_RULESETS[0][0], help_text="Ruleset to determine how tiebreakers player.")
@@ -388,6 +390,7 @@ class GroupSeed(models.Model):
 	seed = models.PositiveIntegerField(blank=False, null=False, help_text="Player seed within this group")
 	group = models.ForeignKey(Group, related_name="seeding", verbose_name="Group Seeding", null=True, on_delete=models.CASCADE, help_text="Group this seed is for")
 	player = models.ForeignKey(TournamentPlayer, related_name="group_seeding", verbose_name="Group Seed", null=True, on_delete=models.SET_NULL, help_text='Player with this seeding in the group')
+	eliminated = models.BooleanField(verbose_name="Eliminated", default=False, help_text="Has player been eliminted from bracket (playoffs).")
 
 	class Meta:
 		verbose_name = "Seed Placement"
@@ -519,6 +522,13 @@ class Match(models.Model):
 		ordering = ['-started_on']
 		verbose_name = "Match"
 		verbose_name_plural = "Matches"
+
+	@property
+	def boss_present(self):
+		if len(self.group.bracket.setlist.filter(boss=True)) > 0:
+			return True
+		else:
+			return False
 
 	@property
 	def ongoing(self):

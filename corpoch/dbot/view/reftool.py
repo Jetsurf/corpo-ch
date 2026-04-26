@@ -1,4 +1,6 @@
 import discord, uuid, json, re
+from itertools import chain
+
 from discord.ext import commands
 from discord.ui import *
 from discord.enums import ComponentType, InputTextStyle
@@ -16,11 +18,39 @@ class MatchScreenModal(discord.ui.DesignerModal):
 		self.match = match
 		self.screens = None
 		file = discord.ui.Label("Match Screenshot Submission", discord.ui.FileUpload(max_values=len(self.match.rounds), required=True))
-		super().__init__(discord.ui.TextDisplay("Screenshots"), file, title="Match Screenshots")
+		super().__init__(discord.ui.TextDisplay("Screenshots"), file, title="Match Screenshots", custom_id="screenModal")
 
 	async def callback(self, interaction: discord.Interaction):
 		await interaction.respond("Processing, wait for embed to update", ephemeral=True, delete_after=10)
 		self.screens = self.children[1].item.values
+		self.stop()
+
+class SeedSearchModal(discord.ui.DesignerModal):
+	def __init__(self, match):
+		self.match = match
+		super().__init__(discord.ui.TextDisplay("Group Player Search"), title="Search Players", custom_id="searchModal")
+		self.add_item(discord.ui.Label("High Seed Search", discord.ui.InputText(placeholder="High Seed Discord Name", required=True, style=discord.InputTextStyle.short)))
+		self.add_item(discord.ui.Label("Low Seed Search", discord.ui.InputText(placeholder="Low Seed Discord Name", required=True, style=discord.InputTextStyle.short)))
+
+	async def callback(self, interaction: discord.Interaction):
+		query1 = self.match.group.seeding.select_related('player').all().filter(eliminated=False).filter(player__name__icontains=self.children[1].item.value)
+		query2 = self.match.group.seeding.select_related('player').all().filter(eliminated=False).filter(player__name__icontains=self.children[2].item.value)
+
+		if len(query1) < 1:
+			await interaction.respond(f"Search `{self.children[1].item.value}` found no results.", ephemeral=True, delete_after=10)
+			self.stop()
+			return
+		if len(query2) < 1:
+			await interaction.respond(f"Search `{self.children[2].item.value}` found no results.", ephemeral=True, delete_after=10)
+			self.stop()
+			return
+
+		retList = list(chain(query1, query2))
+		if len(retList) > 25:
+			await interaction.respond("Search(es) too broad, please narrow your search.")
+		else:
+			self.match.seeding_search = retList
+
 		self.stop()
 
 class BanSelect(discord.ui.Select):
@@ -33,8 +63,14 @@ class BanSelect(discord.ui.Select):
 		opts = []
 		if self.match.tiebreaker:
 			charts = self.match.setlist.select_related('icon').filter(tiebreaker=True)
+		elif self.match.boss_present:
+			if self.match.ruleset.boss_active and self.match.ruleset.boss_bannable:
+				charts = self.match.setlist.select_related('icon').filter(tiebreaker=False).exclude(bans__in=self.match.bans)
+			else:
+				charts = self.match.setlist.select_related('icon').filter(tiebreaker=False, boss=False).exclude(bans__in=self.match.bans)
 		else:
 			charts = self.match.setlist.select_related('icon').filter(tiebreaker=False).exclude(bans__in=self.match.bans)
+
 		async for chart in charts:
 			emoji = await get_chart_emoji(self.match.bot, chart)
 			self.retOpts[chart.md5] = chart
@@ -109,7 +145,14 @@ class SongRoundSelect(discord.ui.Select):
 			else:
 				charts = self.match.setlist.select_related('icon').filter(tiebreaker=True)
 		else:
-			charts = self.match.setlist.select_related('icon').filter(tiebreaker=False).exclude(id__in=songOptsDone).exclude(id__in=bansDone)
+			if self.match.boss_present:
+				if self.match.ruleset.boss_active:
+					charts = self.match.setlist.select_related('icon').filter(tiebreaker=False).exclude(id__in=songOptsDone).exclude(id__in=bansDone)
+				else:
+					charts = self.match.setlist.select_related('icon').filter(tiebreaker=False, boss=False).exclude(id__in=songOptsDone).exclude(id__in=bansDone)
+			else:
+				charts = self.match.setlist.select_related('icon').filter(tiebreaker=False).exclude(id__in=songOptsDone).exclude(id__in=bansDone)
+
 
 		opts = []
 		async for chart in charts:
@@ -189,13 +232,20 @@ class PlayerSelect(discord.ui.Select):
 		self.retOpts = {}
 
 	async def init(self):
+		disable = False
 		seeding = []
-		async for seed in self.match.group.seeding.select_related('player').all():
+		seeds = self.match.group.seeding.select_related('player').all().filter(eliminated=False)
+		if len(seeds) > 25:
+			if len(self.match.seeding_search) < 2:
+				disable = True
+			seeds = self.match.seeding_search
+
+		for seed in seeds:
 			if seed.player.is_active:
 				self.retOpts[str(seed.user.id)] = seed
 				seeding.append(discord.SelectOption(label=str(seed), value=str(seed.user.id), description=f"@{seed.player.name}"))
 		plys = self.match.ruleset.num_players
-		super().__init__(placeholder="Players", min_values=plys, max_values=plys, options=seeding, custom_id="player_sel")
+		super().__init__(placeholder="Players", min_values=plys, max_values=plys, options=seeding, custom_id="player_sel", disabled=disable)
 
 	async def callback(self, interaction: discord.Interaction):
 		self.values.sort(key=lambda ply: self.retOpts[ply].seed)
@@ -220,6 +270,9 @@ class DiscordMatchView(discord.ui.View):
 
 		self.defer = discord.ui.Button(label="Defer", style=discord.ButtonStyle.secondary, custom_id="deferBtn")
 		self.defer.callback = self.deferBtn
+
+		self.search = discord.ui.Button(label="Player Select", style=discord.ButtonStyle.secondary, custom_id="searchBtn")
+		self.search.callback = self.searchBtn
 
 		if self.match.player_input:
 			label = "Player Input ✅"
@@ -262,9 +315,12 @@ class DiscordMatchView(discord.ui.View):
 			self.add_item(sel)
 		elif len(self.match.seeding) < self.match.ruleset.num_players:
 			self.add_item(self.back)
-			sel = PlayerSelect(self.match)
-			await sel.init()
-			self.add_item(sel)
+			if len(self.match.group.seeding.select_related('player').all().filter(eliminated=False)) > 25:
+				self.add_item(self.search)
+			if len(self.match.group.seeding.select_related('player').all().filter(eliminated=False)) < 25 or len(self.match.seeding_search) > 1: 
+				sel = PlayerSelect(self.match)
+				await sel.init()
+				self.add_item(sel)
 		elif len(self.match.bans) < self.match.ruleset.total_bans:
 			self.add_item(self.back)
 			self.add_item(self.plyin)
@@ -370,6 +426,12 @@ class DiscordMatchView(discord.ui.View):
 
 	async def deferBtn(self, interaction: discord.Interaction):
 		self.match.matchDb.defer = not self.match.defer
+		await self.match.showTool(interaction)
+
+	async def searchBtn(self, interaction: discord.Interaction):
+		modal = SeedSearchModal(self.match)
+		await interaction.response.send_modal(modal)
+		await modal.wait()
 		await self.match.showTool(interaction)
 
 	async def uploadBtn(self, interaction: discord.Interaction):
