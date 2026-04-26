@@ -28,28 +28,25 @@ class MatchScreenModal(discord.ui.DesignerModal):
 class SeedSearchModal(discord.ui.DesignerModal):
 	def __init__(self, match):
 		self.match = match
-		super().__init__(discord.ui.TextDisplay("Group Player Search"), title="Search Players", custom_id="searchModal")
-		self.add_item(discord.ui.Label("High Seed Search", discord.ui.InputText(placeholder="High Seed Discord Name", required=True, style=discord.InputTextStyle.short)))
-		self.add_item(discord.ui.Label("Low Seed Search", discord.ui.InputText(placeholder="Low Seed Discord Name", required=True, style=discord.InputTextStyle.short)))
+		super().__init__(discord.ui.TextDisplay("Search for players.\nAccepts partial case-insensitive discord names."), title="Search Players", custom_id="searchModal")
+		self.add_item(discord.ui.Label("Player 1 Search", discord.ui.InputText(placeholder="Discord Name", required=True, style=discord.InputTextStyle.short)))
+		self.add_item(discord.ui.Label("Player 2 Search", discord.ui.InputText(placeholder="Discord Name", required=True, style=discord.InputTextStyle.short)))
 
 	async def callback(self, interaction: discord.Interaction):
-		query1 = self.match.group.seeding.select_related('player').all().filter(eliminated=False).filter(player__name__icontains=self.children[1].item.value)
-		query2 = self.match.group.seeding.select_related('player').all().filter(eliminated=False).filter(player__name__icontains=self.children[2].item.value)
+		query1 = self.match.group.seeding.select_related('player').all().filter(player__is_active=True, eliminated=False, player__name__icontains=self.children[1].item.value)
+		query2 = self.match.group.seeding.select_related('player').all().filter(player__is_active=True, eliminated=False, player__name__icontains=self.children[2].item.value)
 
 		if len(query1) < 1:
 			await interaction.respond(f"Search `{self.children[1].item.value}` found no results.", ephemeral=True, delete_after=10)
-			self.stop()
-			return
-		if len(query2) < 1:
+		elif len(query2) < 1:
 			await interaction.respond(f"Search `{self.children[2].item.value}` found no results.", ephemeral=True, delete_after=10)
-			self.stop()
-			return
-
-		retList = list(chain(query1, query2))
-		if len(retList) > 25:
-			await interaction.respond("Search(es) too broad, please narrow your search.")
 		else:
-			self.match.seeding_search = retList
+			retList = list(chain(query1, query2))
+			if len(retList) > 25:
+				await interaction.respond("Search(es) too broad, please narrow your search.", ephemeral=True, delete_after=10)
+			else:
+				await interaction.response.defer(invisible=True)
+				self.match.seeding_search = retList
 
 		self.stop()
 
@@ -63,11 +60,8 @@ class BanSelect(discord.ui.Select):
 		opts = []
 		if self.match.tiebreaker:
 			charts = self.match.setlist.select_related('icon').filter(tiebreaker=True)
-		elif self.match.boss_present:
-			if self.match.ruleset.boss_active and self.match.ruleset.boss_bannable:
-				charts = self.match.setlist.select_related('icon').filter(tiebreaker=False).exclude(bans__in=self.match.bans)
-			else:
-				charts = self.match.setlist.select_related('icon').filter(tiebreaker=False, boss=False).exclude(bans__in=self.match.bans)
+		elif self.match.boss_present and self.match.ruleset.boss_active and not self.match.ruleset.boss_bannable:
+			charts = self.match.setlist.select_related('icon').filter(tiebreaker=False, boss=False).exclude(bans__in=self.match.bans)
 		else:
 			charts = self.match.setlist.select_related('icon').filter(tiebreaker=False).exclude(bans__in=self.match.bans)
 
@@ -139,20 +133,16 @@ class SongRoundSelect(discord.ui.Select):
 				songOptsDone.append(rnd.chart.id)
 		if len(self.match.rounds) == self.match.ruleset.num_rounds:
 			if self.match.ruleset.tb_ruleset == 'refdecide':
-				charts = self.match.setlist.select_related('icon').filter().exclude(id__in=bansDone).exclude(id__in=songOptsDone)
+				charts = self.match.setlist.select_related('icon').filter().exclude(id__in=list(chain(bansDone, songOptsDone)))
 			elif self.match.ruleset.tb_ruleset == "banpick":
 				charts = self.match.setlist.select_related('icon').filter(tiebreaker=True).exclude(id__in=bansDone)
 			else:
 				charts = self.match.setlist.select_related('icon').filter(tiebreaker=True)
 		else:
-			if self.match.boss_present:
-				if self.match.ruleset.boss_active:
-					charts = self.match.setlist.select_related('icon').filter(tiebreaker=False).exclude(id__in=songOptsDone).exclude(id__in=bansDone)
-				else:
-					charts = self.match.setlist.select_related('icon').filter(tiebreaker=False, boss=False).exclude(id__in=songOptsDone).exclude(id__in=bansDone)
+			if self.match.boss_present and not self.match.ruleset.boss_active:
+				charts = self.match.setlist.select_related('icon').filter(tiebreaker=False, boss=False).exclude(id__in=list(chain(songOptsDone, bansDone)))
 			else:
-				charts = self.match.setlist.select_related('icon').filter(tiebreaker=False).exclude(id__in=songOptsDone).exclude(id__in=bansDone)
-
+				charts = self.match.setlist.select_related('icon').filter(tiebreaker=False).exclude(id__in=list(chain(songOptsDone, bansDone)))
 
 		opts = []
 		async for chart in charts:
@@ -234,16 +224,15 @@ class PlayerSelect(discord.ui.Select):
 	async def init(self):
 		disable = False
 		seeding = []
-		seeds = self.match.group.seeding.select_related('player').all().filter(eliminated=False)
+		seeds = self.match.group.seeding.select_related('player').all().filter(player__is_active=True, eliminated=False)
 		if len(seeds) > 25:
 			if len(self.match.seeding_search) < 2:
 				disable = True
 			seeds = self.match.seeding_search
 
 		for seed in seeds:
-			if seed.player.is_active:
-				self.retOpts[str(seed.user.id)] = seed
-				seeding.append(discord.SelectOption(label=str(seed), value=str(seed.user.id), description=f"@{seed.player.name}"))
+			self.retOpts[str(seed.user.id)] = seed
+			seeding.append(discord.SelectOption(label=str(seed), value=str(seed.user.id), description=f"@{seed.player.name}"))
 		plys = self.match.ruleset.num_players
 		super().__init__(placeholder="Players", min_values=plys, max_values=plys, options=seeding, custom_id="player_sel", disabled=disable)
 

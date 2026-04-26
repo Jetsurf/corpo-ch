@@ -323,7 +323,10 @@ class DiscordMatch():
 			embed.add_field(name="Group Select", value=f"Select which group the match is for", inline=False)
 		elif len(self.seeding) < self.ruleset.num_players:
 			embed.title = f"{self.group}"
-			embed.add_field(name="Player Select", value=f"Select which players the match is for", inline=False)
+			if len(self.group.seeding.all().filter(player__is_active=True, eliminated=False)) > 25 and len(self.seeding_search) < 2:
+				embed.add_field(name="Player Select", value=f"Group too large for select. Click search to find players.", inline=False)
+			else:
+				embed.add_field(name="Player Select", value=f"Select which players the match is for", inline=False)
 		else:
 			embed.title = f"{self.group}\n{self.seeding[0]} vs {self.seeding[1]}"
 			embed.add_field(name="Match VS", value=f"{self.seeding[0].mention} vs {self.seeding[1].mention}")
@@ -339,7 +342,8 @@ class DiscordMatch():
 					embed.add_field(name="Bans", value=self.formatted_bans, inline=False)
 			else:
 				embed.add_field(name="Bans", value=self.formatted_bans, inline=False)
-		embed.add_field(name="Rounds", value=self.formatted_rounds, inline=False)
+		if len(self.rounds) > 0:
+			embed.add_field(name="Rounds", value=self.formatted_rounds, inline=False)
 		if self.matchDb:
 			embed.set_footer(text=f"Match ID: {self.id}")
 		return embed
