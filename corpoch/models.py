@@ -255,6 +255,13 @@ class BracketRules(models.Model):
 	def total_bans(self) -> int:
 		return self.num_bans * self.num_players
 
+	@property
+	def boss_present(self):
+		if len(self.bracket.setlist.filter(boss=True)) > 0:
+			return True
+		else:
+			return False
+
 	def __str__(self):
 		return f"{self.bracket}"
 
@@ -525,13 +532,6 @@ class Match(models.Model):
 		ordering = ['-started_on']
 		verbose_name = "Match"
 		verbose_name_plural = "Matches"
-
-	@property
-	def boss_present(self):
-		if len(self.group.bracket.setlist.filter(boss=True)) > 0:
-			return True
-		else:
-			return False
 
 	@property
 	def ongoing(self):

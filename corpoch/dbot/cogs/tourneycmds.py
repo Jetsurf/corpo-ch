@@ -221,10 +221,6 @@ class DiscordMatch():
 			ban.delete()
 
 	@property
-	def boss_present(self) -> bool:
-		return self.matchDb.boss_present
-
-	@property
 	def chart(self):
 		return self.rounds[-1].chart if len(self.rounds) > 0 else None
 
@@ -234,13 +230,6 @@ class DiscordMatch():
 			return self.matchDb.complete
 		else:
 			return False
-
-	@property
-	def config(self):
-		if self.tourney:
-			return self.tourney.config
-		else:
-			return None
 
 	@property
 	def defer(self):
