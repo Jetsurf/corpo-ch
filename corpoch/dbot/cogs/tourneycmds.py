@@ -173,7 +173,7 @@ class DiscordMatch():
 		outStr = f"**{seed.player_ch_name} Bans**\n"
 		for i in range(0, self.ruleset.num_bans):
 			try:
-				outStr += f"{bans[i].tournament_name}\n"
+				outStr += f"{bans[i].chart.tournament_name}\n"
 			except IndexError:
 				outStr += "--\n"
 		return outStr
