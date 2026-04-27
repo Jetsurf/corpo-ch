@@ -83,7 +83,7 @@ class ChartAdmin(admin.ModelAdmin):
 		for chart in queryset:
 			corpoch.tasks.chart_songini_import.apply_async(args=[chart.id])
 
-class TournamentConfigInline(admin.TabularInline):
+class TournamentConfigInline(admin.StackedInline):
 	model = TournamentConfig
 	extra = 0
 
@@ -140,9 +140,15 @@ class TournamentAdmin(admin.ModelAdmin):
 						seed.player.is_active = True
 						seed.player.save()
 
-class BracketRulesInline(admin.TabularInline):
+class BracketRulesInline(admin.StackedInline):
 	model = BracketRules
 	extra = 0
+
+	def get_fields(self, request, obj=None):
+		if obj == None or len(obj.setlist.all().filter(boss=True)) == 0:
+			return ('num_players', 'num_bans', 'num_rounds', 'ban_ruleset', 'pick_ruleset', 'tb_ruleset',)
+		else:
+			return ('num_players', 'num_bans', 'num_rounds', 'boss_active', 'boss_bannable', 'ban_ruleset', 'pick_ruleset', 'tb_ruleset',)
 
 @admin.register(Bracket)
 class BracketAdmin(admin.ModelAdmin):

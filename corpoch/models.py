@@ -196,11 +196,11 @@ class TournamentConfig(models.Model):
 	version = models.CharField(verbose_name="Clone Hero Version", choices=CH_VERSIONS, max_length=32, default=CH_VERSIONS[0][0], help_text="Clone Hero verison the tournament is using.")
 
 	class Meta:
-		verbose_name = "Config"
+		verbose_name = "Configuration"
 		verbose_name_plural = "Configurations"
 
 	def __str__(self):
-		return f"{self.tournament.name} - Configuration"
+		return f"{self.tournament.name}"
 
 class Bracket(models.Model):
 	"""
@@ -254,6 +254,9 @@ class BracketRules(models.Model):
 	@property
 	def total_bans(self) -> int:
 		return self.num_bans * self.num_players
+
+	def __str__(self):
+		return f"{self.bracket}"
 
 class Group(models.Model):
 	"""
