@@ -163,27 +163,57 @@ class CHCmds(commands.Cog):
 		embed.add_field(name="Corpo Server List", value=f"```{GlobalConfig.objects.get().server_list}```", inline=False)
 		await ctx.respond(embed=embed, ephemeral=ephemeral)
 
+	async def handle_steg(self, ctx, msg, full=False):
+		#resp = await ctx.defer(invisible=True)
+		from corpoch.models import Match
+		try:
+			match = Match.objects.get(message=msg.id)
+			if not ctx.user.can_send():
+				await ctx.respond("Message is a match, and I cannot DM you the info for this match. Please allow me to DM you and rerun!", ephemeral=True, delete_after=30)
+				return
+			else:
+				await ctx.respond("Message is an official match, DM'ing you the results.", ephemeral=True, delete_after=30)
+			submissions = match.rounds
+		except Match.DoesNotExist:
+			match = None
+			if len(msg.attachments) < 1:
+				await ctx.respond("No screenshot attached to this post!", delete_after=10, ephemeral=True)
+				return
+
+			submissions = msg.attachments
+
+		if len(submissions) > 1:
+			if match:
+				resp = ctx.user
+			else:
+				await ctx.defer(invisible=True)
+				interaction = await ctx.followup.send("CH Screenshot Steg Results")
+				resp = await ctx.channel.create_thread(name="CH Screenshot Steg Results Thread", message=interaction)
+				if not resp.can_send():
+					await ctx.respond("Do not have perms to respond in thread, have a server admin fix that perm for me and rerun!", ephemeral=True, delete_after=60)
+					return
+
+		for i, submission in enumerate(submissions):
+			if isinstance(submission, discord.Attachment):
+				steg = CHStegTool()
+				if not await steg.getStegInfo(submission):
+					await resp.send(f"Submitted screenshot {i} is not a valid in-game Clone Hero screenshot")
+					continue
+			else:#MatchRound
+				steg = submission
+
+			if full:
+				await resp.send(embed=steg.full_steg_embed)
+			else:
+				await resp.send(embed=steg.steg_embed)
+
 	@discord.message_command(name='CH Sten',description='Reads CH Sten data from a screenshot posted to a message', integration_types={discord.IntegrationType.guild_install, discord.IntegrationType.user_install})
 	async def getScreenSten(self, ctx: discord.ApplicationContext, msg: discord.Message):
-		resp = await ctx.defer(invisible=True)
-		if len(msg.attachments) < 1:
-			await ctx.respond("No screenshot attached to this post!", delete_after=10)
-		elif len(msg.attachments) >= 1:
-			#Only gets first screenshot if multiple are attached
-			submission = msg.attachments[0]
+		await self.handle_steg(ctx, msg)
 
-		steg = CHStegTool()
-		stegData = await steg.getStegInfo(submission)
-
-		if stegData == None:
-			await ctx.respond("Submitted screenshot is not a valid in-game Clone Hero screenshot", delete_after=10)
-			return
-
-		embed = steg.buildStatsEmbed("Screenshot Results")
-		if len(msg.attachments) > 1:
-			await ctx.respond("Only getting first screenshot data from this message", embed=embed)
-		else:
-			await ctx.respond(embed=embed)
+	@discord.message_command(name='CH Sten - Full',description='Reads ALL CH Sten data from a screenshot posted to a message', integration_types={discord.IntegrationType.guild_install, discord.IntegrationType.user_install})
+	async def getFullScreenSten(self, ctx: discord.ApplicationContext, msg: discord.Message):
+		await self.handle_steg(ctx, msg, full=True)
 
 def setup(bot):
 	bot.add_cog(CHCmds(bot))

@@ -19,6 +19,7 @@ from corpoch.managers import DiscordOAuth2Manager
 from corpoch.utils.snghandler import SNGHandler
 from corpoch.types import CH_INSTRUMENTS, CH_DIFFICULTIES, CH_MODIFIERS, CH_VERSIONS, CHART_CATEGORIES, TB_RULESETS, PICK_RULESETS, BAN_RULESETS, StegScreenshot, PlayerConfig, CH_Name
 from corpoch.validators import validate_chart_file
+from corpoch.dbot.view.helpers import build_stats_embed, build_full_stats_embed
 
 def steg_upload_dir(self, filename):
 	return f"matches/{str(self.match.group).replace(' ', '').replace(":", "")}/{self.match.id}/{filename}"
@@ -698,6 +699,22 @@ class MatchRound(models.Model):
 			tool = CHStegTool()
 			self.steg = tool.getStegInfoSync(self.screenshot)
 		super().save()
+
+	#TODO: Move picked/etc logic to here
+
+	@property
+	def steg_embed(self):
+		embed = build_stats_embed(self.steg, f"Match {self.match} - Round {self.num} Results")
+		embed.set_thumbnail(url=f"https://{settings.BASE_URL}{self.screenshot.url}")
+		embed.set_footer(text=embed.footer.text, icon_url = f"https://{settings.BASE_URL}{self.chart.icon.img.url}")
+		return embed
+
+	@property
+	def full_steg_embed(self):
+		embed = build_full_stats_embed(self.steg, f"Match {self.match} - Round {self.num} FULL Results")
+		embed.set_thumbnail(url=f"https://{settings.BASE_URL}{self.screenshot.url}")
+		embed.set_footer(text=embed.footer.text, icon_url = f"https://{settings.BASE_URL}{self.chart.icon.img.url}")
+		return embed
 
 #Potential class for a "Series" of tournaments - just needs to be a list of tournaments for ogranization
 #class TournamentSeries(models.Model):

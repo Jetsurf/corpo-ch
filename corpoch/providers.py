@@ -13,6 +13,7 @@ from corpoch.models import GSheetAPI, Chart, Tournament, Match, Qualifier, Quali
 from corpoch.types import StegScreenshot, SearchResponse, CH_DIFFICULTIES, CH_INSTRUMENTS
 from corpoch.utils.hydra.hydra.hyutil import analyze_chart_bytes_chart, analyze_chart_bytes_mid
 from corpoch.utils.snghandler import SNGHandler
+from corpoch.dbot.view.helpers import build_stats_embed, build_full_stats_embed
 
 class EncoreClient:
 	def __init__(self, limit: int=24, exact: bool=True):
@@ -171,6 +172,7 @@ class CHStegTool:
 		self._steg = f"{self._path}/ch_steg_reader.exe" if platform.system() == "Windows" else f"{self._path}/ch_steg_reader"
 		self._media_root = settings.MEDIA_ROOT
 		self._scratch = f"{self._path}/scratch"
+		self._discord_url = None
 		if not os.path.isdir(self._scratch):
 			os.makedirs(self._scratch)
 
@@ -199,6 +201,7 @@ class CHStegTool:
 		image.filename = re.sub(r'[^a-zA-Z0-9-_.]', '', image.filename)
 		self.img_name = image.filename
 		self.img_path = f"{self._scratch}/{image.filename}"
+		self._discord_url = image.url
 		await image.save(self.img_path, seek_begin=True)
 		self.img = Image.open(self.img_path)
 
@@ -240,24 +243,16 @@ class CHStegTool:
 		self._call_steg()
 		return self.output
 
-	def buildStatsEmbed(self, title: str) -> discord.Embed:
-		embed = discord.Embed(colour=0x3FFF33)
-		embed.title = title
-		chartStr = f"Chart: {self.output.artist_name}" + f" - {self.output.song_name}"+ f" ({self.output.charter_name})" + (f" [{self.output.playback_speed}%]" if self.output.playback_speed != 100 else '')+"\n"
-		chartStr += f"Run Time: <t:{int(self.output.score_timestamp.timestamp())}:f>\n"
-		chartStr += f"Game Version: {self.output.game_version}"
-		embed.add_field(name="Submission Stats", value=chartStr, inline=False)
-		#embed.set_footer(text=f"Chart md5 `{self.output.checksum}`")
-		for i, player in enumerate(self.output.players):
-			#plyStr = ""
-			#plyStr += f"Player Name: `{player.profile_name}`\n"
-			plyStr = f"Score: {player.score}\n"
-			plyStr += f"Notes Hit: {player.notes_hit}/{player.total_notes} - {(player.notes_hit/player.total_notes) * 100:.2f}% {' - 👑' if player.is_fc else f'(-{player.notes_missed})'}\n"
-			plyStr += f"Overstrums: (+){player.excess_hits}\n"
-			plyStr += f"Ghosts: {player.frets_ghosted}\n"
-			plyStr += f"SP Phrases: {player.sp_phrases_earned}/{player.sp_phrases_total}\n"
-			embed.add_field(name=f"Player: `{player.profile_name}`", value=plyStr, inline=False)
-		embed.add_field(name="", value=f"Chart MD5: `{self.output.checksum}`")
+	@property
+	def steg_embed(self) -> discord.Embed:
+		embed = build_stats_embed(self.output, "Screenshot Results")
+		embed.set_thumbnail(url=self._discord_url)
+		return embed
+
+	@property
+	def full_steg_embed(self) -> discord.Embed:
+		embed = build_full_stats_embed(self.output, "Screenshot Results")
+		embed.set_thumbnail(url=self._discord_url)
 		return embed
 
 class GSheets():
