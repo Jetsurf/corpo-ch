@@ -526,7 +526,7 @@ class Match(models.Model):
 	channel = models.ForeignKey("dbot.Channels", verbose_name="Ref-Tool Discord Channel", on_delete=models.SET_NULL, null=True, blank=True, help_text="Discord Channel the reftool was ran in for a match.")
 	message = models.BigIntegerField(verbose_name="Ref-Tool Discord Message ID", null=True, blank=True, help_text="Discord snowflake ID of the message for a match.")
 	referee = models.ForeignKey(DiscordUser, related_name="matches_reffed", verbose_name="Referee", on_delete=models.SET_NULL, db_index=True, blank=True, null=True, help_text="Discord User for the refree of a match.")
-	#exhibition = models.BooleanField(default=False, help_text="Is a match an exhibition match (not an official match).")
+	exhibition = models.BooleanField(default=False, help_text="Is a match an exhibition match (not an official match).")
 
 	class Meta:
 		ordering = ['-started_on']

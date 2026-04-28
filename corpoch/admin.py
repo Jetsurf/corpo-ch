@@ -18,10 +18,11 @@ from corpoch.models import Chart, Tournament, TournamentConfig, BracketRules, Br
 from corpoch.models import Match, Group, QualifierSubmission, CH_MODIFIERS, MatchBan, GSheetAPI, DiscordUser
 from corpoch.dbot.models import Guilds, Channels, Roles
 from corpoch.providers import EncoreClient, GSheets
+from corpoch import __version__ as version
 import corpoch.dbot.tasks
 import corpoch.tasks
 
-admin.site.site_header = 'Corpo CH Admin'
+admin.site.site_header = f'Corpo CH Admin {version}'
 admin.site.site_title = 'Corpo CH'
 admin.site.register(GSheetAPI, SingletonModelAdmin)
 
@@ -273,7 +274,7 @@ class SeedingInline(SortableStackedInline):
 
 @admin.register(Group)
 class GroupAdmin(SortableAdminBase, admin.ModelAdmin):
-	list_display = ('name', 'tournament', 'bracket_name')#, 'group_players')
+	list_display = ('name', 'tournament', 'bracket_name')
 	inlines = [SeedingInline]
 	list_filter = ['bracket']
 	list_per_page = 32
