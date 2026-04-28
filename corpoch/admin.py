@@ -1,4 +1,5 @@
 import json, time
+from itertools import chain
 
 from django.contrib import admin
 from django.contrib.contenttypes.models import ContentType
@@ -51,8 +52,9 @@ class DiscordUserAdmin(admin.ModelAdmin):
 class ChartAdmin(admin.ModelAdmin):
 	list_display = ('_icon','name',  '_bracket', 'charter', 'artist', 'album', 'speed', '_modifiers', 'tiebreaker')
 	list_filter = ['brackets', 'tiebreaker']
-	readonly_fields = ['_icon']
 	actions = ['run_encore_import', 'import_song_ini']
+	readonly_fields = ['_icon']
+	filter_horizontal = ['brackets']
 
 	def _bracket(self,obj):
 		retList = []
@@ -75,6 +77,34 @@ class ChartAdmin(admin.ModelAdmin):
 			return f'<img src="{obj.icon.img.url}" width="24" height="24"'
 		else:
 			return "None"
+
+	def get_readonly_fields(self, request, obj=None):
+		if not obj or request.user.is_superuser:
+			return self.readonly_fields
+
+		for bracket in obj.brackets.all():
+			try:
+				is_staff = bracket.tournament.guild.admins.get(id=request.user.id)
+				return self.readonly_fields
+			except DiscordUser.DoesNotExist:
+				continue
+
+		return list(chain(self.readonly_fields, ['id', 'name', 'artist', 'album', 'charter', 'boss', 'tiebreaker', 'difficulty', 'instrument', 'modifiers', 'speed', 'category', 'brackets', 'md5', 'blake3', 'url', 'icon', 'sngfile']))
+
+	def get_queryset(self, request):
+		qs = super().get_queryset(request)
+		if request.user.is_superuser:
+			return qs
+		for obj in qs:
+			for bracket in obj.brackets.all():
+				if bracket.revealed:
+					break
+				else:
+					try:
+						is_admin = bracket.tournament.guild.admins.get(id=request.user.id)
+					except DiscordUser.DoesNotExist:
+						qs = qs.all().exclude(id=obj.id)
+		return qs
 
 	@admin.action(description="Run Encore import")
 	def run_encore_import(modeladmin, request, queryset):

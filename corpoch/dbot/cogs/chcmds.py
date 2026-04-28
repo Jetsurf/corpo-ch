@@ -36,6 +36,10 @@ class Path():
 				respond = self.ctx.channel
 			else:
 				respond = await self.ctx.channel.create_thread(name="CH Path Results Thread", message=interaction)
+				if not respond.can_send():
+					print(f"Attempting to respond to thread {self.ctx.channel.name} id {self.ctx.channel.id} message {respond.id}")
+					await ctx.respond("Do not have perms to respond in thread, have a server admin fix that perm for me and rerun!", ephemeral=True, delete_after=60)
+					return
 		else:
 			respond = interaction.followup
 
@@ -164,7 +168,6 @@ class CHCmds(commands.Cog):
 		await ctx.respond(embed=embed, ephemeral=ephemeral)
 
 	async def handle_steg(self, ctx, msg, full=False):
-		#resp = await ctx.defer(invisible=True)
 		from corpoch.models import Match
 		try:
 			match = Match.objects.get(message=msg.id)
@@ -179,7 +182,6 @@ class CHCmds(commands.Cog):
 			if len(msg.attachments) < 1:
 				await ctx.respond("No screenshot attached to this post!", delete_after=10, ephemeral=True)
 				return
-
 			submissions = msg.attachments
 
 		if len(submissions) > 1:
@@ -190,6 +192,7 @@ class CHCmds(commands.Cog):
 				interaction = await ctx.followup.send("CH Screenshot Steg Results")
 				resp = await ctx.channel.create_thread(name="CH Screenshot Steg Results Thread", message=interaction)
 				if not resp.can_send():
+					print(f"Attempting to respond to thread {ctx.channel.name} id {ctx.channel.id} message {resp.id}")
 					await ctx.respond("Do not have perms to respond in thread, have a server admin fix that perm for me and rerun!", ephemeral=True, delete_after=60)
 					return
 
