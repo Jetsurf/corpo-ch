@@ -29,7 +29,7 @@ class DiscordUserAdmin(admin.ModelAdmin):
 	list_display = ('_avatar', 'id', 'global_name')
 	readonly_fields = ['global_name', 'mfa_enabled', '_id', 'avatar', 'locale', 'flags', 'public_flags', 'last_login', 'date_joined']
 	exclude = ['password', 'first_name', 'last_name', 'email', 'username']
-	search_fields = ['id']
+	search_fields = ['id', "global_name"]
 	actions = ['update_discord_user']
 
 	def _id(self, obj):
@@ -88,12 +88,6 @@ class TournamentConfigInline(admin.StackedInline):
 	extra = 0
 
 	def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
-		if db_field.name == "ref_role":
-			if 'object_id' in request.resolver_match.kwargs:
-				conf = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
-				kwargs['queryset'] = Roles.objects.all().filter(guild=conf.tournament.guild)
-			else:
-				kwargs["queryset"] = Roles.objects.none()
 		if db_field.name == "proof_channel":
 			if 'object_id' in request.resolver_match.kwargs:
 				conf = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])

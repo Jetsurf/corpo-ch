@@ -192,7 +192,6 @@ class TournamentConfig(models.Model):
 	id = models.AutoField(primary_key=True, help_text="Internal ID of a config.")
 	tournament = models.OneToOneField(Tournament, related_name="config", verbose_name="Tournament Configuration", on_delete=models.CASCADE, help_text="Tournament a configuration is for.")
 	rules = models.TextField(verbose_name="Rules", max_length=1024, default="Some rules go here", help_text="Rules shown to players.")
-	ref_role = models.ForeignKey("dbot.Roles", verbose_name="Discord Ref Role", on_delete=models.SET_NULL, null=True, blank=True, help_text="Discord Role for referee's to start matches.")
 	gsheet = models.URLField(verbose_name="Match Reporting Google Sheet", null=True, blank=True, help_text="GSheet URL to post match results to.")
 	version = models.CharField(verbose_name="Clone Hero Version", choices=CH_VERSIONS, max_length=32, default=CH_VERSIONS[0][0], help_text="Clone Hero verison the tournament is using.")
 

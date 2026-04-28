@@ -20,6 +20,15 @@ class GuildAdmin(admin.ModelAdmin):
 		else:
 			return "None"
 
+	def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
+		if db_field.name == "ref_role" or db_field.name == "admin_role":
+			if 'object_id' in request.resolver_match.kwargs:
+				guild = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs['queryset'] = Roles.objects.all().filter(guild=guild)
+			else:
+				kwargs["queryset"] = Roles.objects.none()
+		return super(GuildAdmin, self).formfield_for_foreignkey(db_field, request, **kwargs)
+
 	@admin.action(description="Update Discord Info")
 	def update_discord_guild(modeladmin, request, queryset):
 		for guild in queryset:
@@ -29,6 +38,7 @@ class GuildAdmin(admin.ModelAdmin):
 class ChannelAdmin(admin.ModelAdmin):
 	list_display = ('_id', 'guild', 'name')
 	readonly_fields = ['name', 'deleted']
+	search_fields = ['_id', 'name']
 
 	def _id(self, obj):
 		return str(obj.id)
@@ -37,6 +47,7 @@ class ChannelAdmin(admin.ModelAdmin):
 class RoleAdmin(admin.ModelAdmin):
 	list_display = ('_id', 'guild', 'name')
 	readonly_fields = ['name', 'deleted']
+	search_fields = ['_id', 'name']
 
 	def _id(self, obj):
 		return str(obj.id)
