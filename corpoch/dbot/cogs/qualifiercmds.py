@@ -1,4 +1,4 @@
-import base64, discord, io, json, os, pydantic, pytz, uuid
+import base64, discord, io, json, os, pydantic, pytz
 
 from discord.ext import commands
 from discord.ui import *
@@ -236,7 +236,7 @@ class DiscordQualifierView(discord.ui.View):
 		await self.user.asave()
 		await self.ply.asave()
 		quali = QualifierSubmission(player=self.ply, qualifier=self.qualifier, steg=self.steg.output)
-		quali.screenshot.save(f'{uuid.uuid1()}.png', ContentFile(await self.screen.read()))
+		quali.screenshot.save(self.screen.filename, ContentFile(await self.screen.read()))
 		await quali.asave()
 		await self.ctx.interaction.delete_original_response()
 		await interaction.followup.send(f"{self.ctx.user.mention} submitted a qualifier for {self.qualifier}!", ephemeral=not self.qualifier.output)

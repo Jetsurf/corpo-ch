@@ -22,10 +22,10 @@ from corpoch.validators import validate_chart_file
 from corpoch.dbot.view.helpers import build_stats_embed, build_full_stats_embed
 
 def steg_upload_dir(self, filename):
-	return f"matches/{str(self.match.group).replace(' ', '').replace(":", "")}/{self.match.id}/{filename}"
+	return f"matches/{str(self.match.group).replace(' ', '').replace(":", "")}/{self.match.id}/{uuid.uuid1()}.{filename.split('.')[1]}"
 
 def quali_upload_dir(self, filename):
-	return f"qualifiers/{str(self.qualifier).replace(' ', '').replace(':', '')}/{filename}"
+	return f"qualifiers/{str(self.qualifier).replace(' ', '').replace(':', '')}/{self.match.id}/{uuid.uuid1()}.{filename.split('.')[1]}"
 
 class GSheetAPI(SingletonModel):
 	api_key = EncryptedJSONField(null=False, blank=True, default=dict)
@@ -659,6 +659,7 @@ class Match(models.Model):
 				from corpoch.providers import CHStegTool
 				tool = CHStegTool()
 				rnd.steg = tool.getStegInfoSync(rnd.screenshot)
+
 		super().save()
 
 class MatchRound(models.Model):
