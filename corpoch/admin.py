@@ -403,9 +403,15 @@ class QualifierSubmissionAdmin(admin.ModelAdmin):
 			corpoch.tasks.update_gsheet.apply_async(args=[submission.id])
 
 class RoundsForm(ModelForm):
+	class Meta:
+		model = MatchRound
+		fields = '__all__'
+
 	def __init__(self, *args, **kwargs):
-		super().__init__(*args, **kwargs)
-		#print(f"SELF VARS: {vars(self)}")
+		super(RoundsForm, self).__init__(*args, **kwargs)
+		if self.instance and self.instance.pk:
+			if not self.instance.screenshot and 'steg' in self.fields:
+				self.fields['steg'].disabled = True
 		return
 
 class RoundsInline(SortableStackedInline):
@@ -413,10 +419,33 @@ class RoundsInline(SortableStackedInline):
 	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
 	extra = 0
 
+	def get_formset(self, request, obj=None, **kwargs):
+		formset = super().get_formset(request, obj, **kwargs)
+		if request.user.is_superuser:
+			return formset
+
+		staff, ref = False, False
+		if obj:
+			try:
+				is_staff = obj.group.tournament.guild.admins.get(id=request.user.id)
+				staff = True
+			except DiscordUser.DoesNotExist:
+				pass
+			try:
+				is_ref = obj.group.tournament.guild.referees.get(id=request.user.id)
+				ref = True
+			except DiscordUser.DoesNotExist:
+				pass
+
+		if not staff and not ref:
+			if 'steg' in formset.form.base_fields:
+				formset.form.base_fields['steg'].disabled = True
+
+		return formset
+
 	def get_readonly_fields(self, request, obj=None):
 		if not obj or request.user.is_superuser:
 			return ('created',)
-		print(f"SETS: {vars(self.form())}")
 		staff = False
 		try:
 			is_staff = obj.tournament.guild.admins.get(id=request.user.id)
@@ -425,9 +454,6 @@ class RoundsInline(SortableStackedInline):
 			return ('id', 'num', 'match', 'picked', 'chart', 'winner', 'loser', 'screenshot', 'created')
 
 	def formfield_for_foreignkey(self, db_field, request, **kwargs):
-		print(f"FORM REQUEST: {request}")
-		if db_field.name == "steg":
-			print(f"DB_FIELD: {vars(self)}\n\nPLUS: {db_field}")
 		if db_field.name == "winner" or db_field.name == "loser" or db_field.name == 'picked':
 			if 'object_id' in request.resolver_match.kwargs:
 				match = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
@@ -499,30 +525,6 @@ class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
 			return ('id', 'players', 'loser', 'winner', 'defer', 'group', 'started_on', 'ended_on', 'complete', 'finished', 'submitted', 'channel', 'message', 'referee')
 		else:
 			return ('started_on',)
-
-	def get_form(self, request, obj=None, **kwargs):
-		form = super().get_form(request, obj, **kwargs)
-		if not obj or request.user.is_superuser:
-			return form
-		ref, staff = False, False
-		try:
-			is_staff = obj.tournament.guild.admins.get(id=request.user.id)
-			staff = True
-		except DiscordUser.DoesNotExist:
-			pass
-		try:
-			is_ref = obj.tournament.guild.referees.get(id=request.user.id)
-			ref = True
-		except DiscordUser.DoesNotExist:
-			pass
-		
-		print(f"FORM: {vars(form._meta.formfield_callback)}")
-		for rnd in obj.rounds:
-			print(f"Checking {rnd.id} {staff} {ref}")
-			if not rnd.screenshot or (not staff and not ref):
-				print(f"Disabling {rnd.id}")
-				#form.base_fields['steg'].disabled = True
-		return form
 
 	def _match_players(self, obj):
 		retList = []
