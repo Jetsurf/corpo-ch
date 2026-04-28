@@ -3,6 +3,8 @@ import json, time
 from django.contrib import admin
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Count
+from django.forms import ModelForm
+from django.utils import timezone
 from django.utils.safestring import mark_safe
 from django.utils.html import format_html
 
@@ -307,10 +309,10 @@ class GroupAdmin(SortableAdminBase, admin.ModelAdmin):
 
 @admin.register(QualifierSubmission)
 class QualifierSubmissionAdmin(admin.ModelAdmin):
-	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
 	list_display = ('id', 'qualifier', 'player_ch_name', 'score', '_miss', '_hit', '_excess', '_ghosts', '_phrases', 'submitted')
 	list_filter = ["qualifier"]
-	search_fields = ['id']
+	search_fields = ['id', 'player']
+	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
 	actions = ['set_unsubmitted',"reread_steg", "resubmit_gsheet"]
 
 	def tournament(self, obj):
@@ -333,6 +335,46 @@ class QualifierSubmissionAdmin(admin.ModelAdmin):
 
 	def _phrases(self, obj):
 		return obj.steg.players[0].sp_phrases_earned if len(obj.steg.players) > 0 else '-'
+
+	def get_form(self, request, obj=None, **kwargs):
+		form = super(QualifierSubmissionAdmin, self).get_form(request, obj=obj, **kwargs)
+		user = request.user
+		staff = False
+		try:
+			is_staff = obj.qualifier.tournament.guild.admins.get(id=user.id)
+			staff = True
+		except DiscordUser.DoesNotExist:
+			pass
+		if not staff or (obj and not obj.screenshot):
+			form.base_fields['steg'].disabled = True
+		return form
+
+	def get_readonly_fields(self, request, obj=None):
+		if not obj or request.user.is_superuser:
+			return ()
+		staff = False
+		try:
+			is_staff = obj.qualifier.tournament.guild.admins.get(id=request.user.id)
+			return ()
+		except DiscordUser.DoesNotExist:
+			obj = True
+			return ('id', 'player', 'screenshot', 'qualifier', 'submitted')
+
+	def get_queryset(self, request):
+		qs = super().get_queryset(request)
+		if request.user.is_superuser:
+			return qs
+		for obj in qs:
+			staff = False
+			try:
+				is_admin = obj.qualifier.tournament.guild.admins.get(id=request.user.id)
+				staff = True
+			except DiscordUser.DoesNotExist:
+				pass
+
+			if not staff and obj.qualifier.end_time > timezone.now():
+				qs = qs.all().exclude(id=obj.id)
+		return qs
 
 	def formfield_for_foreignkey(self, db_field, request, **kwargs):
 		if db_field.name == "player":
@@ -360,13 +402,32 @@ class QualifierSubmissionAdmin(admin.ModelAdmin):
 		for submission in queryset:
 			corpoch.tasks.update_gsheet.apply_async(args=[submission.id])
 
+class RoundsForm(ModelForm):
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		#print(f"SELF VARS: {vars(self)}")
+		return
+
 class RoundsInline(SortableStackedInline):
 	model = MatchRound
 	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
-	readonly_fields = ['created']
 	extra = 0
 
+	def get_readonly_fields(self, request, obj=None):
+		if not obj or request.user.is_superuser:
+			return ('created',)
+		print(f"SETS: {vars(self.form())}")
+		staff = False
+		try:
+			is_staff = obj.tournament.guild.admins.get(id=request.user.id)
+			return ('created',)
+		except DiscordUser.DoesNotExist:
+			return ('id', 'num', 'match', 'picked', 'chart', 'winner', 'loser', 'screenshot', 'created')
+
 	def formfield_for_foreignkey(self, db_field, request, **kwargs):
+		print(f"FORM REQUEST: {request}")
+		if db_field.name == "steg":
+			print(f"DB_FIELD: {vars(self)}\n\nPLUS: {db_field}")
 		if db_field.name == "winner" or db_field.name == "loser" or db_field.name == 'picked':
 			if 'object_id' in request.resolver_match.kwargs:
 				match = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
@@ -385,6 +446,16 @@ class BansInline(SortableStackedInline):
 	model = MatchBan
 	readonly_fields = ['created']
 	extra = 0
+
+	def get_readonly_fields(self, request, obj=None):
+		if not obj or request.user.is_superuser:
+			return ('created',)
+		staff = False
+		try:
+			is_staff = obj.tournament.guild.admins.get(id=request.user.id)
+			return ('created',)
+		except DiscordUser.DoesNotExist:
+			return ('id', 'num', 'chart', 'player', 'match', 'created')
 
 	def formfield_for_foreignkey(self, db_field, request, **kwargs):
 		if db_field.name == "player":
@@ -407,12 +478,51 @@ class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
 	inlines = [BansInline, RoundsInline]
 	list_per_page = 25
 	search_fields = ['id']
-	actions = ['set_unsubmitted',"reread_steg", "resubmit_gsheet", "resubmit_discord"]
+	actions = ['set_unsubmitted', "reread_steg", "resubmit_gsheet", "resubmit_discord"]
 
-	def get_queryset(self, request):
-		qs = super().get_queryset(request)
-		user = request.user
-		return qs
+	def get_readonly_fields(self, request, obj=None):
+		if request.user.is_superuser:
+			return ('started_on',)
+		staff, ref = False, False
+		try:
+			is_ref = obj.group.tournament.guild.referees.get(id=request.user.id)
+			ref = True
+		except DiscordUser.DoesNotExist:
+			pass
+		try:
+			is_admin = obj.group.tournament.guild.admins.get(id=request.user.id)
+			staff = True
+		except DiscordUser.DoesNotExist:
+			pass
+
+		if not staff and not ref:
+			return ('id', 'players', 'loser', 'winner', 'defer', 'group', 'started_on', 'ended_on', 'complete', 'finished', 'submitted', 'channel', 'message', 'referee')
+		else:
+			return ('started_on',)
+
+	def get_form(self, request, obj=None, **kwargs):
+		form = super().get_form(request, obj, **kwargs)
+		if not obj or request.user.is_superuser:
+			return form
+		ref, staff = False, False
+		try:
+			is_staff = obj.tournament.guild.admins.get(id=request.user.id)
+			staff = True
+		except DiscordUser.DoesNotExist:
+			pass
+		try:
+			is_ref = obj.tournament.guild.referees.get(id=request.user.id)
+			ref = True
+		except DiscordUser.DoesNotExist:
+			pass
+		
+		print(f"FORM: {vars(form._meta.formfield_callback)}")
+		for rnd in obj.rounds:
+			print(f"Checking {rnd.id} {staff} {ref}")
+			if not rnd.screenshot or (not staff and not ref):
+				print(f"Disabling {rnd.id}")
+				#form.base_fields['steg'].disabled = True
+		return form
 
 	def _match_players(self, obj):
 		retList = []
@@ -442,6 +552,7 @@ class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
 				kwargs['queryset'] = Channels.objects.all().filter(guild=match.tournament.guild)
 			else:
 				kwargs["queryset"] = Channels.objects.none()
+
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 	@admin.action(description="Mark Match GSheet Unsent")

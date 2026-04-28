@@ -9,7 +9,7 @@ class GuildAdmin(admin.ModelAdmin):
 	list_display = ('_icon', '_id', 'name')
 	readonly_fields = ['name', 'icon', 'deleted']
 	actions = ['update_discord_guild']
-
+	filter_horizontal = ('admins', 'referees',)
 	def _id(self, obj):
 		return str(obj.id)
 
