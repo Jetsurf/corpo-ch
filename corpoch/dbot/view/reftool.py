@@ -222,19 +222,16 @@ class PlayerSelect(discord.ui.Select):
 		self.retOpts = {}
 
 	async def init(self):
-		disable = False
 		seeding = []
 		seeds = self.match.group.seeding.select_related('player').all().filter(player__is_active=True, eliminated=False)
 		if len(seeds) > 25:
-			if len(self.match.seeding_search) < 2:
-				disable = True
 			seeds = self.match.seeding_search
 
 		for seed in seeds:
 			self.retOpts[str(seed.user.id)] = seed
 			seeding.append(discord.SelectOption(label=str(seed), value=str(seed.user.id), description=f"@{seed.player.name}"))
 		plys = self.match.ruleset.num_players
-		super().__init__(placeholder="Players", min_values=plys, max_values=plys, options=seeding, custom_id="player_sel", disabled=disable)
+		super().__init__(placeholder="Players", min_values=plys, max_values=plys, options=seeding, custom_id="player_sel")
 
 	async def callback(self, interaction: discord.Interaction):
 		self.values.sort(key=lambda ply: self.retOpts[ply].seed)
@@ -304,9 +301,9 @@ class DiscordMatchView(discord.ui.View):
 			self.add_item(sel)
 		elif len(self.match.seeding) < self.match.ruleset.num_players:
 			self.add_item(self.back)
-			if len(self.match.group.seeding.select_related('player').all().filter(eliminated=False)) > 25:
+			if len(self.match.group.seeding.select_related('player').all().filter(eliminated=False, player__is_active=True)) > 25:
 				self.add_item(self.search)
-			if len(self.match.group.seeding.select_related('player').all().filter(eliminated=False)) < 25 or len(self.match.seeding_search) > 1: 
+			if len(self.match.group.seeding.select_related('player').all().filter(eliminated=False, player__is_active=True)) <= 25 or len(self.match.seeding_search) > 1: 
 				sel = PlayerSelect(self.match)
 				await sel.init()
 				self.add_item(sel)
