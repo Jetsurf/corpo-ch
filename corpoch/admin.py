@@ -55,6 +55,7 @@ class ChartAdmin(admin.ModelAdmin):
 	list_filter = ['brackets', 'tiebreaker']
 	actions = ['run_encore_import', 'import_song_ini']
 	readonly_fields = ['_icon']
+	search_fields = ('name', 'charter')
 	filter_horizontal = ['brackets']
 
 	def _bracket(self,obj):
@@ -253,6 +254,24 @@ class TournamentPlayerAdmin(admin.ModelAdmin):
 		'config',
 		'delete_ch_name',
 	)
+
+	def check_perm(self, request, obj):
+		if not obj or request.user.is_superuser:
+			return True
+		try:
+			is_staff = obj.tournament.guild.admins.get(id=request.user.id)
+			return True
+		except DiscordUser.DoesNotExist:
+			return False
+
+	def has_add_permission(self, request, obj=None):
+		return self.check_perm(request, obj)
+
+	def has_delete_permission(self, request, obj=None):
+		return self.check_perm(request, obj)
+
+	def has_change_permission(self, request, obj=None):
+		return self.check_perm(request, obj)
 
 	@admin.display(description='Clone Hero Name', ordering='ch_name')
 	def display_exact_ch_name(self, obj):
@@ -635,9 +654,7 @@ class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
 			is_admin = obj.group.tournament.guild.admins.get(id=request.user.id)
 			return ('started_on',)
 		except DiscordUser.DoesNotExist:
-			pass
-
-		return ('id', 'players', 'loser', 'winner', 'defer', 'group', 'started_on', 'ended_on', 'complete', 'finished', 'submitted', 'channel', 'message', 'referee', 'exhibition')			
+			return ('id', 'players', 'loser', 'winner', 'defer', 'group', 'started_on', 'ended_on', 'complete', 'finished', 'submitted', 'channel', 'message', 'referee', 'exhibition')			
 
 	def _match_players(self, obj):
 		retList = []
