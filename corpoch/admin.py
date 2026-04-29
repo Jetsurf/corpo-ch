@@ -171,6 +171,18 @@ class BracketRulesInline(admin.StackedInline):
 	model = BracketRules
 	extra = 0
 
+	def get_readonly_fields(self, request, obj=None):
+		if not obj or request.user.is_superuser:
+			return ()
+		try:
+			is_staff = obj.tournament.guild.admins.get(id=request.user.id)
+			return ()
+		except DiscordUser.DoesNotExist:
+			if obj == None or len(obj.setlist.all().filter(boss=True)) == 0:
+				return ('num_players', 'num_bans', 'num_rounds', 'ban_ruleset', 'pick_ruleset', 'tb_ruleset',)
+			else:
+				return ('num_players', 'num_bans', 'num_rounds', 'boss_active', 'boss_bannable', 'ban_ruleset', 'pick_ruleset', 'tb_ruleset',)
+
 	def get_fields(self, request, obj=None):
 		if obj == None or len(obj.setlist.all().filter(boss=True)) == 0:
 			return ('num_players', 'num_bans', 'num_rounds', 'ban_ruleset', 'pick_ruleset', 'tb_ruleset',)
@@ -186,6 +198,15 @@ class BracketAdmin(admin.ModelAdmin):
 
 	def _name(self, obj):
 		return f"{obj}"
+
+	def get_readonly_fields(self, request, obj=None):
+		if not obj or request.user.is_superuser:
+			return ()
+		try:
+			is_staff = obj.tournament.guild.admins.get(id=request.user.id)
+			return ()
+		except DiscordUser.DoesNotExist:
+			return ('id', 'name', 'tournament', 'score_log', 'is_active', 'revealed', 'role')
 
 	def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
 		if db_field.name == "role":
@@ -291,7 +312,7 @@ class QualifierAdmin(admin.ModelAdmin):
 
 class SeedingInline(SortableStackedInline):
 	model = GroupSeed
-	extra = 1
+	extra = 0
 
 	def formfield_for_foreignkey(self, db_field, request, **kwargs):
 		if db_field.name == "player":
@@ -301,6 +322,34 @@ class SeedingInline(SortableStackedInline):
 			else:
 				kwargs["queryset"] = GroupSeed.objects.none()
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+	def check_perm(self, request):
+		obj = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+		if not obj or request.user.is_superuser:
+			return True
+		try:
+			is_staff = obj.tournament.guild.admins.get(id=request.user.id)
+			return True
+		except DiscordUser.DoesNotExist:
+			return False
+
+	def has_add_permission(self, request, obj=None):
+		return self.check_perm(request)
+
+	def has_delete_permission(self, request, obj=None):
+		return self.check_perm(request)
+
+	def has_change_permission(self, request, obj=None):
+		return self.check_perm(request)
+
+	def get_readonly_fields(self, request, obj=None):
+		if not obj or request.user.is_superuser:
+			return ()
+		try:
+			is_staff = obj.tournament.guild.admins.get(id=request.user.id)
+			return ()
+		except DiscordUser.DoesNotExist:
+			return ('id', 'seed', 'player', 'eliminated',)
 
 @admin.register(Group)
 class GroupAdmin(SortableAdminBase, admin.ModelAdmin):
@@ -318,6 +367,15 @@ class GroupAdmin(SortableAdminBase, admin.ModelAdmin):
 
 	def bracket_name(self, obj):
 		return obj.bracket.name
+
+	def get_readonly_fields(self, request, obj=None):
+		if not obj or request.user.is_superuser:
+			return ()
+		try:
+			is_staff = obj.tournament.guild.admins.get(id=request.user.id)
+			return ()
+		except DiscordUser.DoesNotExist:
+			return ('id', 'name', 'role', 'bracket',)
 
 	def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
 		if db_field.name == "role":
