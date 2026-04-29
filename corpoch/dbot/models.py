@@ -19,7 +19,6 @@ class Guilds(models.Model):
 	name = models.CharField(max_length=100, null=True, blank=True, help_text="Name of a Discord Guild.")
 	icon = models.CharField(max_length=255, null=True, blank=True, help_text="The avatar for a Guild.")
 	deleted = models.BooleanField(default=False, help_text="Is deleted/not visible by bot.")
-	admin_role = models.ForeignKey("Roles", related_name="role_admin", verbose_name="Discord Staff Role", on_delete=models.SET_NULL, null=True, blank=True, help_text="Discord Role for staff/admins.")
 	ref_role = models.ForeignKey("Roles", related_name="role_ref", verbose_name="Discord Ref Role", on_delete=models.SET_NULL, null=True, blank=True, help_text="Discord Role for referee's to start matches.")
 	admins = models.ManyToManyField('corpoch.DiscordUser', related_name="guilds_admin", verbose_name="Tournament Guild Admins", help_text="Admin users for this guild.", blank=True)
 	referees = models.ManyToManyField('corpoch.DiscordUser', related_name="guilds_referee", verbose_name="Tournament Guild Referee", help_text="Referee users for this guild", blank=True)

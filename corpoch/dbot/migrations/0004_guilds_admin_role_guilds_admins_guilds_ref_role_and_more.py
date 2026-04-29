@@ -15,11 +15,6 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name='guilds',
-            name='admin_role',
-            field=models.ForeignKey(blank=True, help_text='Discord Role for staff/admins.', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='role_admin', to='dbot.roles', verbose_name='Discord Staff Role'),
-        ),
-        migrations.AddField(
-            model_name='guilds',
             name='admins',
             field=models.ManyToManyField(blank=True, help_text='Admin users for this guild.', related_name='guilds_admin', to=settings.AUTH_USER_MODEL, verbose_name='Tournament Guild Admins'),
         ),

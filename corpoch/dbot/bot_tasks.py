@@ -132,16 +132,12 @@ async def update_guild(bot, guild_id):
 			await role.asave()
 
 	from corpoch.models import DiscordUser
+	admin_roles = []
 	for role in await guild.fetch_roles():
 		theRole, created = Roles.objects.get_or_create(id=role.id, guild=dbguild)
 		theRole.name = role.name
-		if dbguild.admin_role and int(role.id) == int(dbguild.admin_role.id):
-			dbguild.admins.clear()
-			for mem in role.members:
-				user, created = DiscordUser.objects.get_or_create(id=mem.id)
-				if created:
-					await update_user(bot, user.id)
-				dbguild.admins.add(user)
+		if role.permissions.administrator:
+			admin_roles.append(role)
 		if dbguild.ref_role and int(role.id) == int(dbguild.ref_role.id):
 			dbguild.referees.clear()
 			for mem in role.members:
@@ -151,6 +147,15 @@ async def update_guild(bot, guild_id):
 				dbguild.referees.add(user)
 
 		await theRole.asave()
+	dbguild.admins.clear()
+	for role in admin_roles:
+		for mem in role.members:
+			if mem.bot:
+				continue
+			user, created = DiscordUser.objects.get_or_create(id=mem.id)
+			if created:
+				await update_user(bot, user.id)
+			dbguild.admins.add(user)
 
 	from corpoch.dbot.models import Channels
 	for channel in Channels.objects.all().filter(guild__id=guild_id):
