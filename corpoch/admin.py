@@ -20,10 +20,11 @@ from corpoch.models import Match, Group, QualifierSubmission, CH_MODIFIERS, Matc
 from corpoch.dbot.models import Guilds, Channels, Roles
 from corpoch.providers import EncoreClient, GSheets
 from corpoch import __version__ as version
+from corpoch import settings
 import corpoch.dbot.tasks
 import corpoch.tasks
 
-admin.site.site_header = f'Corpo CH Admin {version}'
+admin.site.site_header = f'Corpo CH Admin {version}{f' - DEV' if settings.DEBUG else ''}'
 admin.site.site_title = 'Corpo CH'
 admin.site.register(GSheetAPI, SingletonModelAdmin)
 
@@ -368,16 +369,31 @@ class GroupAdmin(SortableAdminBase, admin.ModelAdmin):
 	def bracket_name(self, obj):
 		return obj.bracket.name
 
-	def get_readonly_fields(self, request, obj=None):
+	def check_perm(self, request, obj=None):
 		if not obj or request.user.is_superuser:
-			return ()
+			return True
 		try:
-			is_staff = obj.tournament.guild.admins.get(id=request.user.id)
-			return ()
+			is_staff = obj.bracket.tournament.guild.admins.get(id=request.user.id)
+			return True
 		except DiscordUser.DoesNotExist:
-			return ('id', 'name', 'role', 'bracket',)
+			return False
+
+	def has_add_permission(self, request, obj=None):
+		return self.check_perm(request, obj)
+
+	def has_delete_permission(self, request, obj=None):
+		return self.check_perm(request, obj)
+
+	def has_change_permission(self, request, obj=None):
+		return self.check_perm(request, obj)
 
 	def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
+		if db_field.name == 'bracket':
+			if 'object_id' in request.resolver_match.kwargs:
+				model = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs['queryset'] = Bracket.objects.all().filter(tournament=model.bracket.tournament)
+			else:
+				kwargs['queryset'] = Bracket.objects.all().filter(tournament__active=True)
 		if db_field.name == "role":
 			if 'object_id' in request.resolver_match.kwargs:
 				group = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
@@ -441,12 +457,10 @@ class QualifierSubmissionAdmin(admin.ModelAdmin):
 	def get_readonly_fields(self, request, obj=None):
 		if not obj or request.user.is_superuser:
 			return ()
-		staff = False
 		try:
 			is_staff = obj.qualifier.tournament.guild.admins.get(id=request.user.id)
 			return ()
 		except DiscordUser.DoesNotExist:
-			obj = True
 			return ('id', 'player', 'screenshot', 'qualifier', 'submitted')
 
 	def get_queryset(self, request):
@@ -562,15 +576,29 @@ class BansInline(SortableStackedInline):
 	readonly_fields = ['created']
 	extra = 0
 
-	def get_readonly_fields(self, request, obj=None):
+	def check_perm(self, request):
+		obj = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
 		if not obj or request.user.is_superuser:
-			return ('created',)
-		staff = False
+			return True
 		try:
 			is_staff = obj.tournament.guild.admins.get(id=request.user.id)
-			return ('created',)
+			return True
 		except DiscordUser.DoesNotExist:
-			return ('id', 'num', 'chart', 'player', 'match', 'created')
+			pass
+		try:
+			is_ref = obj.tournament.guild.referees.get(id=request.user.id)
+			return True
+		except DiscordUser.DoesNotExist:
+			return False
+
+	def has_add_permission(self, request, obj=None):
+		return self.check_perm(request)
+
+	def has_delete_permission(self, request, obj=None):
+		return self.check_perm(request)
+
+	def has_change_permission(self, request, obj=None):
+		return self.check_perm(request)
 
 	def formfield_for_foreignkey(self, db_field, request, **kwargs):
 		if db_field.name == "player":
@@ -598,22 +626,18 @@ class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
 	def get_readonly_fields(self, request, obj=None):
 		if request.user.is_superuser:
 			return ('started_on',)
-		staff, ref = False, False
 		try:
 			is_ref = obj.group.tournament.guild.referees.get(id=request.user.id)
-			ref = True
+			return ('started_on',)
 		except DiscordUser.DoesNotExist:
 			pass
 		try:
 			is_admin = obj.group.tournament.guild.admins.get(id=request.user.id)
-			staff = True
+			return ('started_on',)
 		except DiscordUser.DoesNotExist:
 			pass
 
-		if not staff and not ref:
-			return ('id', 'players', 'loser', 'winner', 'defer', 'group', 'started_on', 'ended_on', 'complete', 'finished', 'submitted', 'channel', 'message', 'referee')
-		else:
-			return ('started_on',)
+		return ('id', 'players', 'loser', 'winner', 'defer', 'group', 'started_on', 'ended_on', 'complete', 'finished', 'submitted', 'channel', 'message', 'referee', 'exhibition')			
 
 	def _match_players(self, obj):
 		retList = []
