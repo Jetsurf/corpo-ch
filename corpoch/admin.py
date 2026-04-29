@@ -305,7 +305,7 @@ class QualifierAdmin(admin.ModelAdmin):
 	actions = ['submit_final_scores']
 
 	def _players(self, obj):
-		return TournamentPlayer.objects.all().filter(tournament=obj.tournament).count()
+		return QualifierSubmission.objects.all().filter(qualifier__tournament=obj.tournament).values('player').distinct().count()
 
 	def _submissions(self, obj):
 		return QualifierSubmission.objects.filter(qualifier=obj).count()
