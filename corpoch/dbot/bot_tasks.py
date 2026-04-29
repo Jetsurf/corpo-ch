@@ -106,6 +106,7 @@ async def update_guild(bot, guild_id):
 	except discord.Forbidden:
 		pass
 
+	await guild.chunk()
 	from corpoch.dbot.models import Guilds
 	dbguild = Guilds.objects.get(id=guild_id)
 
@@ -130,10 +131,31 @@ async def update_guild(bot, guild_id):
 		finally:
 			await role.asave()
 
+	from corpoch.models import DiscordUser
+	admin_roles = []
 	for role in await guild.fetch_roles():
 		theRole, created = Roles.objects.get_or_create(id=role.id, guild=dbguild)
 		theRole.name = role.name
+		if role.permissions.administrator:
+			admin_roles.append(role)
+		if dbguild.ref_role and int(role.id) == int(dbguild.ref_role.id):
+			dbguild.referees.clear()
+			for mem in role.members:
+				user, created = DiscordUser.objects.get_or_create(id=mem.id)
+				if created:
+					await update_user(bot, user.id)
+				dbguild.referees.add(user)
+
 		await theRole.asave()
+	dbguild.admins.clear()
+	for role in admin_roles:
+		for mem in role.members:
+			if mem.bot:
+				continue
+			user, created = DiscordUser.objects.get_or_create(id=mem.id)
+			if created:
+				await update_user(bot, user.id)
+			dbguild.admins.add(user)
 
 	from corpoch.dbot.models import Channels
 	for channel in Channels.objects.all().filter(guild__id=guild_id):
@@ -166,7 +188,7 @@ async def update_user(bot, user_id):
 	dbuser.username = duser.global_name if duser.global_name else duser.display_name
 	dbuser.global_name = duser.global_name if duser.global_name else duser.display_name
 	dbuser.avatar = duser.display_avatar.url
-	for ply in dbuser.tournaments.all():
+	for ply in dbuser.tournaments.all().filter(is_active=True):
 		guild = bot.get_guild(ply.tournament.guild.id)
 		if guild:
 			try:

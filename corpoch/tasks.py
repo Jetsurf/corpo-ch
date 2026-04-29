@@ -32,7 +32,7 @@ def upload_completed_match_gsheet():
 	sheet.login()
 	print(f"GSHEETS: Running gsheets upload for completed matches")
 	for match in matches:
-		if len(match.players.all()) > 0:
+		if len(match.players.all()) > 0 and match.tournament.config.gsheet:
 			print(f"GSHEETS: Uploading completed match {match.id} to tourney config sheet")
 			sheet.set_submission(match)
 			sheet.submit_completed()

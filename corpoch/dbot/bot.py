@@ -10,6 +10,7 @@ from socket import timeout
 
 from corpoch.dbot import bot_tasks
 from corpoch.dbot import settings
+from corpoch import __version__ as version
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +118,7 @@ class CorpoDbot(commands.Bot):
 		await super().close()
 
 	async def on_ready(self, once=True):
-		print(f"Logged in as {self.user.name}#{self.user.discriminator} id {self.user.id}")
+		print(f"Logged in as {self.user.name}#{self.user.discriminator} id {self.user.id} v{version}")
 		await self.retrieve_owners()
 		print("Loading on-going matches")
 		from corpoch.dbot.cogs.tourneycmds import DiscordMatch

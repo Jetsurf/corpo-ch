@@ -1,8 +1,11 @@
 import json, time
+from itertools import chain
 
 from django.contrib import admin
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Count
+from django.forms import ModelForm
+from django.utils import timezone
 from django.utils.safestring import mark_safe
 from django.utils.html import format_html
 
@@ -16,10 +19,12 @@ from corpoch.models import Chart, Tournament, TournamentConfig, BracketRules, Br
 from corpoch.models import Match, Group, QualifierSubmission, CH_MODIFIERS, MatchBan, GSheetAPI, DiscordUser
 from corpoch.dbot.models import Guilds, Channels, Roles
 from corpoch.providers import EncoreClient, GSheets
+from corpoch import __version__ as version
+from corpoch import settings
 import corpoch.dbot.tasks
 import corpoch.tasks
 
-admin.site.site_header = 'Corpo CH Admin'
+admin.site.site_header = f'Corpo CH Admin {version}{f' - DEV' if settings.DEBUG else ''}'
 admin.site.site_title = 'Corpo CH'
 admin.site.register(GSheetAPI, SingletonModelAdmin)
 
@@ -29,7 +34,7 @@ class DiscordUserAdmin(admin.ModelAdmin):
 	list_display = ('_avatar', 'id', 'global_name')
 	readonly_fields = ['global_name', 'mfa_enabled', '_id', 'avatar', 'locale', 'flags', 'public_flags', 'last_login', 'date_joined']
 	exclude = ['password', 'first_name', 'last_name', 'email', 'username']
-	search_fields = ['id']
+	search_fields = ['id', "global_name"]
 	actions = ['update_discord_user']
 
 	def _id(self, obj):
@@ -47,9 +52,11 @@ class DiscordUserAdmin(admin.ModelAdmin):
 @admin.register(Chart)
 class ChartAdmin(admin.ModelAdmin):
 	list_display = ('_icon','name',  '_bracket', 'charter', 'artist', 'album', 'speed', '_modifiers', 'tiebreaker')
-	list_filter = ['brackets', 'tiebreaker']
-	readonly_fields = ['_icon']
+	list_filter = ['brackets__tournament', 'tiebreaker', 'boss']
 	actions = ['run_encore_import', 'import_song_ini']
+	readonly_fields = ['_icon']
+	search_fields = ('name', 'charter')
+	filter_horizontal = ['brackets']
 
 	def _bracket(self,obj):
 		retList = []
@@ -73,6 +80,38 @@ class ChartAdmin(admin.ModelAdmin):
 		else:
 			return "None"
 
+	def get_readonly_fields(self, request, obj=None):
+		if not obj or request.user.is_superuser:
+			return self.readonly_fields
+
+		for bracket in obj.brackets.all():
+			try:
+				is_staff = bracket.tournament.guild.admins.get(id=request.user.id)
+				return self.readonly_fields
+			except DiscordUser.DoesNotExist:
+				continue
+
+		return list(chain(self.readonly_fields, ['id', 'name', 'artist', 'album', 'charter', 'boss', 'tiebreaker', 'difficulty', 'instrument', 'modifiers', 'speed', 'category', 'brackets', 'md5', 'blake3', 'url', 'icon', 'sngfile']))
+
+	def get_queryset(self, request):
+		qs = super().get_queryset(request)
+		if request.user.is_superuser:
+			return qs
+		for obj in qs:
+			for bracket in obj.brackets.all():
+				if bracket.revealed:
+					break
+				else:
+					try:
+						is_admin = bracket.tournament.guild.admins.get(id=request.user.id)
+						is_player = bracket.tournament.players.get(user=is_admin)
+						qs = qs.all().exclude(id=obj.id) #If staff user in tournament, hide chart
+					except DiscordUser.DoesNotExist:
+						qs = qs.all().exclude(id=obj.id)
+					except TournamentPlayer.DoesNotExist:
+						pass
+		return qs
+
 	@admin.action(description="Run Encore import")
 	def run_encore_import(modeladmin, request, queryset):
 		for chart in queryset:
@@ -83,17 +122,11 @@ class ChartAdmin(admin.ModelAdmin):
 		for chart in queryset:
 			corpoch.tasks.chart_songini_import.apply_async(args=[chart.id])
 
-class TournamentConfigInline(admin.TabularInline):
+class TournamentConfigInline(admin.StackedInline):
 	model = TournamentConfig
 	extra = 0
 
 	def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
-		if db_field.name == "ref_role":
-			if 'object_id' in request.resolver_match.kwargs:
-				conf = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
-				kwargs['queryset'] = Roles.objects.all().filter(guild=conf.tournament.guild)
-			else:
-				kwargs["queryset"] = Roles.objects.none()
 		if db_field.name == "proof_channel":
 			if 'object_id' in request.resolver_match.kwargs:
 				conf = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
@@ -140,9 +173,27 @@ class TournamentAdmin(admin.ModelAdmin):
 						seed.player.is_active = True
 						seed.player.save()
 
-class BracketRulesInline(admin.TabularInline):
+class BracketRulesInline(admin.StackedInline):
 	model = BracketRules
 	extra = 0
+
+	def get_readonly_fields(self, request, obj=None):
+		if not obj or request.user.is_superuser:
+			return ()
+		try:
+			is_staff = obj.tournament.guild.admins.get(id=request.user.id)
+			return ()
+		except DiscordUser.DoesNotExist:
+			if obj == None or len(obj.setlist.all().filter(boss=True)) == 0:
+				return ('num_players', 'num_bans', 'num_rounds', 'ban_ruleset', 'pick_ruleset', 'tb_ruleset',)
+			else:
+				return ('num_players', 'num_bans', 'num_rounds', 'boss_active', 'boss_bannable', 'ban_ruleset', 'pick_ruleset', 'tb_ruleset',)
+
+	def get_fields(self, request, obj=None):
+		if obj == None or len(obj.setlist.all().filter(boss=True)) == 0:
+			return ('num_players', 'num_bans', 'num_rounds', 'ban_ruleset', 'pick_ruleset', 'tb_ruleset',)
+		else:
+			return ('num_players', 'num_bans', 'num_rounds', 'boss_active', 'boss_bannable', 'ban_ruleset', 'pick_ruleset', 'tb_ruleset',)
 
 @admin.register(Bracket)
 class BracketAdmin(admin.ModelAdmin):
@@ -153,6 +204,15 @@ class BracketAdmin(admin.ModelAdmin):
 
 	def _name(self, obj):
 		return f"{obj}"
+
+	def get_readonly_fields(self, request, obj=None):
+		if not obj or request.user.is_superuser:
+			return ()
+		try:
+			is_staff = obj.tournament.guild.admins.get(id=request.user.id)
+			return ()
+		except DiscordUser.DoesNotExist:
+			return ('id', 'name', 'tournament', 'score_log', 'is_active', 'revealed', 'role')
 
 	def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
 		if db_field.name == "role":
@@ -184,9 +244,10 @@ class BracketAdmin(admin.ModelAdmin):
 class TournamentPlayerAdmin(admin.ModelAdmin):
 	form = TournamentPlayerForm
 	list_display = ('user', 'tournament', 'display_exact_ch_name', 'is_active')
-	list_filter = ['tournament']
+	list_filter = ['tournament', 'is_active']
 	actions = ["set_tournament_roles"]
 	readonly_fields = ("display_exact_ch_name",)
+	search_fields = ('name',)
 	fields = (
 		'user',
 		'name',
@@ -198,6 +259,24 @@ class TournamentPlayerAdmin(admin.ModelAdmin):
 		'config',
 		'delete_ch_name',
 	)
+
+	def check_perm(self, request, obj):
+		if not obj or request.user.is_superuser:
+			return True
+		try:
+			is_staff = obj.tournament.guild.admins.get(id=request.user.id)
+			return True
+		except DiscordUser.DoesNotExist:
+			return False
+
+	def has_add_permission(self, request, obj=None):
+		return self.check_perm(request, obj)
+
+	def has_delete_permission(self, request, obj=None):
+		return self.check_perm(request, obj)
+
+	def has_change_permission(self, request, obj=None):
+		return self.check_perm(request, obj)
 
 	@admin.display(description='Clone Hero Name', ordering='ch_name')
 	def display_exact_ch_name(self, obj):
@@ -231,7 +310,7 @@ class QualifierAdmin(admin.ModelAdmin):
 	actions = ['submit_final_scores']
 
 	def _players(self, obj):
-		return TournamentPlayer.objects.all().filter(tournament=obj.tournament).count()
+		return QualifierSubmission.objects.all().filter(qualifier__tournament=obj.tournament).values('player').distinct().count()
 
 	def _submissions(self, obj):
 		return QualifierSubmission.objects.filter(qualifier=obj).count()
@@ -258,7 +337,7 @@ class QualifierAdmin(admin.ModelAdmin):
 
 class SeedingInline(SortableStackedInline):
 	model = GroupSeed
-	extra = 1
+	extra = 0
 
 	def formfield_for_foreignkey(self, db_field, request, **kwargs):
 		if db_field.name == "player":
@@ -269,24 +348,80 @@ class SeedingInline(SortableStackedInline):
 				kwargs["queryset"] = GroupSeed.objects.none()
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
+	def check_perm(self, request):
+		obj = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+		if not obj or request.user.is_superuser:
+			return True
+		try:
+			is_staff = obj.tournament.guild.admins.get(id=request.user.id)
+			return True
+		except DiscordUser.DoesNotExist:
+			return False
+
+	def has_add_permission(self, request, obj=None):
+		return self.check_perm(request)
+
+	def has_delete_permission(self, request, obj=None):
+		return self.check_perm(request)
+
+	def has_change_permission(self, request, obj=None):
+		return self.check_perm(request)
+
+	def get_readonly_fields(self, request, obj=None):
+		if not obj or request.user.is_superuser:
+			return ()
+		try:
+			is_staff = obj.tournament.guild.admins.get(id=request.user.id)
+			return ()
+		except DiscordUser.DoesNotExist:
+			return ('id', 'seed', 'player', 'eliminated',)
+
 @admin.register(Group)
 class GroupAdmin(SortableAdminBase, admin.ModelAdmin):
-	list_display = ('name', 'tournament', 'bracket_name')#, 'group_players')
+	list_display = ('name', 'bracket_name','tournament', 'active_count', 'player_count')
+	list_filter = ('bracket__tournament',)
 	inlines = [SeedingInline]
-	list_filter = ['bracket']
+	search_fields = ('bracket',)
 	list_per_page = 32
 	actions = ['set_group_role']
 
 	def tournament(self, obj):
 		return obj.bracket.tournament.short_name
 
-	def group_players(self, obj):
-		return ", ".join([seed.player.ch_name for seed in obj.seeding.all() if seed.player])
-
 	def bracket_name(self, obj):
 		return obj.bracket.name
 
+	def active_count(self, obj):
+		return obj.seeding.all().filter(player__is_active=True, eliminated=False).count()
+
+	def player_count(self, obj):
+		return obj.seeding.all().count()
+
+	def check_perm(self, request, obj=None):
+		if not obj or request.user.is_superuser:
+			return True
+		try:
+			is_staff = obj.bracket.tournament.guild.admins.get(id=request.user.id)
+			return True
+		except DiscordUser.DoesNotExist:
+			return False
+
+	def has_add_permission(self, request, obj=None):
+		return self.check_perm(request, obj)
+
+	def has_delete_permission(self, request, obj=None):
+		return self.check_perm(request, obj)
+
+	def has_change_permission(self, request, obj=None):
+		return self.check_perm(request, obj)
+
 	def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
+		if db_field.name == 'bracket':
+			if 'object_id' in request.resolver_match.kwargs:
+				model = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				kwargs['queryset'] = Bracket.objects.all().filter(tournament=model.bracket.tournament)
+			else:
+				kwargs['queryset'] = Bracket.objects.all().filter(tournament__active=True)
 		if db_field.name == "role":
 			if 'object_id' in request.resolver_match.kwargs:
 				group = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
@@ -307,10 +442,10 @@ class GroupAdmin(SortableAdminBase, admin.ModelAdmin):
 
 @admin.register(QualifierSubmission)
 class QualifierSubmissionAdmin(admin.ModelAdmin):
-	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
 	list_display = ('id', 'qualifier', 'player_ch_name', 'score', '_miss', '_hit', '_excess', '_ghosts', '_phrases', 'submitted')
 	list_filter = ["qualifier"]
-	search_fields = ['id']
+	search_fields = ['id', 'player__name']
+	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
 	actions = ['set_unsubmitted',"reread_steg", "resubmit_gsheet"]
 
 	def tournament(self, obj):
@@ -333,6 +468,44 @@ class QualifierSubmissionAdmin(admin.ModelAdmin):
 
 	def _phrases(self, obj):
 		return obj.steg.players[0].sp_phrases_earned if len(obj.steg.players) > 0 else '-'
+
+	def get_form(self, request, obj=None, **kwargs):
+		form = super(QualifierSubmissionAdmin, self).get_form(request, obj=obj, **kwargs)
+		user = request.user
+		staff = False
+		try:
+			is_staff = obj.qualifier.tournament.guild.admins.get(id=user.id)
+			staff = True
+		except DiscordUser.DoesNotExist:
+			pass
+		if not staff or (obj and not obj.screenshot):
+			form.base_fields['steg'].disabled = True
+		return form
+
+	def get_readonly_fields(self, request, obj=None):
+		if not obj or request.user.is_superuser:
+			return ()
+		try:
+			is_staff = obj.qualifier.tournament.guild.admins.get(id=request.user.id)
+			return ()
+		except DiscordUser.DoesNotExist:
+			return ('id', 'player', 'screenshot', 'qualifier', 'submitted')
+
+	def get_queryset(self, request):
+		qs = super().get_queryset(request)
+		if request.user.is_superuser:
+			return qs
+		for obj in qs:
+			staff = False
+			try:
+				is_admin = obj.qualifier.tournament.guild.admins.get(id=request.user.id)
+				staff = True
+			except DiscordUser.DoesNotExist:
+				pass
+
+			if not staff and obj.qualifier.end_time > timezone.now():
+				qs = qs.all().exclude(id=obj.id)
+		return qs
 
 	def formfield_for_foreignkey(self, db_field, request, **kwargs):
 		if db_field.name == "player":
@@ -360,11 +533,56 @@ class QualifierSubmissionAdmin(admin.ModelAdmin):
 		for submission in queryset:
 			corpoch.tasks.update_gsheet.apply_async(args=[submission.id])
 
+class RoundsForm(ModelForm):
+	class Meta:
+		model = MatchRound
+		fields = '__all__'
+
+	def __init__(self, *args, **kwargs):
+		super(RoundsForm, self).__init__(*args, **kwargs)
+		if self.instance and self.instance.pk:
+			if not self.instance.screenshot and 'steg' in self.fields:
+				self.fields['steg'].disabled = True
+		return
+
 class RoundsInline(SortableStackedInline):
 	model = MatchRound
 	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
-	readonly_fields = ['created']
 	extra = 0
+
+	def get_formset(self, request, obj=None, **kwargs):
+		formset = super().get_formset(request, obj, **kwargs)
+		if request.user.is_superuser:
+			return formset
+
+		staff, ref = False, False
+		if obj:
+			try:
+				is_staff = obj.group.tournament.guild.admins.get(id=request.user.id)
+				staff = True
+			except DiscordUser.DoesNotExist:
+				pass
+			try:
+				is_ref = obj.group.tournament.guild.referees.get(id=request.user.id)
+				ref = True
+			except DiscordUser.DoesNotExist:
+				pass
+
+		if not staff and not ref:
+			if 'steg' in formset.form.base_fields:
+				formset.form.base_fields['steg'].disabled = True
+
+		return formset
+
+	def get_readonly_fields(self, request, obj=None):
+		if not obj or request.user.is_superuser:
+			return ('created',)
+		staff = False
+		try:
+			is_staff = obj.tournament.guild.admins.get(id=request.user.id)
+			return ('created',)
+		except DiscordUser.DoesNotExist:
+			return ('id', 'num', 'match', 'picked', 'chart', 'winner', 'loser', 'screenshot', 'created')
 
 	def formfield_for_foreignkey(self, db_field, request, **kwargs):
 		if db_field.name == "winner" or db_field.name == "loser" or db_field.name == 'picked':
@@ -386,6 +604,30 @@ class BansInline(SortableStackedInline):
 	readonly_fields = ['created']
 	extra = 0
 
+	def check_perm(self, request):
+		obj = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+		if not obj or request.user.is_superuser:
+			return True
+		try:
+			is_staff = obj.tournament.guild.admins.get(id=request.user.id)
+			return True
+		except DiscordUser.DoesNotExist:
+			pass
+		try:
+			is_ref = obj.tournament.guild.referees.get(id=request.user.id)
+			return True
+		except DiscordUser.DoesNotExist:
+			return False
+
+	def has_add_permission(self, request, obj=None):
+		return self.check_perm(request)
+
+	def has_delete_permission(self, request, obj=None):
+		return self.check_perm(request)
+
+	def has_change_permission(self, request, obj=None):
+		return self.check_perm(request)
+
 	def formfield_for_foreignkey(self, db_field, request, **kwargs):
 		if db_field.name == "player":
 			if 'object_id' in request.resolver_match.kwargs:
@@ -404,15 +646,25 @@ class BansInline(SortableStackedInline):
 @admin.register(Match)
 class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
 	list_display = ('__str__', 'group', '_match_players', 'score', 'started_on', 'ended_on', 'complete', 'finished', 'submitted')
+	list_filter = ('group__bracket__tournament',)
 	inlines = [BansInline, RoundsInline]
 	list_per_page = 25
 	search_fields = ['id']
-	actions = ['set_unsubmitted',"reread_steg", "resubmit_gsheet", "resubmit_discord"]
+	actions = ['set_unsubmitted', "reread_steg", "resubmit_gsheet", "resubmit_discord"]
 
-	def get_queryset(self, request):
-		qs = super().get_queryset(request)
-		user = request.user
-		return qs
+	def get_readonly_fields(self, request, obj=None):
+		if request.user.is_superuser:
+			return ('started_on',)
+		try:
+			is_ref = obj.group.tournament.guild.referees.get(id=request.user.id)
+			return ('started_on',)
+		except DiscordUser.DoesNotExist:
+			pass
+		try:
+			is_admin = obj.group.tournament.guild.admins.get(id=request.user.id)
+			return ('started_on',)
+		except DiscordUser.DoesNotExist:
+			return ('id', 'players', 'loser', 'winner', 'defer', 'group', 'started_on', 'ended_on', 'complete', 'finished', 'submitted', 'channel', 'message', 'referee', 'exhibition')			
 
 	def _match_players(self, obj):
 		retList = []
@@ -442,6 +694,7 @@ class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
 				kwargs['queryset'] = Channels.objects.all().filter(guild=match.tournament.guild)
 			else:
 				kwargs["queryset"] = Channels.objects.none()
+
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 	@admin.action(description="Mark Match GSheet Unsent")

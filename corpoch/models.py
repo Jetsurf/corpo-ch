@@ -19,12 +19,13 @@ from corpoch.managers import DiscordOAuth2Manager
 from corpoch.utils.snghandler import SNGHandler
 from corpoch.types import CH_INSTRUMENTS, CH_DIFFICULTIES, CH_MODIFIERS, CH_VERSIONS, CHART_CATEGORIES, TB_RULESETS, PICK_RULESETS, BAN_RULESETS, StegScreenshot, PlayerConfig, CH_Name
 from corpoch.validators import validate_chart_file
+from corpoch.dbot.view.helpers import build_stats_embed, build_full_stats_embed
 
 def steg_upload_dir(self, filename):
-	return f"matches/{str(self.match.group).replace(' ', '').replace(":", "")}/{self.match.id}/{filename}"
+	return f"matches/{str(self.match.group).replace(' ', '').replace(":", "")}/{self.match.id}/{uuid.uuid1()}.{filename.split('.')[1]}"
 
 def quali_upload_dir(self, filename):
-	return f"qualifiers/{str(self.qualifier).replace(' ', '').replace(':', '')}/{filename}"
+	return f"qualifiers/{str(self.qualifier).replace(' ', '').replace(':', '')}/{self.match.id}/{uuid.uuid1()}.{filename.split('.')[1]}"
 
 class GSheetAPI(SingletonModel):
 	api_key = EncryptedJSONField(null=False, blank=True, default=dict)
@@ -97,6 +98,7 @@ class Chart(models.Model):
 	artist = models.CharField(verbose_name="Artist", max_length=256, blank=True, help_text="Artist of the song.")
 	album = models.CharField(verbose_name="Album", max_length=256, blank=True, help_text="Album the song is from.")
 	charter = models.CharField(verbose_name="Charter", max_length=32, blank=True, help_text="Author of a chart.")
+	boss = models.BooleanField(verbose_name="Boss Song", default=False, help_text="Is chart a 'boss' song.")
 	tiebreaker = models.BooleanField(verbose_name="Tiebreaker", default=False, help_text="Is this chart a tiebreaker in a setlist.")
 	difficulty = models.CharField(verbose_name="Difficulty", choices=CH_DIFFICULTIES, max_length=16, default=CH_DIFFICULTIES[0][0], help_text="Difficulty this chart is to be played on.")
 	instrument = models.CharField(verbose_name="Instrument", choices=CH_INSTRUMENTS, max_length=32, default=CH_INSTRUMENTS[0][0])
@@ -190,17 +192,15 @@ class TournamentConfig(models.Model):
 	id = models.AutoField(primary_key=True, help_text="Internal ID of a config.")
 	tournament = models.OneToOneField(Tournament, related_name="config", verbose_name="Tournament Configuration", on_delete=models.CASCADE, help_text="Tournament a configuration is for.")
 	rules = models.TextField(verbose_name="Rules", max_length=1024, default="Some rules go here", help_text="Rules shown to players.")
-	ref_role = models.ForeignKey("dbot.Roles", verbose_name="Discord Ref Role", on_delete=models.SET_NULL, null=True, blank=True, help_text="Discord Role for referee's to start matches.")
-	enable_gsheets = models.BooleanField(verbose_name="GSheets Integration", default=True, help_text="Are GSheets in use for this tournament")
 	gsheet = models.URLField(verbose_name="Match Reporting Google Sheet", null=True, blank=True, help_text="GSheet URL to post match results to.")
 	version = models.CharField(verbose_name="Clone Hero Version", choices=CH_VERSIONS, max_length=32, default=CH_VERSIONS[0][0], help_text="Clone Hero verison the tournament is using.")
 
 	class Meta:
-		verbose_name = "Config"
+		verbose_name = "Configuration"
 		verbose_name_plural = "Configurations"
 
 	def __str__(self):
-		return f"{self.tournament.name} - Configuration"
+		return f"{self.tournament.name}"
 
 class Bracket(models.Model):
 	"""
@@ -237,6 +237,8 @@ class BracketRules(models.Model):
 	num_players = models.PositiveIntegerField(verbose_name="Players", validators=[MinValueValidator(2), MaxValueValidator(4)], default=2, help_text="Number of players in a match.")
 	num_bans = models.IntegerField(verbose_name="Bans Per-Player", validators=[MinValueValidator(1), MaxValueValidator(4)], default=1, help_text="Number of bans per-player in a match.")
 	num_rounds = models.PositiveIntegerField(verbose_name="Best Of", validators=[MinValueValidator(3), MaxValueValidator(25)], default=7, help_text="Maximum number of rounds per-match.")
+	boss_active = models.BooleanField("Boss Songs Active", default=False, help_text="Are 'Boss' songs allowed to be picked.")
+	boss_bannable = models.BooleanField(verbose_name="Boss Songs Bannable", default=False, help_text="Are 'Boss' songs bannable.")
 	ban_ruleset = models.CharField(verbose_name="Match Bans Ruleset", choices=BAN_RULESETS, max_length=32, default=BAN_RULESETS[0][0], help_text="Ruleset to determine how bans work.")
 	pick_ruleset = models.CharField(verbose_name="'Who Picks' Ruleset", choices=PICK_RULESETS, max_length=32, default=PICK_RULESETS[0][0], help_text="Ruleset to determine who picks the next song for a round.")
 	tb_ruleset = models.CharField(verbose_name="Tiebreaker Ruleset", choices=TB_RULESETS, max_length=32, default=TB_RULESETS[0][0], help_text="Ruleset to determine how tiebreakers player.")
@@ -252,6 +254,16 @@ class BracketRules(models.Model):
 	@property
 	def total_bans(self) -> int:
 		return self.num_bans * self.num_players
+
+	@property
+	def boss_present(self):
+		if len(self.bracket.setlist.filter(boss=True)) > 0:
+			return True
+		else:
+			return False
+
+	def __str__(self):
+		return f"{self.bracket}"
 
 class Group(models.Model):
 	"""
@@ -388,6 +400,7 @@ class GroupSeed(models.Model):
 	seed = models.PositiveIntegerField(blank=False, null=False, help_text="Player seed within this group")
 	group = models.ForeignKey(Group, related_name="seeding", verbose_name="Group Seeding", null=True, on_delete=models.CASCADE, help_text="Group this seed is for")
 	player = models.ForeignKey(TournamentPlayer, related_name="group_seeding", verbose_name="Group Seed", null=True, on_delete=models.SET_NULL, help_text='Player with this seeding in the group')
+	eliminated = models.BooleanField(verbose_name="Eliminated", default=False, help_text="Has player been eliminted from bracket (playoffs).")
 
 	class Meta:
 		verbose_name = "Seed Placement"
@@ -645,6 +658,7 @@ class Match(models.Model):
 				from corpoch.providers import CHStegTool
 				tool = CHStegTool()
 				rnd.steg = tool.getStegInfoSync(rnd.screenshot)
+
 		super().save()
 
 class MatchRound(models.Model):
@@ -685,6 +699,22 @@ class MatchRound(models.Model):
 			tool = CHStegTool()
 			self.steg = tool.getStegInfoSync(self.screenshot)
 		super().save()
+
+	#TODO: Move picked/etc logic to here
+
+	@property
+	def steg_embed(self):
+		embed = build_stats_embed(self.steg, f"Match {self.match} - Round {self.num} Results")
+		embed.set_thumbnail(url=f"https://{settings.BASE_URL}{self.screenshot.url}")
+		embed.set_footer(text=embed.footer.text, icon_url = f"https://{settings.BASE_URL}{self.chart.icon.img.url}")
+		return embed
+
+	@property
+	def full_steg_embed(self):
+		embed = build_full_stats_embed(self.steg, f"Match {self.match} - Round {self.num} FULL Results")
+		embed.set_thumbnail(url=f"https://{settings.BASE_URL}{self.screenshot.url}")
+		embed.set_footer(text=embed.footer.text, icon_url = f"https://{settings.BASE_URL}{self.chart.icon.img.url}")
+		return embed
 
 #Potential class for a "Series" of tournaments - just needs to be a list of tournaments for ogranization
 #class TournamentSeries(models.Model):

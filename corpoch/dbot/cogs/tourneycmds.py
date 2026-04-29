@@ -20,6 +20,7 @@ class DiscordMatch():
 		self.bracket = None
 		self.group = None
 		self.seeding = []
+		self.seeding_search = []
 		self.bans = []
 		self.rounds = []
 		self.matchDb = uuid
@@ -42,7 +43,7 @@ class DiscordMatch():
 			await self.msg.respond("No active tourney - running exhibition mode not supported now", ephemeral=True)
 			return False
 
-		ref_role = self.referee.get_role(self.tourney.config.ref_role.id)
+		ref_role = self.referee.get_role(self.tourney.guild.ref_role.id)
 		if not ref_role and not self.referee.guild_permissions.administrator:
 			await self.msg.respond("You are not a ref for this tournament!", ephemeral=False)
 			return False
@@ -149,11 +150,11 @@ class DiscordMatch():
 
 			picked = None
 			if strum < fret:
-				chart = Chart.objects.get(category=CHART_CATEGORIES[3][0], tiebreaker=True)
+				chart = Chart.objects.get(category=CHART_CATEGORIES[3][0], tiebreaker=True, brackets=self.bracket)
 			elif fret < strum:
-				chart = Chart.objects.get(category=CHART_CATEGORIES[2][0], tiebreaker=True)
+				chart = Chart.objects.get(category=CHART_CATEGORIES[2][0], tiebreaker=True, brackets=self.bracket)
 			else:
-				chart = Chart.objects.get(category=CHART_CATEGORIES[1][0], tiebreaker=True)
+				chart = Chart.objects.get(category=CHART_CATEGORIES[1][0], tiebreaker=True, brackets=self.bracket)
 		elif self.ruleset.pick_ruleset == "loserpicks":
 			picked = self.rounds[-1].loser
 		else:
@@ -172,7 +173,7 @@ class DiscordMatch():
 		outStr = f"**{seed.player_ch_name} Bans**\n"
 		for i in range(0, self.ruleset.num_bans):
 			try:
-				outStr += f"{bans[i]}\n"
+				outStr += f"{bans[i].chart.tournament_name}\n"
 			except IndexError:
 				outStr += "--\n"
 		return outStr
@@ -311,7 +312,10 @@ class DiscordMatch():
 			embed.add_field(name="Group Select", value=f"Select which group the match is for", inline=False)
 		elif len(self.seeding) < self.ruleset.num_players:
 			embed.title = f"{self.group}"
-			embed.add_field(name="Player Select", value=f"Select which players the match is for", inline=False)
+			if len(self.group.seeding.all().filter(player__is_active=True, eliminated=False)) > 25 and len(self.seeding_search) < 2:
+				embed.add_field(name="Player Select", value=f"Group too large for select. Click search to find players.", inline=False)
+			else:
+				embed.add_field(name="Player Select", value=f"Select which players the match is for", inline=False)
 		else:
 			embed.title = f"{self.group}\n{self.seeding[0]} vs {self.seeding[1]}"
 			embed.add_field(name="Match VS", value=f"{self.seeding[0].mention} vs {self.seeding[1].mention}")
@@ -327,7 +331,8 @@ class DiscordMatch():
 					embed.add_field(name="Bans", value=self.formatted_bans, inline=False)
 			else:
 				embed.add_field(name="Bans", value=self.formatted_bans, inline=False)
-		embed.add_field(name="Rounds", value=self.formatted_rounds, inline=False)
+		if len(self.rounds) > 0:
+			embed.add_field(name="Rounds", value=self.formatted_rounds, inline=False)
 		if self.matchDb:
 			embed.set_footer(text=f"Match ID: {self.id}")
 		return embed
