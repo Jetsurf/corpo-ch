@@ -104,8 +104,12 @@ class ChartAdmin(admin.ModelAdmin):
 				else:
 					try:
 						is_admin = bracket.tournament.guild.admins.get(id=request.user.id)
+						is_player = bracket.tournament.players.get(user=is_admin)
+						qs = qs.all().exclude(id=obj.id) #If staff user in tournament, hide chart
 					except DiscordUser.DoesNotExist:
 						qs = qs.all().exclude(id=obj.id)
+					except TournamentPlayer.DoesNotExist:
+						pass
 		return qs
 
 	@admin.action(description="Run Encore import")
