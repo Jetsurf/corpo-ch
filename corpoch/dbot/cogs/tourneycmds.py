@@ -150,11 +150,11 @@ class DiscordMatch():
 
 			picked = None
 			if strum < fret:
-				chart = Chart.objects.get(category=CHART_CATEGORIES[3][0], tiebreaker=True)
+				chart = Chart.objects.get(category=CHART_CATEGORIES[3][0], tiebreaker=True, brackets=self.bracket)
 			elif fret < strum:
-				chart = Chart.objects.get(category=CHART_CATEGORIES[2][0], tiebreaker=True)
+				chart = Chart.objects.get(category=CHART_CATEGORIES[2][0], tiebreaker=True, brackets=self.bracket)
 			else:
-				chart = Chart.objects.get(category=CHART_CATEGORIES[1][0], tiebreaker=True)
+				chart = Chart.objects.get(category=CHART_CATEGORIES[1][0], tiebreaker=True, brackets=self.bracket)
 		elif self.ruleset.pick_ruleset == "loserpicks":
 			picked = self.rounds[-1].loser
 		else:

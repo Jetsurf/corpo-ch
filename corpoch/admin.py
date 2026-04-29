@@ -247,6 +247,7 @@ class TournamentPlayerAdmin(admin.ModelAdmin):
 	list_filter = ['tournament']
 	actions = ["set_tournament_roles"]
 	readonly_fields = ("display_exact_ch_name",)
+	search_fields = ('name',)
 	fields = (
 		'user',
 		'name',

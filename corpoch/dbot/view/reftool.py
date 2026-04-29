@@ -60,7 +60,7 @@ class BanSelect(discord.ui.Select):
 		opts = []
 		if self.match.tiebreaker:
 			charts = self.match.setlist.select_related('icon').filter(tiebreaker=True)
-		elif self.match.ruleset.boss_present and self.match.ruleset.boss_active and not self.match.ruleset.boss_bannable:
+		elif self.match.ruleset.boss_present and not self.match.ruleset.boss_bannable:
 			charts = self.match.setlist.select_related('icon').filter(tiebreaker=False, boss=False).exclude(bans__in=self.match.bans)
 		else:
 			charts = self.match.setlist.select_related('icon').filter(tiebreaker=False).exclude(bans__in=self.match.bans)
