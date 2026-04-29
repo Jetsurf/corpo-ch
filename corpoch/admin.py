@@ -244,7 +244,7 @@ class BracketAdmin(admin.ModelAdmin):
 class TournamentPlayerAdmin(admin.ModelAdmin):
 	form = TournamentPlayerForm
 	list_display = ('user', 'tournament', 'display_exact_ch_name', 'is_active')
-	list_filter = ['tournament']
+	list_filter = ['tournament', 'is_active']
 	actions = ["set_tournament_roles"]
 	readonly_fields = ("display_exact_ch_name",)
 	search_fields = ('name',)
@@ -378,20 +378,24 @@ class SeedingInline(SortableStackedInline):
 
 @admin.register(Group)
 class GroupAdmin(SortableAdminBase, admin.ModelAdmin):
-	list_display = ('name', 'tournament', 'bracket_name')
+	list_display = ('name', 'bracket_name','tournament', 'active_count', 'player_count')
+	list_filter = ('bracket__tournament',)
 	inlines = [SeedingInline]
-	list_filter = ['bracket']
+	search_fields = ('bracket',)
 	list_per_page = 32
 	actions = ['set_group_role']
 
 	def tournament(self, obj):
 		return obj.bracket.tournament.short_name
 
-	def group_players(self, obj):
-		return ", ".join([seed.player.ch_name for seed in obj.seeding.all() if seed.player])
-
 	def bracket_name(self, obj):
 		return obj.bracket.name
+
+	def active_count(self, obj):
+		return obj.seeding.all().filter(player__is_active=True, eliminated=False).count()
+
+	def player_count(self, obj):
+		return obj.seeding.all().count()
 
 	def check_perm(self, request, obj=None):
 		if not obj or request.user.is_superuser:
@@ -440,7 +444,7 @@ class GroupAdmin(SortableAdminBase, admin.ModelAdmin):
 class QualifierSubmissionAdmin(admin.ModelAdmin):
 	list_display = ('id', 'qualifier', 'player_ch_name', 'score', '_miss', '_hit', '_excess', '_ghosts', '_phrases', 'submitted')
 	list_filter = ["qualifier"]
-	search_fields = ['id', 'player']
+	search_fields = ['id', 'player__name']
 	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
 	actions = ['set_unsubmitted',"reread_steg", "resubmit_gsheet"]
 
@@ -642,6 +646,7 @@ class BansInline(SortableStackedInline):
 @admin.register(Match)
 class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
 	list_display = ('__str__', 'group', '_match_players', 'score', 'started_on', 'ended_on', 'complete', 'finished', 'submitted')
+	list_filter = ('group__bracket__tournament',)
 	inlines = [BansInline, RoundsInline]
 	list_per_page = 25
 	search_fields = ['id']
