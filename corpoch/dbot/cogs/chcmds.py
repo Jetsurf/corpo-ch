@@ -195,6 +195,10 @@ class CHCmds(commands.Cog):
 					print(f"Attempting to respond to thread {ctx.channel.name} id {ctx.channel.id} message {resp.id}")
 					await ctx.respond("Do not have perms to respond in thread, have a server admin fix that perm for me and rerun!", ephemeral=True, delete_after=60)
 					return
+		else:
+			await ctx.interaction.response.defer(invisible=True)
+ 			resp = ctx.interaction.followup
+
 
 		for i, submission in enumerate(submissions):
 			if isinstance(submission, discord.Attachment):
