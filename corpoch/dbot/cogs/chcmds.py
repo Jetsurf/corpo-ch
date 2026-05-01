@@ -197,7 +197,7 @@ class CHCmds(commands.Cog):
 					return
 		else:
 			await ctx.interaction.response.defer(invisible=True)
- 			resp = ctx.interaction.followup
+			resp = ctx.interaction.followup
 
 
 		for i, submission in enumerate(submissions):

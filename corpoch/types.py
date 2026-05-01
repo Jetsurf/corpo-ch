@@ -108,7 +108,42 @@ class StegScreenshotPlayer(pydantic.BaseModel):
 	excess_hits : int = 0
 	notes_missed : int = 0
 
+#v10 6085-final
+class StegSectionV10(pydantic.BaseModel):
+	section_name : str = "Some Section"
+	notes_hit : int = 0
+	notes_count : int = 0
+
+class StegScreenshotPlayerV10(StegScreenshotPlayer):
+	clean_play_bonus : int = 0
+	combo_score : int = 0
+	note_score : int = 0
+	solo_bonus_total : int = 0
+
+	ap_activations : int = 0
+	sp_bar_ticks : int = 0
+	sp_score : int = 0
+	sp_ticks_accumlated : int = 0
+
+	squeeze_score : int = 0
+	squeezed_notes : int = 0
+	squeezed_notes_missed : int = 0
+
+	sustain_score : int = 0
+
+	time_in_sp : float = 0
+
+	end_streak : int = 0
+	failed_at : int = -1
+	is_pfc : bool = False
+
+	section_count : int = 0
+	section_stats : list[StegSectionV10]
+
+
+
 class StegScreenshot(pydantic.BaseModel):
+	model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
 	artist_name : str = "None"
 	band_score : int = 0
 	band_stars : int = 0
@@ -118,7 +153,7 @@ class StegScreenshot(pydantic.BaseModel):
 	game_version : str = CH_VERSIONS[0][0]
 	game_mode : str = "Versus"
 	playback_speed : int = 100
-	players : list[StegScreenshotPlayer] = []
+	players : list[ StegScreenshotPlayer |  StegScreenshotPlayerV10 ]
 	score_timestamp: datetime = datetime.now()
 
 #Encore API Models
