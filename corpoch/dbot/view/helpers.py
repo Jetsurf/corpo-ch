@@ -40,7 +40,7 @@ def build_stats_embed(steg, title: str) -> discord.Embed:
 		for i, player in enumerate(steg.players):
 			plyStr = f"Score: {player.score}\n"
 			plyStr += f"Notes Hit: {player.notes_hit}/{player.total_notes} - {(player.notes_hit/player.total_notes) * 100:.2f}% {get_crown_emoji(player) if player.is_fc else f'(-{player.notes_missed})'}\n"
-			plyStr += f"Max{'/End Streak' if hasattr(steg, 'streak') else ' Streak'}: {player.max_streak}{player.end_streak if hasattr(steg, 'streak') else ''}"
+			plyStr += f"Max{'/End Streak' if hasattr(player, 'end_streak') else ' Streak'}: {player.max_streak}{f"/{player.end_streak}" if hasattr(player, 'end_streak') else ''}\n"
 			plyStr += f"Overstrums: (+){player.excess_hits}\n"
 			plyStr += f"Ghosts: {player.frets_ghosted}\n"
 			plyStr += f"SP Phrases: {player.sp_phrases_earned}/{player.sp_phrases_total}\n"
