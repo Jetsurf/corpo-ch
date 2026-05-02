@@ -118,12 +118,13 @@ class StegSectionV10(pydantic.BaseModel):
 		return f"{self.section_name} : {self.notes_hit}/{self.notes_count}"
 
 class StegScreenshotPlayerV10(StegScreenshotPlayer):
+	avg_multiplier : float = 0
 	clean_play_bonus : int = 0
 	combo_score : int = 0
 	note_score : int = 0
 	solo_bonus_total : int = 0
 
-	ap_activations : int = 0
+	sp_activations : int = 0
 	sp_bar_ticks : int = 0
 	sp_score : int = 0
 	sp_ticks_accumlated : int = 0

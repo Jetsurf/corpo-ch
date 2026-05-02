@@ -11,9 +11,9 @@ def set_group_role(user_id, guild_id, role_id):
 	set_group_role.apply_async(args=[user_id, guild_id, role_id])
 
 @app.task
-def add_bot_emoji(name):
+def add_bot_emoji(name, path=None):
 	print(f"Sending task corpoch.dbot.add_bot_emoji({name})")
-	add_bot_emoji.apply_async(args=[name])
+	add_bot_emoji.apply_async(args=[name, path])
 
 @app.task
 def reload_cog(cog):

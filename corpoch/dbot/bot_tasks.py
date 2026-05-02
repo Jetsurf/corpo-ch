@@ -40,12 +40,8 @@ async def set_group_role(bot, user_id, guild_id, role_id):
 	role = await guild.fetch_role(role_id)
 	await user.add_roles(role)
 
-async def add_bot_emoji(bot, name):
-	from corpoch.dbot.models import CHEmoji
-	from corpoch.models import CHIcon
-	dbIcon = await CHIcon.objects.aget(name=name)
-	emojis = await bot.fetch_emojis()
-	with open(dbIcon.img.path, "rb") as f:
+async def add_emoji(bot, name, path):
+	with open(path, "rb") as f:
 		if len(name) < 2:
 			name += "_"
 		squashed_name = sub("[^\\w]", "_", "".join(c for c in normalize('NFD', name) if category(c) != 'Mn'))
@@ -53,15 +49,30 @@ async def add_bot_emoji(bot, name):
 			emoji = await bot.create_emoji(name=squashed_name, image=f.read())
 		except discord.errors.HTTPException:
 			foundEmoji = False
-			for tst in emojis:
+			for tst in await bot.fetch_emojis():
 				if tst.name == squashed_name:
 					emoji = tst 
 					foundEmoji = True
 					break
 			if not foundEmoji:
 				print(f"Error on creating/finding emoji {name}")
-				return
-	new = CHEmoji(id=emoji.id, icon=dbIcon)
+				return None
+		return emoji
+
+async def add_bot_emoji(bot, name, img_path=None):
+	from corpoch.dbot.models import CHEmoji
+	from corpoch.models import CHIcon
+
+	if img_path:
+		emoji = await add_emoji(bot, name, img_path)
+		dbIcon = None
+		name = name
+	else:
+		dbIcon = await CHIcon.objects.aget(name=name)
+		emoji = await add_emoji(bot, dbIcon.name, dbIcon.img.path)
+		name = None
+
+	new = CHEmoji(id=emoji.id, icon=dbIcon, name=name)
 	await new.asave()
 
 async def reload_cog(bot, cog):
