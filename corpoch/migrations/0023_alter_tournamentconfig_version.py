@@ -15,4 +15,9 @@ class Migration(migrations.Migration):
             name='version',
             field=models.CharField(choices=[('v1.0.0.4080-final', 'v1.0.0.4080-final'), ('v1.1.0.6085-final', 'v1.1.0.6085-final')], default='v1.0.0.4080-final', help_text='Clone Hero verison the tournament is using.', max_length=32, verbose_name='Clone Hero Version'),
         ),
+        migrations.AlterField(
+            model_name='bracketrules',
+            name='ban_ruleset',
+            field=models.CharField(choices=[('default', 'No Defer/High Seed first'), ('deferban', 'High Seed can defer ban/picks first'), ('deferboth', 'High Seed can defer both ban/pick')], default='default', help_text='Ruleset to determine how bans work.', max_length=32, verbose_name='Match Bans Ruleset'),
+        ),
     ]

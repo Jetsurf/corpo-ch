@@ -108,9 +108,6 @@ class StegScreenshotPlayer(pydantic.BaseModel):
 	excess_hits : int = 0
 	notes_missed : int = 0
 
-	def __str__(self):
-		return f'Steg v6 (4080)'
-
 #v10 6085-final
 class StegSectionV10(pydantic.BaseModel):
 	model_config = pydantic.ConfigDict(title=f'Steg v10 (6085)')
