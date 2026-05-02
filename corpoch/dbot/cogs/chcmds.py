@@ -184,16 +184,22 @@ class CHCmds(commands.Cog):
 				return
 			submissions = msg.attachments
 
-		if len(submissions) > 1:
+		if not isinstance(ctx.channel, discord.DMChannel):
 			if match:
 				resp = ctx.user
 			else:
-				await ctx.defer(invisible=True)
-				interaction = await ctx.followup.send("CH Screenshot Steg Results")
-				resp = await ctx.channel.create_thread(name="CH Screenshot Steg Results Thread", message=interaction)
+				if msg.thread:
+					resp = msg.thread
+				else:
+					try:
+						resp = await ctx.channel.create_thread(name="CH Screenshot Steg Results Thread", message=msg)
+						await ctx.respond("Creating or responding in thread for this screenshot!", ephemeral=True, delete_after=15)
+					except:
+						await ctx.interaction.response.defer(invisible=True)
+						resp = ctx.interaction.followup
 				if not resp.can_send():
 					print(f"Attempting to respond to thread {ctx.channel.name} id {ctx.channel.id} message {resp.id}")
-					await ctx.respond("Do not have perms to respond in thread, have a server admin fix that perm for me and rerun!", ephemeral=True, delete_after=60)
+					await ctx.respond("Do not have perms to respond! Have a server admin fix that perm for me and rerun!", ephemeral=True, delete_after=60)
 					return
 		else:
 			await ctx.interaction.response.defer(invisible=True)
