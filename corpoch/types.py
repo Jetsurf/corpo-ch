@@ -66,7 +66,7 @@ PICK_RULESETS = (
 BAN_RULESETS = (
 	("default", "No Defer/High Seed first"),
 	("deferban", "High Seed can defer ban/picks first"),
-	("deferboth", "High Seed can defers both ban/pick"),
+	("deferboth", "High Seed can defer both ban/pick"),
 )
 
 class CH_Name(pydantic.BaseModel):
@@ -108,8 +108,13 @@ class StegScreenshotPlayer(pydantic.BaseModel):
 	excess_hits : int = 0
 	notes_missed : int = 0
 
+	def __str__(self):
+		return f'Steg v6 (4080)'
+
 #v10 6085-final
 class StegSectionV10(pydantic.BaseModel):
+	model_config = pydantic.ConfigDict(title=f'Steg v10 (6085)')
+
 	section_name : str = "Some Section"
 	notes_hit : int = 0
 	notes_count : int = 0
@@ -144,7 +149,6 @@ class StegScreenshotPlayerV10(StegScreenshotPlayer):
 	section_stats : list[StegSectionV10]
 
 class StegScreenshot(pydantic.BaseModel):
-	model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
 	artist_name : str = "None"
 	band_score : int = 0
 	band_stars : int = 0
@@ -154,7 +158,7 @@ class StegScreenshot(pydantic.BaseModel):
 	game_version : str = CH_VERSIONS[0][0]
 	game_mode : str = "Versus"
 	playback_speed : int = 100
-	players : list[ StegScreenshotPlayer |  StegScreenshotPlayerV10 ]
+	players : list[ typing.Union[typing.Annotated[StegScreenshotPlayer, pydantic.Field(title='Steg v6 (4080)')] |  typing.Annotated[StegScreenshotPlayerV10, pydantic.Field(title='Steg v10 (6085)')] ] ]
 	score_timestamp: datetime = datetime.now()
 
 #Encore API Models
