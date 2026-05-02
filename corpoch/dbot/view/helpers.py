@@ -41,7 +41,18 @@ def build_full_stats_embed(steg, title: str) -> discord.Embed:
 					embed.add_field(name=f"Player {player.profile_name} Raw Steg Info {j}", value=outStr, inline=False)
 					j += 1
 					outStr = ""
-				outStr += f"{attr}: {getattr(player, attr)}\n"
+				outAttr = str(attr).replace('_', ' ')
+				outAttr = ' '.join(word.capitalize() for word in outAttr.split())
+				if isinstance(getattr(player, attr), list):
+					outStr += f"{outAttr}:\n"
+					for item in getattr(player, attr):
+						if len(outStr) + len(str(item)) + 4 > 1024:
+							embed.add_field(name=f"Player {player.profile_name} Raw Steg Info {j}", value=outStr, inline=False)
+							j += 1
+							outStr = ""
+						outStr += f" * {item}\n"
+				else:
+					outStr += f"{outAttr}: {getattr(player, attr)}\n"
 			embed.add_field(name=f"Player {player.profile_name} Raw Steg Info {j}", value=outStr, inline=False)
 		embed.set_footer(text=f"Chart md5 `{steg.checksum}`")
 		return embed

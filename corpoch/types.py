@@ -114,6 +114,9 @@ class StegSectionV10(pydantic.BaseModel):
 	notes_hit : int = 0
 	notes_count : int = 0
 
+	def __str__(self):
+		return f"{self.section_name} : {self.notes_hit}/{self.notes_count}"
+
 class StegScreenshotPlayerV10(StegScreenshotPlayer):
 	clean_play_bonus : int = 0
 	combo_score : int = 0
@@ -130,7 +133,6 @@ class StegScreenshotPlayerV10(StegScreenshotPlayer):
 	squeezed_notes_missed : int = 0
 
 	sustain_score : int = 0
-
 	time_in_sp : float = 0
 
 	end_streak : int = 0
@@ -139,8 +141,6 @@ class StegScreenshotPlayerV10(StegScreenshotPlayer):
 
 	section_count : int = 0
 	section_stats : list[StegSectionV10]
-
-
 
 class StegScreenshot(pydantic.BaseModel):
 	model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
