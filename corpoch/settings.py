@@ -11,7 +11,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 BASE_URL = os.getenv("BASE_URL")
 ALLOWED_HOSTS = [ BASE_URL ]
 
-PROJECT_HOME = BASE_URL = os.getenv("PROJECT_HOME")
+PROJECT_HOME = os.getenv("PROJECT_HOME")
 
 CSRF_TRUSTED_ORIGINS=[f"https://{BASE_URL}"]
 SALT_KEY = os.getenv("DB_CRYPT_KEY")
