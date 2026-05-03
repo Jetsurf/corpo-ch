@@ -262,6 +262,23 @@ class BracketRules(models.Model):
 		else:
 			return False
 
+	@property 
+	def bannable_tb(self) -> bool:
+		if self.tb_ruleset == TB_RULESETS[2][0]:
+			return True
+		else:
+			return False
+
+	@property
+	def pickable_tb(self) -> bool:
+		"""
+		Is the tie-breaker chart pickable
+		"""
+		if self.tb_ruleset == TB_RULESETS[0][0] or self.tb_ruleset == TB_RULESETS[1][0]:
+			return False
+		else:
+			return True
+
 	def __str__(self):
 		return f"{self.bracket}"
 
@@ -701,6 +718,13 @@ class MatchRound(models.Model):
 		super().save()
 
 	#TODO: Move picked/etc logic to here
+
+	@property
+	def is_tiebreaker(self) -> bool:
+		if self.num == self.match.bracket.ruleset.num_rounds:
+			return True
+		else:
+			return False
 
 	@property
 	def steg_embed(self):

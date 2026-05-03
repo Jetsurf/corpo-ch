@@ -197,7 +197,7 @@ class CHCmds(commands.Cog):
 						await ctx.interaction.response.defer(invisible=True)
 						resp = ctx.interaction.followup
 
-			if not resp.can_send():
+			if not isinstance(resp, discord.Webhook) and not resp.can_send():
 				print(f"Attempting to respond to thread {ctx.channel.name} id {ctx.channel.id} message {resp.id}")
 				await ctx.respond("Do not have perms to respond! Have a server admin fix that perm for me and rerun!", ephemeral=True, delete_after=60)
 				return

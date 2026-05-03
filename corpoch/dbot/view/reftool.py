@@ -70,8 +70,8 @@ class BanSelect(discord.ui.Select):
 			self.retOpts[chart.md5] = chart
 			opts.append(discord.SelectOption(label=str(chart.tournament_name), description=f"{chart.artist} - {chart.charter}", emoji=emoji, value=chart.md5))
 		if self.match.tiebreaker:
-			self.match.picking_player = self.match.rounds[-2].winner
-			super().__init__(placeholder=f"{self.match.rounds[-2].winner.ch_name} Ban", max_values=1, options=opts, custom_id="ban_sel")
+			self.match.picking_player = self.match.rounds[-1].winner
+			super().__init__(placeholder=f"{self.match.rounds[-1].winner.ch_name} Ban", max_values=1, options=opts, custom_id="ban_sel")
 		else:
 			self.match.picking_player = self.match.seeding[self.index].player
 			super().__init__(placeholder=f"{self.match.seeding[self.index].player.ch_name} Ban", max_values=1, options=opts, custom_id="ban_sel")
@@ -88,6 +88,8 @@ class BanSelect(discord.ui.Select):
 		newBan = MatchBan(num=len(self.match.bans), player=ply, chart=chart, match=self.match.matchDb)
 		await newBan.asave()
 		self.match.bans.append(newBan)
+		if self.match.tiebreaker:
+			self.match.add_round()
 		await self.match.showTool(interaction)
 
 class SongRoundSelect(discord.ui.Select):
@@ -178,7 +180,9 @@ class PlayerRoundSelect(discord.ui.Select):
 		else:
 			self.round.loser = self.match.seeding[0].player
 		self.round.winner = winner.player
-		self.match.add_round()
+		await self.round.asave()
+		if not self.match.tiebreaker or not self.match.ruleset.bannable_tb:
+			self.match.add_round()
 		await self.match.showTool(interaction)
 
 class BracketSelect(discord.ui.Select):
@@ -319,13 +323,11 @@ class DiscordMatchView(discord.ui.View):
 			self.add_item(self.back)
 			self.add_item(self.plyin)
 			self.add_item(self.submit)
-			if len(self.match.bans) == self.match.ruleset.total_bans and len(self.match.rounds) == 0:
-				self.match.add_round()
 
 			if not self.match.finished and not self.match.tiebreaker:
 				await self.setup_round_player_sels()
 			elif not self.match.finished and self.match.tiebreaker:
-				if self.match.ruleset.tb_ruleset == 'banpick':
+				if self.match.ruleset.bannable_tb:
 					if len(self.match.bans) == self.match.ruleset.total_bans:
 						sel = BanSelect(self.match)
 						await sel.init()
@@ -375,23 +377,30 @@ class DiscordMatchView(discord.ui.View):
 
 	async def backBtn(self, interaction: discord.Interaction):
 		if len(self.match.rounds) > 0:
-			if self.match.tiebreaker:
-				if self.match.ruleset.tb_ruleset == 'banpick':
-					if len(self.match.rounds) == self.match.ruleset.num_rounds:
-						self.match.remove_round()
-						self,match.rounds[-1].winner = None
-						await self.match.rounds[-1].asave()
-					elif len(self.match.bans) > self.match.ruleset.num_bans * self.match.ruleset.num_players:
-						self.match.remove_ban()
+			if self.match.rounds[-1].is_tiebreaker:
+				if self.match.rounds[-1].winner:
+					self.match.rounds[-1].winner = None
+					self.match.rounds[-1].loser = None
+				elif self.match.ruleset.pickable_tb and self.match.rounds[-1].chart:
+					self.match.rounds[-1].chart = None
 				else:
 					self.match.remove_round()
-					self.match.rounds[-1].winner = None
-					await self.match.rounds[-1].asave()
-			elif self.match.rounds[-1].chart:
+					if self.match.ruleset.bannable_tb:
+						self.match.remove_ban()
+					else:
+						self.match.rounds[-1].winner = None
+			elif self.match.rounds[-1].winner:
+				self.match.rounds[-1].winner = None
+				self.match.rounds[-1].loser = None
+			elif self.match.rounds[-1].chart and (not self.match.tiebreaker or self.match.ruleset.pickable_tb):
 				self.match.rounds[-1].chart = None
 			else:
 				self.match.remove_round()
-			if len(self.match.rounds) == 0: #If we removed the last round, also remove a ban
+				if len(self.match.rounds) == 0:
+					self.match.remove_ban()
+			if len(self.match.rounds) > 0:
+				await self.match.rounds[-1].asave()
+			else: #If we removed the last round, also remove a ban
 				self.match.remove_ban()
 		elif len(self.match.rounds) == 0 and len(self.match.bans) > 0:
 			self.match.remove_ban()

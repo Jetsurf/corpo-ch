@@ -45,8 +45,9 @@ def build_stats_embed(steg, title: str) -> discord.Embed:
 			plyStr += f"Ghosts: {player.frets_ghosted}\n"
 			plyStr += f"SP Phrases: {player.sp_phrases_earned}/{player.sp_phrases_total}\n"
 			if steg.game_version != CH_VERSIONS[0][0]:
+				plyStr += f"Activations: {player.sp_activations} ({player.time_in_sp:.2f}s)\n"
 				plyStr += f"Avg Multiplier: {player.avg_multiplier:.3f}x\n"
-				plyStr += f"Activations: {player.sp_activations} ({player.time_in_sp:.2f}s)"
+				plyStr += f"Squeeze Hit/Missed/Score: +{player.squeezed_notes}/-{player.squeezed_notes_missed}/{player.squeeze_score}\n"
 			embed.add_field(name=f"Player: `{player.profile_name}`", value=plyStr, inline=False)
 		embed.set_footer(text=f"Chart MD5: `{steg.checksum}`")#Get steg info to have chart icon key in output for footer.icon_url?
 		return embed
