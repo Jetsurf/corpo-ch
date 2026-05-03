@@ -184,17 +184,28 @@ class CHCmds(commands.Cog):
 				return
 			submissions = msg.attachments
 
-		if len(submissions) > 1:
+		if not isinstance(ctx.channel, discord.DMChannel):
 			if match:
 				resp = ctx.user
 			else:
-				await ctx.defer(invisible=True)
-				interaction = await ctx.followup.send("CH Screenshot Steg Results")
-				resp = await ctx.channel.create_thread(name="CH Screenshot Steg Results Thread", message=interaction)
-				if not resp.can_send():
-					print(f"Attempting to respond to thread {ctx.channel.name} id {ctx.channel.id} message {resp.id}")
-					await ctx.respond("Do not have perms to respond in thread, have a server admin fix that perm for me and rerun!", ephemeral=True, delete_after=60)
-					return
+				if msg.thread:
+					resp = msg.thread
+				else:
+					try:
+						resp = await ctx.channel.create_thread(name="CH Screenshot Steg Results Thread", message=msg)
+					except:
+						await ctx.interaction.response.defer(invisible=True)
+						resp = ctx.interaction.followup
+
+			if not isinstance(resp, discord.Webhook) and not resp.can_send():
+				print(f"Attempting to respond to thread {ctx.channel.name} id {ctx.channel.id} message {resp.id}")
+				await ctx.respond("Do not have perms to respond! Have a server admin fix that perm for me and rerun!", ephemeral=True, delete_after=60)
+				return
+			if isinstance(resp, discord.Thread):
+				await ctx.respond("Creating or responding in thread for this screenshot!", ephemeral=True, delete_after=15)
+		else:
+			await ctx.interaction.response.defer(invisible=True)
+			resp = ctx.interaction.followup
 
 		for i, submission in enumerate(submissions):
 			if isinstance(submission, discord.Attachment):
@@ -209,6 +220,9 @@ class CHCmds(commands.Cog):
 				await resp.send(embed=steg.full_steg_embed)
 			else:
 				await resp.send(embed=steg.steg_embed)
+
+		if isinstance(resp, discord.Thread):
+			await resp.archive()
 
 	@discord.message_command(name='CH Sten',description='Reads CH Sten data from a screenshot posted to a message', integration_types={discord.IntegrationType.guild_install, discord.IntegrationType.user_install})
 	async def getScreenSten(self, ctx: discord.ApplicationContext, msg: discord.Message):

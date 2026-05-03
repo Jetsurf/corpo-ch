@@ -10,9 +10,19 @@ class Command(BaseCommand):
 
 	def add_arguments(self, parser):
 		parser.add_argument('-f', '--flush', action="store_true", help='Discord Guild ID of Tournament to make Users from TournamentPlayers for')
+		parser.add_argument('-c', '--crowns', action="store_true", help='Import only PF/C crown assets')
+
+	def handle_crowns(self):
+		print("Adding crown assets")
+		assets = [f"{settings.PROJECT_HOME}/corpoch/static/pfcd.png", f"{settings.PROJECT_HOME}/corpoch/static/pfcg.png", f"{settings.PROJECT_HOME}/corpoch/static/fc.png"]
+		for asset in assets:
+			name = asset.split('/')[-1].split('.')[0]
+			print(f"Adding app emoji for {name} {asset}")
+			corpoch.dbot.tasks.add_bot_emoji(name, asset)
 
 	def handle(self, *args, **options):
 		flush = options['flush']
+		crowns = options['crowns']
 		if flush:
 			print(f"Flushing DB of CHEmotes/Icons and re-importing")
 			for chart in Chart.objects.all():
@@ -24,13 +34,17 @@ class Command(BaseCommand):
 				icon.delete()
 			shutil.rmtree(f"{settings.MEDIA_ROOT}chicons")
 
+		self.handle_crowns()
+		if crowns:
+			return
+
 		ch_default_icon_path = f"./corpoch/static/ch_default_icon.png"
 		if not os.path.isfile(ch_default_icon_path):
 			print(f"Error: File at {ch_default_icon_path} was not found.")
 		else:
 			try:
 				icon = CHIcon.objects.get(name="ch_default_icon")
-				print(f"Icon exists in DB. Ensuring dbot icon exists")
+				print(f"Icon exists in DB. Ensuring dbot appemoji exists")
 			except CHIcon.DoesNotExist:
 				icon = None
 

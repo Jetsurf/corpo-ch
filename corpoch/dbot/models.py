@@ -5,11 +5,19 @@ class CHEmoji(models.Model):
 	Represents a Discord Emoji used with a Chart Icon.
 	"""
 	id = models.BigIntegerField(verbose_name="AppEmoji ID", db_index=True, primary_key=True, help_text="Discord snowflake ID of the AppEmoji.")
-	icon = models.ForeignKey('corpoch.CHIcon', related_name="discord", verbose_name="Emote ID", null=False, blank=False, default=-1, on_delete=models.CASCADE, help_text="Associated CHIcon.")
+	icon = models.ForeignKey('corpoch.CHIcon', related_name="discord", verbose_name="Emote ID", null=True, blank=True, default=-1, on_delete=models.CASCADE, help_text="Associated CHIcon.")
+	name = models.CharField(max_length=16, null=True, blank=True, help_text="Name for emoji (optional)")
 
 	class Meta:
 		verbose_name = "Chart Icon"
 		verbose_name_plural = "Chart Icons"
+
+	@property
+	def mention(self):
+		if self.name:
+			return f"<:{self.name}:{self.id}>"
+		else:
+			return f"<:{self.icon.name}:{self.id}>"
 
 class Guilds(models.Model):
 	"""

@@ -35,8 +35,6 @@ class DiscordMatch():
 			#Finish loading async
 			self.msg = await self.channel.fetch_message(self.matchDb.message)
 			self.referee = await self.guild.fetch_member(self.matchDb.referee.id)
-			if not self.complete and len(self.bans) == self.ruleset.total_bans and (len(self.rounds) == 0 or self.rounds[-1].winner):
-				self.add_round()
 		try:
 			self.tourney = await Tournament.objects.select_related().aget(guild=self.msg.guild.id, active=True)
 		except Tournament.DoesNotExist:
@@ -155,6 +153,8 @@ class DiscordMatch():
 				chart = Chart.objects.get(category=CHART_CATEGORIES[2][0], tiebreaker=True, brackets=self.bracket)
 			else:
 				chart = Chart.objects.get(category=CHART_CATEGORIES[1][0], tiebreaker=True, brackets=self.bracket)
+		elif self.tiebreaker and self.ruleset.tb_ruleset == 'banpick':
+			picked = self.rounds[-1].loser
 		elif self.ruleset.pick_ruleset == "loserpicks":
 			picked = self.rounds[-1].loser
 		else:
@@ -192,7 +192,7 @@ class DiscordMatch():
 		outStr = self.format_bans_player(ply1, bans1)
 		outStr += self.format_bans_player(ply2, bans2)
 		if bantb:
-			outStr += f"***TIEBREAKER BAN***\n{bantb.player.player_ch_name} bans {bantb.chart.tournament_name}"
+			outStr += f"***TIEBREAKER BAN***\n{bantb.player.ch_name} bans {bantb.chart.tournament_name}"
 		return outStr
 
 	@property
