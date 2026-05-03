@@ -27,7 +27,7 @@ def get_crown_emoji(player):
 			return CHEmoji.objects.get(name='fc').mention
 		else:
 			return ''
-	except CHEmoji.DoesNotExist:
+	except (CHEmoji.DoesNotExist, AttributeError):
 		if player.is_fc:
 			return '👑'
 		else:

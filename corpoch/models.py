@@ -144,6 +144,18 @@ class Chart(models.Model):
 	def __str__(self):
 		return self.name
 
+	@property
+	def game_version(self):
+		ret = self.brackets.first()
+		if ret:
+			return ret.tournament.config.version
+		else:
+			ret = self.qualifier.first()
+		if ret:
+			return ret.tournament.config.version
+		else:
+			return CH_VERSIONS[-1][0]
+
 	def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
 		self.blake3 = self.blake3.upper() #Force these always upper
 		self.icon = CHIcon.objects.get(name="ch_default_icon") if self.icon == None else self.icon
@@ -464,7 +476,7 @@ class Qualifier(models.Model):
 	id = models.AutoField(primary_key=True, help_text="Internal ID of this Qualifier")
 	tournament = models.ForeignKey(Tournament, related_name='qualifier', verbose_name="Tournament", on_delete=models.CASCADE, help_text="Tournament this qualifer is for.")
 	bracket = models.ForeignKey(Bracket, related_name='qualifier', verbose_name="Bracket", blank=True, null=True, on_delete=models.CASCADE, help_text="Specific bracket in a tournament this qualifier is for.")
-	charts = models.ManyToManyField(Chart, related_name="charts", verbose_name="Qualifier Chart(s)", help_text="Chart(s) that this qualifier uses.")
+	charts = models.ManyToManyField(Chart, related_name="qualifier", verbose_name="Qualifier Chart(s)", help_text="Chart(s) that this qualifier uses.")
 	limit_submissions = models.BooleanField(verbose_name="Limit Submissions to # Required", default=False, help_text="Limit players to single qualifier submission.")
 	required_submissions = models.PositiveIntegerField(verbose_name="Required Submissions", default=1, help_text="If limit_submissions=False, the number of submissions required for a player to qualify.")
 	form_link = models.URLField(verbose_name="Google Form Link", null=True, blank=True, help_text="Google Form link to show players while submitting their qualifier.")

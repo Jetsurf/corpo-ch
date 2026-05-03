@@ -6,7 +6,7 @@ from asgiref.sync import sync_to_async
 
 from corpoch.providers import CHOpt, EncoreClient, CHStegTool, Hydra
 from corpoch.models import Tournament, Chart
-from corpoch.types import CH_INSTRUMENTS, CH_DIFFICULTIES
+from corpoch.types import CH_INSTRUMENTS, CH_DIFFICULTIES, CH_VERSIONS
 from corpoch.dbot.models import CHEmoji
 from corpoch.dbot.view.helpers import get_chart_emoji
 
@@ -211,7 +211,7 @@ class ChartSelect(discord.ui.Select):
 			if isinstance(chart, Chart):
 				self.path.chopt.opts.instrument = chart.instrument
 				self.path.chopt.opts.speed = chart.speed
-
+				self.path.chopt.opts.version = chart.game_version
 		await interaction.response.defer(ephemeral=True)
 		await self.path.show()
 
@@ -219,9 +219,13 @@ class PathView(discord.ui.View):
 	def __init__(self, path):
 		self.path = path
 		super().__init__(timeout = None)
+
+		ver = self.path.chopt.opts.version
+		self.get_item('ver').label = f"v{ver[1]}.{ver[3]} ({ver[7:11]})"
 		if len(self.path.chart_paths) < 1:
 			self.get_item('submit').disabled = True
 			self.get_item('opts').disabled = True
+			self.get_item('ver').disabled = True
 
 	async def init(self):
 		if hasattr(self.path, 'tournament'):
@@ -258,7 +262,6 @@ class PathView(discord.ui.View):
 		await modal.wait()
 		await self.path.show()
 
-
 	@discord.ui.button(label="Tourney Search", style=discord.ButtonStyle.secondary, custom_id="tourney")
 	async def tourneyBtn(self, button, interaction: discord.Interaction):
 		await self.clear()
@@ -268,6 +271,13 @@ class PathView(discord.ui.View):
 		self.charts = []
 		await interaction.response.defer(invisible=True)
 		await self.path.show()
+
+	@discord.ui.button(style=discord.ButtonStyle.secondary, custom_id='ver')
+	async def verBtn(self, button, interaction: discord.Interaction):
+		if "4080" in self.path.chopt.opts.version:
+			self.path.chopt.opts.version = CH_VERSIONS[1][0]
+		else:
+			self.path.chopt.opts.version = CH_VERSIONS[0][0]
 
 	@discord.ui.button(label='Options', style=discord.ButtonStyle.secondary, custom_id="opts")
 	async def optsBtn(self, button, interaction: discord.Interaction):

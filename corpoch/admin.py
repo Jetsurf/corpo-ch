@@ -51,10 +51,10 @@ class DiscordUserAdmin(admin.ModelAdmin):
 
 @admin.register(Chart)
 class ChartAdmin(admin.ModelAdmin):
-	list_display = ('_icon','name',  '_bracket', 'charter', 'artist', 'album', 'speed', '_modifiers', 'tiebreaker')
+	list_display = ('_icon','name',  '_bracket', 'charter', 'artist', 'album', 'speed', '_modifiers', 'tiebreaker', 'game_version')
 	list_filter = ['brackets__tournament', 'tiebreaker', 'boss']
 	actions = ['run_encore_import', 'import_song_ini']
-	readonly_fields = ['_icon']
+	readonly_fields = ['_icon', 'game_version']
 	search_fields = ('name', 'charter')
 	filter_horizontal = ['brackets']
 
@@ -72,6 +72,9 @@ class ChartAdmin(admin.ModelAdmin):
 		for i in range(0, len(obj.modifiers)):
 			out.append(CH_MODIFIERS[i][1])
 		return out
+
+	def game_version(self, obj):
+		return obj.game_version
 
 	@mark_safe
 	def _icon(self, obj):

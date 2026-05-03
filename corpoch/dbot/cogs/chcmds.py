@@ -8,6 +8,7 @@ from corpoch.dbot.models import CHEmoji
 from corpoch.dbot.view.helpers import get_chart_emoji
 from corpoch.dbot.view.path import PathView
 from corpoch.providers import CHOpt, EncoreClient, CHStegTool, Hydra
+from corpoch.types import CH_VERSIONS
 
 class Path():
 	def __init__(self, bot, ctx):
@@ -41,6 +42,7 @@ class Path():
 					await ctx.respond("Do not have perms to respond in thread, have a server admin fix that perm for me and rerun!", ephemeral=True, delete_after=60)
 					return
 		else:
+
 			respond = interaction.followup
 
 		chopts = self.chopt.opts
@@ -99,7 +101,7 @@ class Path():
 		embed.title = "CH Path Generator"
 		chartListing = ""
 		if self.charts:
-			embed.add_field(name="Directions", value="Charts shown in dropdown below.\nSelect the one you want to generate a path for.\nSet options, then submit!", inline=False) 
+			embed.add_field(name="Directions", value="Charts shown in dropdown below.\nSelect the one you want to generate a path for.\nClick 'v' button to switch CH Versions.\nSet options, then submit!", inline=False) 
 		else:
 			embed.add_field(name="Directions", value="No results found for search.\nTry searching again with different options.", inline=False) 
 
@@ -142,6 +144,7 @@ class Path():
 	def genCHOptResultEmbed(self) -> discord.Embed:
 		embed = self.genEmbedBase()
 		embed.add_field(name="CHOpt Path For", value=self.formatChart(), inline=False)
+		embed.add_field(name="Game Version", value=self.chopt.opts.version, inline=False)
 		self.addEmbedToolField(embed)
 		embed.add_field(name="Image Link", value=f"[Link to Image]({self.chopt.url})", inline=False)
 		return embed

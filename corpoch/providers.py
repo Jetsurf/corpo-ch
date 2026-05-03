@@ -10,7 +10,7 @@ from typing import Optional, Union, Literal
 from corpoch import __user_agent__
 from corpoch import settings
 from corpoch.models import GSheetAPI, Chart, Tournament, Match, Qualifier, QualifierSubmission
-from corpoch.types import StegScreenshot, SearchResponse, CH_DIFFICULTIES, CH_INSTRUMENTS
+from corpoch.types import StegScreenshot, SearchResponse, CH_DIFFICULTIES, CH_INSTRUMENTS, CH_VERSIONS
 from corpoch.utils.hydra.hydra.hyutil import analyze_chart_bytes_chart, analyze_chart_bytes_mid
 from corpoch.utils.snghandler import SNGHandler
 from corpoch.dbot.view.helpers import build_stats_embed, build_full_stats_embed
@@ -62,10 +62,13 @@ class CHOpt:
 		delay: int = 0
 		instrument: str = CH_INSTRUMENTS[0][0]
 		difficulty: str = CH_DIFFICULTIES[0][0]
+		version: str = CH_VERSIONS[1][0]
 		#Do check for tuple force string
+
 	def __init__(self):
 		self._path = settings.CHOPT_PATH
 		self._chopt = f"{self._path}/CHOpt.exe" if platform.system() == 'Windows' else f"{self._path}/CHOpt"
+		self._chopt_4080 = self._chopt = f"{self._path}/CHOpt-1-13-2.exe" if platform.system() == 'Windows' else f"{self._path}/CHOpt-1-13-2"
 		self._scratch = f"{self._path}/scratch"
 		self._output = settings.CHOPT_OUTPUT
 		self._url = settings.CHOPT_URL
@@ -125,7 +128,10 @@ class CHOpt:
 		self._sng = SNGHandler(content)
 		self._prep_chart()
 		self._out_png = f"{self._output}/{self._file_id}.png"
-		choptCall = f"{self._chopt} -s {self.opts.speed} --ew {self.opts.whammy} --sqz {self.opts.squeeze} -f {self._tmp}/{'notes.chart' if self._sng.is_chart_format else 'notes.mid'} -i {self.opts.instrument} -d {self.opts.difficulty} --lazy {self.opts.lazy} --delay {self.opts.delay} -o {self._out_png}"
+		if '4080' in self.opts.version:
+			choptCall = f"{self._chopt_4080} -s {self.opts.speed} --ew {self.opts.whammy} --sqz {self.opts.squeeze} -f {self._tmp}/{'notes.chart' if self._sng.is_chart_format else 'notes.mid'} -i {self.opts.instrument} -d {self.opts.difficulty} --lazy {self.opts.lazy} --delay {self.opts.delay} -o {self._out_png}"
+		else:
+			choptCall = f"{self._chopt} -s {self.opts.speed} --ew {self.opts.whammy} --sqz {self.opts.squeeze} -f {self._tmp}/{'notes.chart' if self._sng.is_chart_format else 'notes.mid'} -i {self.opts.instrument} -d {self.opts.difficulty} --lazy {self.opts.lazy} --delay {self.opts.delay} -o {self._out_png}"
 		try:
 			subprocess.run(choptCall, check=True, shell=True, stdout=subprocess.DEVNULL)
 		except Exception as e:
