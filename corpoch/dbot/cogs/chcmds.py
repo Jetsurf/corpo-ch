@@ -147,7 +147,7 @@ class Path():
 		embed.add_field(name="Game Version", value=self.chopt.opts.version, inline=False)
 		self.addEmbedToolField(embed)
 		embed.add_field(name="Image Link", value=f"[Link to Image]({self.chopt.url})", inline=False)
-		embed.set_footer(text=f"CHOpt: {self.chopt.version}")
+		embed.set_footer(text=self.chopt.version)
 		return embed
 
 class CHCmds(commands.Cog):

@@ -151,7 +151,7 @@ class CHOpt:
 			proc = subprocess.run(f"{self._chopt_4080} -v".split(), check=True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
 		else:
 			proc = subprocess.run(f"{self._chopt} -v".split(), check=True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-		return proc.stdout.decode('utf-8').split()[1]
+		return proc.stdout.decode('utf-8')
 
 class Hydra:
 	class Opts:
