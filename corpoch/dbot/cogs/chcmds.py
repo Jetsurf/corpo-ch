@@ -105,6 +105,7 @@ class Path():
 		else:
 			embed.add_field(name="Directions", value="No results found for search.\nTry searching again with different options.", inline=False) 
 
+		embed.add_field(name="Clone Hero Version", value=self.chopt.opts.version)
 		if len(self.chart_paths) > 0:
 			self.addEmbedToolField(embed)
 
