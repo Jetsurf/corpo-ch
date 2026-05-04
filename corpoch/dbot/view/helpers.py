@@ -19,15 +19,15 @@ def build_chart_str(steg) -> str:
 def get_crown_emoji(player):
 	from corpoch.dbot.models import CHEmoji
 	try:
-		if 'Drums' in player.instrument and player.is_pfc:
+		if 'Drums' in player.instrument and hasattr(player, 'is_pfc') and player.is_pfc:
 			return CHEmoji.objects.get(name='pfcd').mention
-		elif player.is_pfc:
+		elif hasattr(player, 'is_pfc') and player.is_pfc:
 			return CHEmoji.objects.get(name='pfcg').mention
 		elif player.is_fc:
 			return CHEmoji.objects.get(name='fc').mention
 		else:
 			return ''
-	except (CHEmoji.DoesNotExist, AttributeError):
+	except CHEmoji.DoesNotExist:
 		if player.is_fc:
 			return '👑'
 		else:
