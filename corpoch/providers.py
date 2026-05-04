@@ -68,7 +68,7 @@ class CHOpt:
 	def __init__(self):
 		self._path = settings.CHOPT_PATH
 		self._chopt = f"{self._path}/CHOpt.exe" if platform.system() == 'Windows' else f"{self._path}/CHOpt"
-		self._chopt_4080 = self._chopt = f"{self._path}/CHOpt-1-13-2.exe" if platform.system() == 'Windows' else f"{self._path}/CHOpt-1-13-2"
+		self._chopt_4080 = f"{self._path}/CHOpt-1-13-2.exe" if platform.system() == 'Windows' else f"{self._path}/CHOpt-1-13-2"
 		self._scratch = f"{self._path}/scratch"
 		self._output = settings.CHOPT_OUTPUT
 		self._url = settings.CHOPT_URL
