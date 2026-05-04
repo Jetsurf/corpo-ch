@@ -32,6 +32,7 @@ CH_INSTRUMENTS = (
 	("ghl", "GHL Guitar"),
 	("ghlbass", "GHL Bass"),
 	("ghlrythm", "GHL Rhythm"),
+	("ghlkeys", "GHL Keys"),
 	("ghlcoop", "GHL Guitar Coop"),
 )
 

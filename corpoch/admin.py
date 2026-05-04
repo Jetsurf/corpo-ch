@@ -54,7 +54,7 @@ class ChartAdmin(admin.ModelAdmin):
 	list_display = ('_icon','name',  '_bracket', 'charter', 'artist', 'album', 'speed', '_modifiers', 'tiebreaker')
 	list_filter = ['brackets__tournament', 'tiebreaker', 'boss']
 	actions = ['run_encore_import', 'import_song_ini']
-	readonly_fields = ['_icon']
+	readonly_fields = ['_icon', 'game_version']
 	search_fields = ('name', 'charter')
 	filter_horizontal = ['brackets']
 

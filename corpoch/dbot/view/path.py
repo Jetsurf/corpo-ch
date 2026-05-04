@@ -6,7 +6,7 @@ from asgiref.sync import sync_to_async
 
 from corpoch.providers import CHOpt, EncoreClient, CHStegTool, Hydra
 from corpoch.models import Tournament, Chart
-from corpoch.types import CH_INSTRUMENTS, CH_DIFFICULTIES
+from corpoch.types import CH_INSTRUMENTS, CH_DIFFICULTIES, CH_VERSIONS
 from corpoch.dbot.models import CHEmoji
 from corpoch.dbot.view.helpers import get_chart_emoji
 
@@ -106,6 +106,8 @@ class EncoreModal(discord.ui.DesignerModal):
 		args += (discord.ui.Label("Charter", discord.ui.InputText(style=discord.InputTextStyle.short, required=False)),)
 		instSel = discord.ui.Select(max_values=1, options=[], required=True)
 		for inst in CH_INSTRUMENTS:
+			if inst[0] == 'ghlkeys':
+				continue #Encore doesn't yet support 6-fret keys
 			instSel.options.append(discord.SelectOption(label=inst[1], value=inst[0], default=True if inst[0] in 'guitar' else False))
 		args += (discord.ui.Label("Instrument", instSel),)
 		super().__init__(*args, **kwargs)
@@ -196,13 +198,16 @@ class ChartSelect(discord.ui.Select):
 			names.append(chartStr)
 			if isinstance(chart, Chart):
 				opt = discord.SelectOption(label=chart.tournament_name, emoji=emoji, value=chart.md5, description=f"{'TB - ' if chart.tiebreaker else ''}{chartStr}"[:99])
+				opt.default = True if chart in self.path.chart_paths else False
 			else:
-				opt = discord.SelectOption(label=chart.name, emoji=emoji, value=chart.md5, description=chartStr)
-			opt.default = True if chart in self.path.chart_paths else False
+				opt = discord.SelectOption(label=chart.name, emoji=emoji, value=chart.md5, description=chartStr, default=False)
+				for check in self.path.chart_paths:
+					if check.md5 == chart.md5:
+						opt.default = True
+						break
 			if opt not in opts:
 				opts.append(opt)
-
-		super().__init__(placeholder="Select a chart", options=opts, min_values=1, max_values=len(opts) if isinstance(self.path.charts[0], Chart) else 1, custom_id="chart_sel")
+		super().__init__(placeholder="Select a chart", options=opts, min_values=1, max_values=len(opts), custom_id="chart_sel")
 
 	async def callback(self, interaction: discord.Interaction):
 		for retChart in self.values:
@@ -211,7 +216,7 @@ class ChartSelect(discord.ui.Select):
 			if isinstance(chart, Chart):
 				self.path.chopt.opts.instrument = chart.instrument
 				self.path.chopt.opts.speed = chart.speed
-
+				self.path.chopt.opts.version = chart.game_version
 		await interaction.response.defer(ephemeral=True)
 		await self.path.show()
 
@@ -219,9 +224,13 @@ class PathView(discord.ui.View):
 	def __init__(self, path):
 		self.path = path
 		super().__init__(timeout = None)
+
+		ver = self.path.chopt.opts.version
+		self.get_item('ver').label = f"v{ver[1]}.{ver[3]} ({ver[7:11]})"
 		if len(self.path.chart_paths) < 1:
 			self.get_item('submit').disabled = True
 			self.get_item('opts').disabled = True
+			self.get_item('ver').disabled = True
 
 	async def init(self):
 		if hasattr(self.path, 'tournament'):
@@ -244,6 +253,7 @@ class PathView(discord.ui.View):
 		if hasattr(self.path, "bracket"):
 			del self.path.bracket
 		self.path.charts = []
+		self.path.chart_paths = []
 
 	@discord.ui.button(label="Cancel", style=discord.ButtonStyle.red, custom_id="cancel")
 	async def cancelBtn(self, button, interaction: discord.Interaction):
@@ -258,14 +268,21 @@ class PathView(discord.ui.View):
 		await modal.wait()
 		await self.path.show()
 
-
 	@discord.ui.button(label="Tourney Search", style=discord.ButtonStyle.secondary, custom_id="tourney")
 	async def tourneyBtn(self, button, interaction: discord.Interaction):
 		await self.clear()
 		#May be good to set the "default" tournament to discord guild - removed as it caused issues w/ empty setlist tournaments
 		self.path.tournament = None
 		self.path.bracket = None
-		self.charts = []
+		await interaction.response.defer(invisible=True)
+		await self.path.show()
+
+	@discord.ui.button(style=discord.ButtonStyle.secondary, custom_id='ver')
+	async def verBtn(self, button, interaction: discord.Interaction):
+		if "4080" in self.path.chopt.opts.version:
+			self.path.chopt.opts.version = CH_VERSIONS[1][0]
+		else:
+			self.path.chopt.opts.version = CH_VERSIONS[0][0]
 		await interaction.response.defer(invisible=True)
 		await self.path.show()
 
