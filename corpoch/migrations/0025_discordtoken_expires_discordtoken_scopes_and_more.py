@@ -27,4 +27,12 @@ class Migration(migrations.Migration):
             name='id',
             field=models.AutoField(help_text='Internal ID of a token.', primary_key=True, serialize=False),
         ),
+        migrations.AlterModelOptions(
+            name='matchban',
+            options={'get_latest_by': 'num', 'ordering': ['num'], 'verbose_name': 'Match Ban', 'verbose_name_plural': 'Match Bans'},
+        ),
+        migrations.AlterModelOptions(
+            name='matchround',
+            options={'get_latest_by': 'num', 'ordering': ['num'], 'verbose_name': 'Group Match Round', 'verbose_name_plural': 'Group Match Rounds'},
+        ),
     ]

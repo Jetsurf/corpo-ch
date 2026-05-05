@@ -117,16 +117,15 @@ async def update_guild(bot, guild_id):
 	except discord.Forbidden:
 		pass
 
-	await guild.chunk()
 	from corpoch.dbot.models import Guilds
 	dbguild = Guilds.objects.get(id=guild_id)
-
 	if not guild:
 		print(f"Guild {guild_id} is no longer visible - marking deleted")
 		dbguild.deleted = True
 		await dbguild.asave()
 		return
 
+	await guild.chunk()
 	dbguild.name = guild.name
 	if guild.icon:
 		dbguild.icon = guild.icon.url

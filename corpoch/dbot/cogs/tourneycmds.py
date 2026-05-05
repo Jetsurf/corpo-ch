@@ -18,16 +18,11 @@ class DiscordMatch():
 		self.channel = message.channel if hasattr(message, 'channel') else None
 		self.tourney = None
 		self.bracket = None
-		self.group = None
-		self.seeding = []
 		self.seeding_search = []
-		self.bans = []
-		self.rounds = []
 		self.matchDb = uuid
 		self.exhibition = exhibition
 		self.confirm_cancel = False
 		self.player_input = False
-		self.picking_player = None
 
 	async def init(self) -> bool:
 		if self.matchDb:
@@ -72,7 +67,6 @@ class DiscordMatch():
 		self.bot.matches.pop(self.id)
 
 	async def showTool(self, interaction=None):
-		self.picking_player = None
 		is_message = isinstance(interaction, discord.Message)
 		is_ctx = hasattr(interaction, 'interaction') and hasattr(interaction, 'command')
 
@@ -109,14 +103,12 @@ class DiscordMatch():
 	def load_match(self):
 		if isinstance(self.matchDb, str):
 			self.matchDb = Match.objects.select_related().get(id=self.matchDb)
+		else:
+			self.matchDb = Match.objects.select_related().get(id=self.matchDb.id)
 		self.channel = self.bot.get_channel(self.matchDb.channel.id)
 		self.guild = self.channel.guild
-		self.group = self.matchDb.group
 		self.bracket = self.matchDb.group.bracket
-		self.players = self.matchDb.players
-		self.seeding = list(self.matchDb.players.select_related('group', 'player').all())
-		self.bans = list(self.matchDb.bans.select_related('chart', 'player').all())
-		self.rounds = list(self.matchDb.rounds.select_related('chart', 'picked', 'winner', 'loser').all())
+
 		print(f"Reattached to on-going match {self.matchDb}")
 
 	def save_match(self):
@@ -124,101 +116,32 @@ class DiscordMatch():
 			self.bot.matches[self.id] = self
 			self.matchDb.group = self.group
 			self.matchDb.players.set(self.seeding)
+			for ban in self.bans:
+				ban.save()
+			for rnd in self.rounds:
+				rnd.save()
 			self.matchDb.message = self.msg.id if self.msg else None
 			self.matchDb.channel = Channels.objects.get(id=self.channel.id)
 			self.matchDb.referee = DiscordUser.objects.get(id=self.referee.id)
 			self.matchDb.save()
 
+	def add_ban(self, player, chart):
+		self.matchDb.add_ban(player, chart)
+
 	def add_round(self):
-		chart = None
-		if len(self.rounds) == 0:
-			if self.defer and self.ruleset.ban_ruleset == "deferboth":
-				picked = self.seeding[1].player
-			else:
-				picked = self.seeding[0].player
-		elif self.tiebreaker and self.ruleset.tb_ruleset == 'refdecide':
-			picked = None
-		elif self.tiebreaker and self.ruleset.tb_ruleset == 'csc':
-			fret, strum = 0, 0
-			for rnd in self.rounds:
-				if rnd.chart.category == "fret":
-					fret += 1
-				elif rnd.chart.category == "strum":
-					strum += 1
-
-			picked = None
-			if strum < fret:
-				chart = Chart.objects.get(category=CHART_CATEGORIES[3][0], tiebreaker=True, brackets=self.bracket)
-			elif fret < strum:
-				chart = Chart.objects.get(category=CHART_CATEGORIES[2][0], tiebreaker=True, brackets=self.bracket)
-			else:
-				chart = Chart.objects.get(category=CHART_CATEGORIES[1][0], tiebreaker=True, brackets=self.bracket)
-		elif self.tiebreaker and self.ruleset.tb_ruleset == 'banpick':
-			picked = self.rounds[-1].loser
-		elif self.ruleset.pick_ruleset == "loserpicks":
-			picked = self.rounds[-1].loser
-		else:
-			prevPicked = self.rounds[-1].loser
-			if self.seeding[0].player == prevPicked:
-				picked = self.seeding[0].player
-			else:
-				picked = self.seeding[1].player
-
-		if len(self.rounds) > 0:
-			self.rounds[-1].save()
-		if not self.finished:
-			self.rounds.append(MatchRound(num=len(self.rounds) + 1, match=self.matchDb, picked=picked, chart=chart))
-
-	def format_bans_player(self, seed, bans):
-		outStr = f"**{seed.player_ch_name} Bans**\n"
-		for i in range(0, self.ruleset.num_bans):
-			try:
-				outStr += f"{bans[i].chart.tournament_name}\n"
-			except IndexError:
-				outStr += "--\n"
-		return outStr
-
-	@property
-	def formatted_bans(self):
-		bans1 = self.matchDb.high_seed_bans if not self.defer else self.matchDb.low_seed_bans
-		bans2 = self.matchDb.low_seed_bans if not self.defer else self.matchDb.high_seed_bans
-		ply1 = self.matchDb.high_seed if not self.defer else self.matchDb.low_seed
-		ply2 = self.matchDb.low_seed if not self.defer else self.matchDb.high_seed
-		bantb = None
-		if len(bans1) > self.ruleset.num_bans:
-			bantb = bans1.pop()
-		elif len(bans2) > self.ruleset.num_bans:
-			bantb = bans2.pop()
-		outStr = self.format_bans_player(ply1, bans1)
-		outStr += self.format_bans_player(ply2, bans2)
-		if bantb:
-			outStr += f"***TIEBREAKER BAN***\n{bantb.player.ch_name} bans {bantb.chart.tournament_name}"
-		return outStr
-
-	@property
-	def formatted_rounds(self):
-		outStr = ""
-		for i, rnd in enumerate(self.rounds):
-			if i == self.ruleset.num_rounds - 1:
-				outStr += "**TIEBREAKER**\n"
-
-			outStr += f"{('`' + rnd.picked.ch_name + '` picks ') if rnd.picked else 'Played Chart: '}{rnd.chart.tournament_name if rnd.chart else '---'}"
-			if rnd.winner:
-				outStr += f" - `{rnd.winner}` wins!"
-			outStr+= "\n"
-		if (self.matchDb and self.matchDb.finished):
-			outStr += f"\n**`{self.rounds[-1].winner}` WINS!**"
-		return outStr
+		self.matchDb.add_round()
 
 	def remove_round(self):
-		rnd = self.rounds.pop()
-		if rnd.id:
-			rnd.delete()
+		if self.current_round.id:
+			self.current_round.delete()
 
 	def remove_ban(self):
-		ban = self.bans.pop()
-		if ban.id:
-			ban.delete()
+		if self.bans.latest().id:
+			self.bans.latest().delete()
+
+	@property
+	def bans(self):
+		return self.matchDb.bans.select_related('chart', 'player').all()
 
 	@property
 	def chart(self):
@@ -230,6 +153,10 @@ class DiscordMatch():
 			return self.matchDb.complete
 		else:
 			return False
+
+	@property
+	def current_round(self):
+		return self.matchDb.current_round
 
 	@property
 	def defer(self):
@@ -248,9 +175,82 @@ class DiscordMatch():
 			return False
 
 	@property
+	def formatted_bans(self):
+		bans1 = self.matchDb.high_seed_bans if not self.defer else self.matchDb.low_seed_bans
+		bans2 = self.matchDb.low_seed_bans if not self.defer else self.matchDb.high_seed_bans
+		ply1 = self.matchDb.high_seed if not self.defer else self.matchDb.low_seed
+		ply2 = self.matchDb.low_seed if not self.defer else self.matchDb.high_seed
+		bantb = None
+		if len(bans1) > self.ruleset.num_bans:
+			bantb = bans1.pop()
+		elif len(bans2) > self.ruleset.num_bans:
+			bantb = bans2.pop()
+		outStr = self.format_bans_player(ply1, bans1)
+		outStr += self.format_bans_player(ply2, bans2)
+		if bantb:
+			outStr += f"***TIEBREAKER BAN***\n{bantb.player.ch_name} bans {bantb.chart.tournament_name}"
+		return outStr
+
+	def format_bans_player(self, seed, bans):
+		outStr = f"**{seed.player_ch_name} Bans**\n"
+		for i in range(0, self.ruleset.num_bans):
+			try:
+				outStr += f"{bans[i].chart.tournament_name}\n"
+			except IndexError:
+				outStr += "--\n"
+		return outStr
+
+	@property
+	def formatted_rounds(self):
+		outStr = ""
+		for i, rnd in enumerate(self.rounds):
+			if i == self.ruleset.num_rounds - 1:
+				outStr += "**TIEBREAKER**\n"
+
+			outStr += f"{('`' + rnd.picked.ch_name + '` picks ') if rnd.picked else 'Played Chart: '}{rnd.chart.tournament_name if rnd.chart else '---'}"
+			if rnd.winner:
+				outStr += f" - `{rnd.winner}` wins!"
+			outStr+= "\n"
+		if (self.matchDb and self.matchDb.finished):
+			outStr += f"\n**`{self.rounds[-1].winner}` WINS!**"
+		return outStr
+
+	@property
+	def group(self):
+		if self.matchDb:
+			return self.matchDb.group
+		else:
+			return None
+
+	@property
+	def picking_player(self):
+		return self.matchDb.picking_player
+
+	@property
+	def rounds(self):
+		if self.matchDb:
+			return self.matchDb.rounds.all()
+		else:
+			return []
+
+	@property
 	def ruleset(self):
 		if self.bracket:
 			return self.bracket.ruleset
+		else:
+			return None
+
+	@property
+	def seeding(self):
+		if self.matchDb:
+			return self.matchDb.players.all()
+		else:
+			return []
+
+	@property
+	def seeding_mgr(self):
+		if self.matchDb:
+			return self.matchDb.players
 		else:
 			return None
 
@@ -262,21 +262,19 @@ class DiscordMatch():
 			return None
 
 	@property
+	def setlist_remaining(self):
+		if self.matchDb:
+			return self.matchDb.remaining_setlist
+		else:
+			return []
+
+	@property
 	def score(self) -> list:
-		wins = [0, 0]
-		for rnd in self.rounds:
-			if rnd.winner == self.seeding[0].player:
-				wins[0] += 1
-			elif rnd.winner:
-				wins[1] += 1
-		return wins
+		return self.matchDb.score_int
 
 	@property
 	def tiebreaker(self) -> bool:
-		if self.score[0] == self.ruleset.wins_needed - 1 and self.score[1] == self.ruleset.wins_needed - 1:
-			return True
-		else:
-			return False
+		return self.matchDb.tiebreaker
 
 	@property
 	def id(self):

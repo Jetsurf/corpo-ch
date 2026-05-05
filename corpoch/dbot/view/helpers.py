@@ -4,10 +4,13 @@ from corpoch.types import CH_VERSIONS
 async def get_chart_emoji(bot, chart):
 	from corpoch.models import Chart
 	from corpoch.dbot.models import CHEmoji
-	try:
-		emoji = await CHEmoji.objects.select_related().aget(icon_id=chart['icon'] if isinstance(chart, dict) else chart.icon)
-	except CHEmoji.DoesNotExist:
+	if not chart.icon:
 		emoji = await CHEmoji.objects.select_related().aget(icon_id='ch_default_icon')
+	else:
+		try:
+			emoji = await CHEmoji.objects.select_related().aget(icon_id=chart.icon)
+		except CHEmoji.DoesNotExist:
+			emoji = await CHEmoji.objects.select_related().aget(icon_id='ch_default_icon')
 	return await bot.fetch_emoji(emoji.id)
 
 def build_chart_str(steg) -> str:
