@@ -58,7 +58,6 @@ class BanSelect(discord.ui.Select):
 	async def init(self):
 		opts = []
 		async for chart in self.match.setlist_remaining:
-			print(f"Adding chart for ban {chart.tournament_name}")
 			emoji = await get_chart_emoji(self.match.bot, chart)
 			self.retOpts[chart.md5] = chart
 			opts.append(discord.SelectOption(label=str(chart.tournament_name), description=f"{chart.artist} - {chart.charter}", emoji=emoji, value=chart.md5))
@@ -79,6 +78,7 @@ class SongRoundSelect(discord.ui.Select):
 
 	async def init(self):
 		picked = self.match.picking_player
+		print(f"Picking? {picked}")
 		if picked:
 			selStr = f"{picked.ch_name} Picks"
 		else:
@@ -122,7 +122,7 @@ class PlayerRoundSelect(discord.ui.Select):
 			self.round.loser = self.match.seeding[0].player
 		self.round.winner = winner.player
 		await self.round.asave()
-		if not self.match.tiebreaker or not self.match.ruleset.bannable_tb:
+		if not self.match.finished and (not self.match.tiebreaker or not self.match.ruleset.bannable_tb):
 			self.match.add_round()
 		await self.match.showTool(interaction)
 
@@ -188,6 +188,7 @@ class DiscordMatchView(discord.ui.View):
 		super().__init__(timeout = None)
 		self.match = match
 		self.referee = match.referee
+		self.current_round = match.current_round
 
 		self.cancel = discord.ui.Button(label="Cancel", style=discord.ButtonStyle.red, custom_id="cancelBtn")
 		self.cancel.callback = self.cancelBtn
@@ -262,7 +263,6 @@ class DiscordMatchView(discord.ui.View):
 			self.add_item(self.back)
 			self.add_item(self.plyin)
 			self.add_item(self.submit)
-
 			if not self.match.finished and not self.match.tiebreaker:
 				await self.setup_round_player_sels()
 			elif not self.match.finished and self.match.tiebreaker:
@@ -316,35 +316,37 @@ class DiscordMatchView(discord.ui.View):
 
 	async def backBtn(self, interaction: discord.Interaction):
 		if self.match.rounds.count() > 0:
-			if self.match.current_round.is_tiebreaker:
-				if self.match.current_round.winner:
-					self.match.current_round.winner = None
-					self.match.current_round.loser = None
-				elif self.match.ruleset.pickable_tb and self.match.current_round.chart:
-					self.match.current_round.chart = None
+			if self.current_round.is_tiebreaker:
+				if self.current_round.winner:
+					self.current_round.winner = None
+					self.current_round.loser = None
+				elif self.match.ruleset.pickable_tb and self.current_round.chart:
+					self.current_round.chart = None
 				else:
 					self.match.remove_round()
+					self.current_round = self.match.current_round
 					if self.match.ruleset.bannable_tb:
 						self.match.remove_ban()
 					else:
-						self.match.current_round.winner = None
-			elif self.match.current_round.winner:
-				self.match.current_round.winner = None
-				self.match.current_round.loser = None
-			elif self.match.current_round.chart and (not self.match.tiebreaker or self.match.ruleset.pickable_tb):
-				self.match.current_round.chart = None
+						self.current_round.winner = None
+			elif self.current_round.winner:
+				self.current_round.winner = None
+				self.current_round.loser = None
+			elif self.current_round.chart and (not self.match.tiebreaker or self.match.ruleset.pickable_tb):
+				self.current_round.chart = None
 			else:
 				self.match.remove_round()
-				if self.match.rounds.count() == 0:
-					self.match.remove_ban()
+				self.current_round = self.match.current_round
+				if self.current_round:
+					self.current_round.winner = None
 			if self.match.rounds.count() > 0:
-				await self.match.current_round.asave()
+				await self.current_round.asave()
 			else: #If we removed the last round, also remove a ban
 				self.match.remove_ban()
 		elif self.match.rounds.count() == 0 and self.match.bans.count() > 0:
 			self.match.remove_ban()
 		elif self.match.seeding.count() > 0 and self.match.bans.count() == 0:
-			self.match.seeding.clear()
+			self.match.seeding_mgr.clear()
 
 		await self.match.showTool(interaction)
 
@@ -431,5 +433,4 @@ class DiscordMatchView(discord.ui.View):
 		self.match.matchDb.loser = self.match.current_round.loser
 		self.match.matchDb.ended_on = timezone.now()
 		self.match.matchDb.complete = True
-		await self.match.matchDb.asave()
 		await self.match.showTool(interaction)

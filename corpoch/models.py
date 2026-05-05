@@ -662,6 +662,13 @@ class Match(models.Model):
 			return None
 
 	@property
+	def previous_round(self):
+		if self.rounds.count() > 1:
+			return self.rounds.all().order_by('-num')[1]
+		else:
+			return None
+
+	@property
 	def high_seed_bans(self):
 		if self.high_seed:
 			return [ban for ban in self.bans if ban.player.id == self.high_seed.player_id]
@@ -748,7 +755,7 @@ class Match(models.Model):
 
 	@property
 	def tiebreaker(self) -> bool:
-		#Is match currently in tiebreaker state, is not if match went to TB
+		#Is match currently in tiebreaker state, is not if match played TB
 		if self.score_int[0] == self.ruleset.wins_needed - 1 and self.score_int[1] == self.ruleset.wins_needed - 1:
 			return True
 		else:
@@ -793,7 +800,7 @@ class Match(models.Model):
 			picked = None
 		elif self.tiebreaker and self.ruleset.tb_ruleset == 'banpick':
 			if self.bans.count() > self.ruleset.total_bans:
-				picked = self.current_round.loser
+				picked = self.previous_round.loser
 			else:
 				picked = self.current_round.winner
 		elif self.ruleset.pick_ruleset == "loserpicks":
@@ -803,9 +810,15 @@ class Match(models.Model):
 				else:
 					picked = self.high_seed.player
 			else:
-				picked = self.current_round.loser
-		else:
-			prevPicked = self.current_round.loser
+				picked = self.previous_round.loser
+		else: #Alternate pick
+			if self.rounds.count() == 1:
+				if self.defer:
+					prevPicked = self.low_seed.player
+				else:
+					prevPicked = self.high_seed.player
+			else:
+				prevPicked = self.previous_round.picked 
 			if self.high_seed.player == prevPicked:
 				picked = self.high_seed.player
 			else:
@@ -823,7 +836,7 @@ class Match(models.Model):
 	def remaining_setlist(self):
 		bans = self.bans.values_list('chart', flat=True)
 		rounds = self.rounds.values_list('chart', flat=True)
-		if self.rounds.count() == self.ruleset.num_rounds:
+		if self.tiebreaker:
 			if self.ruleset.tb_ruleset == 'refdecide':
 				charts = self.setlist.select_related('icon').exclude(pk__in=list(chain(bans, rounds)))
 			elif self.ruleset.tb_ruleset == "banpick":

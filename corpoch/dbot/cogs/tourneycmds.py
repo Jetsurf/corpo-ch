@@ -30,6 +30,8 @@ class DiscordMatch():
 			#Finish loading async
 			self.msg = await self.channel.fetch_message(self.matchDb.message)
 			self.referee = await self.guild.fetch_member(self.matchDb.referee.id)
+			await self.showTool(self.msg)
+			return
 		try:
 			self.tourney = await Tournament.objects.select_related().aget(guild=self.msg.guild.id, active=True)
 		except Tournament.DoesNotExist:
@@ -102,27 +104,26 @@ class DiscordMatch():
 
 	def load_match(self):
 		if isinstance(self.matchDb, str):
-			self.matchDb = Match.objects.select_related().get(id=self.matchDb)
+			self.matchDb = Match.objects.select_related().get(pk=self.matchDb)
+			print(f"Reattached to on-going match {self.matchDb}")
 		else:
-			self.matchDb = Match.objects.select_related().get(id=self.matchDb.id)
+			self.matchDb = Match.objects.select_related().get(pk=self.matchDb.id)
+			print(f"Refreshing current match {self.matchDb}")
 		self.channel = self.bot.get_channel(self.matchDb.channel.id)
 		self.guild = self.channel.guild
 		self.bracket = self.matchDb.group.bracket
-
-		print(f"Reattached to on-going match {self.matchDb}")
 
 	def save_match(self):
 		if self.group:
 			self.bot.matches[self.id] = self
 			self.matchDb.group = self.group
-			self.matchDb.players.set(self.seeding)
+			self.matchDb.message = self.msg.id if self.msg else None
+			self.matchDb.channel = Channels.objects.get(id=self.channel.id)
+			self.matchDb.referee = DiscordUser.objects.get(id=self.referee.id)
 			for ban in self.bans:
 				ban.save()
 			for rnd in self.rounds:
 				rnd.save()
-			self.matchDb.message = self.msg.id if self.msg else None
-			self.matchDb.channel = Channels.objects.get(id=self.channel.id)
-			self.matchDb.referee = DiscordUser.objects.get(id=self.referee.id)
 			self.matchDb.save()
 
 	def add_ban(self, player, chart):
@@ -273,6 +274,10 @@ class DiscordMatch():
 		return self.matchDb.score_int
 
 	@property
+	def score_str(self) -> str:
+		return self.matchDb.score
+
+	@property
 	def tiebreaker(self) -> bool:
 		return self.matchDb.tiebreaker
 
@@ -317,7 +322,7 @@ class DiscordMatch():
 		else:
 			embed.title = f"{self.group}\n{self.seeding[0]} vs {self.seeding[1]}"
 			embed.add_field(name="Match VS", value=f"{self.seeding[0].mention} vs {self.seeding[1].mention}")
-			embed.add_field(name="Score", value=f"{self.score[0]} - {self.score[1]}", inline=False)
+			embed.add_field(name="Score", value=self.score_str, inline=False)
 			if self.defer:
 				embed.add_field(name="Deferral", value=f"{self.matchDb.high_seed.player.ch_name} has deferred.")
 			if len(self.bans) < self.ruleset.num_bans:
