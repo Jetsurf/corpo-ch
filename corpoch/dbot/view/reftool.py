@@ -78,7 +78,6 @@ class SongRoundSelect(discord.ui.Select):
 
 	async def init(self):
 		picked = self.match.picking_player
-		print(f"Picking? {picked}")
 		if picked:
 			selStr = f"{picked.ch_name} Picks"
 		else:
@@ -91,7 +90,7 @@ class SongRoundSelect(discord.ui.Select):
 		async for chart in self.match.setlist_remaining:
 			self.retOpts[chart.md5] = chart
 			emoji = await get_chart_emoji(self.match.bot, chart)
-			opts.append(discord.SelectOption(label=chart.tournament_name, value=chart.md5,description=f"{chart.artist} - {chart.charter}", emoji=emoji))
+			opts.append(discord.SelectOption(label=chart.tournament_name, value=chart.md5, description=f"{chart.artist} - {chart.charter}", emoji=emoji))
 		super().__init__(placeholder=selStr, max_values=1, options=opts, custom_id="roundsong_sel", disabled=self.dis)
 
 	async def callback(self, interaction: discord.Integration):
@@ -323,8 +322,7 @@ class DiscordMatchView(discord.ui.View):
 				elif self.match.ruleset.pickable_tb and self.current_round.chart:
 					self.current_round.chart = None
 				else:
-					self.match.remove_round()
-					self.current_round = self.match.current_round
+					self.current_round = self.match.remove_round()
 					if self.match.ruleset.bannable_tb:
 						self.match.remove_ban()
 					else:
@@ -335,8 +333,7 @@ class DiscordMatchView(discord.ui.View):
 			elif self.current_round.chart and (not self.match.tiebreaker or self.match.ruleset.pickable_tb):
 				self.current_round.chart = None
 			else:
-				self.match.remove_round()
-				self.current_round = self.match.current_round
+				self.current_round = self.match.remove_round()
 				if self.current_round:
 					self.current_round.winner = None
 			if self.match.rounds.count() > 0:

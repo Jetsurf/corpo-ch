@@ -135,6 +135,7 @@ class DiscordMatch():
 	def remove_round(self):
 		if self.current_round.id:
 			self.current_round.delete()
+		return self.current_round #return new current round
 
 	def remove_ban(self):
 		if self.bans.latest().id:
