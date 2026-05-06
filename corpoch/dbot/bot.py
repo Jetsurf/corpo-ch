@@ -127,13 +127,13 @@ class CorpoDbot(commands.Bot):
 			if not match.message:
 				continue
 			print(f"Got ongoing match {match.id}")
-			#try:
-			view = DiscordMatch(self._bot, uuid=match.id)
-			await view.init()
-			self.matches[match.id] = view
-			#except Exception as e:
-			#	print(f"Exception in starting match {e} continuing.")
-			#	continue
+			try:
+				view = DiscordMatch(self._bot, uuid=match.id)
+				await view.init()
+				self.matches[match.id] = view
+			except Exception as e:
+				print(f"Exception in starting match {e} continuing.")
+				continue
 
 		if not bot_tasks.run_tasks.is_running():
 			print("Starting tasks")
