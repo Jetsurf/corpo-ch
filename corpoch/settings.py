@@ -136,6 +136,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Corpo Specific Settings
 
+BOT_ID = os.getenv('BOT_ID')
+BOT_SECRET = os.getenv("BOT_SECRET")
+REDIRECT_URI = os.getenv("REDIRECT_URI")
 CHOPT_PATH = os.getenv("CHOPT_PATH")
 CHOPT_OUTPUT = os.getenv("CHOPT_OUTPUT")
 CHSTEG_PATH = os.getenv("CHSTEG_PATH")

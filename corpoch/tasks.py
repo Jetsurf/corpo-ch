@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from corpoch.dbot import tasks
 from corpoch.dbot.models import Guilds
-from corpoch.models import TournamentPlayer, Qualifier, QualifierSubmission, Match, DiscordUser, Chart, CHIcon
+from corpoch.models import TournamentPlayer, Qualifier, QualifierSubmission, Match, DiscordUser, Chart, CHIcon, DiscordToken
 from corpoch.providers import GSheets, EncoreClient
 from corpoch.utils.snghandler import SNGHandler
 
@@ -144,3 +144,17 @@ def chart_songini_import(chart_id, *kargs, **kwargs):
 		chart.icon = CHIcon.objects.get(name="ch_default_icon")
 	chart.save()
 	close_old_connections()
+
+@app.task
+def update_oauth_tokens():
+	close_old_connections()
+	print("OAUTH TOKENS: Refreshing Discord OAuth tokens")
+	tokens = DiscordToken.objects.all()
+	for token in tokens:
+		try:
+			token.login()
+			token.update_code()
+			token.save()
+		except DiscordToken.AuthError as e:
+			print(f"OAUTH TOKENS: Deleting token for user {token.user.global_name} - {e}")
+			token.delete()

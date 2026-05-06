@@ -1,4 +1,6 @@
-import uuid, typing, json, math, io, pydantic
+import uuid, typing, json, math, io, pydantic, datetime
+from itertools import chain
+from requests import Session
 
 from django.contrib import admin
 from django.contrib.auth.models import AbstractUser
@@ -64,12 +66,76 @@ class DiscordUser(AbstractUser):
 			return str(self.id)
 
 class DiscordToken(models.Model):
+	id = models.AutoField(primary_key=True, help_text="Internal ID of a token.")
 	access_token = EncryptedTextField(max_length=255)
 	refresh_token = EncryptedTextField(max_length=255)
-	user = models.OneToOneField("DiscordUser", null=True, on_delete=models.CASCADE, related_name="token")
+	scopes = EncryptedTextField(max_length=64, default='identify guilds')
+	user = models.OneToOneField(DiscordUser, null=True, on_delete=models.CASCADE, related_name="token")
+	expires = models.DateTimeField(verbose_name="Expiry Time", default=timezone.now, help_text="Token expiry time.")
 	#This needs an expiry date field to trigger refreshes - refresh tokens need to be handled
-	def __str__(self):
-		return f"self.discord_user.global_name"
+
+	class AuthError(Exception):
+		def __init__(self, msg) -> None:
+			super().__init__(msg)
+
+	@property
+	def __auth_header(self):
+		return (settings.BOT_ID, settings.BOT_SECRET)
+
+	@property
+	def __oauth_header(self):
+		return {'Authorization': f'Bearer {self.access_token}'}
+
+	def login(self, code=None) -> None:
+		self.__session = Session()
+		self.__base_url = "https://discord.com/api/v10"
+		self.__content_header = {'Content-Type': 'application/x-www-form-urlencoded'}
+		self.__auth = { "client_id": settings.BOT_ID, "client_secret": settings.BOT_SECRET }
+		if not code:
+			if not self.access_token or not self.refresh_token:
+				raise AuthError("Access/Refresh token not set and code is none!")
+			else:
+				self.__data = { "grant_type": "refresh_token", "refresh_token": self.refresh_token }
+		else:
+			self.__data = { "grant_type": "authorization_code",	"code": code, "redirect_uri": settings.REDIRECT_URI }
+			self.__exchange_code()
+	
+	def __exchange_code(self):
+		response = self.__session.post(f"{self.__base_url}/oauth2/token", data=self.__data, headers=self.__content_header, auth=self.__auth_header)
+		if response.status_code == 200:
+			self.__update(response.json())
+			if self.id:
+				self.save()
+			return
+		raise self.AuthError(f"Failed to connect to discord API {response.json()}")
+	
+	def update_code(self) -> str:
+		if self.expires < timezone.now() + datetime.timedelta(days=2):
+			self.__exchange_code()
+
+	def __update(self, json: dict):
+		self.access_token = json["access_token"]
+		self.refresh_token = json["refresh_token"]
+		self.scopes = json['scope']
+		self.expires = timezone.now() + datetime.timedelta(seconds=json['expires_in'])
+
+	def identity(self) -> dict:
+		if not self.access_token:
+			self.__exchange_code()
+
+		response =  self.__session.get(f"{self.__base_url}/users/@me", headers=self.__oauth_header)
+		if response.status_code == 200:
+			return response.json()
+		raise AuthError("Failed to connect to discord API")
+
+	def guilds(self) -> list:
+		if not self.access_token:
+			self.__exchange_code()
+
+		response = self.__session.get(f"{self.__base_url}/users/@me/guilds", headers=self.__oauth_header)
+		if response.status_code == 200:
+			return response.json()
+		raise AuthError("Failed to connect to discord API")
 
 class CHIcon(models.Model):
 	"""
@@ -579,9 +645,28 @@ class Match(models.Model):
 			return players[1]
 		return None
 
+	#Bans/Rounds are shorthands for all Ban/Match objects
 	@property
 	def bans(self):
-		return self.match_bans.all()
+		return self.match_bans.select_related().all()
+
+	@property
+	def rounds(self):
+		return self.match_rounds.select_related().all()
+
+	@property
+	def current_round(self):
+		if self.rounds.count() != 0:
+			return self.rounds.latest()
+		else:
+			return None
+
+	@property
+	def previous_round(self):
+		if self.rounds.count() > 1:
+			return self.rounds.all().order_by('-num')[1]
+		else:
+			return None
 
 	@property
 	def high_seed_bans(self):
@@ -600,6 +685,10 @@ class Match(models.Model):
 	@property
 	def rounds(self):
 		return self.match_rounds.all()
+
+	@property
+	def ruleset(self):
+		return self.group.bracket.ruleset
 
 	@property
 	def tournament(self):
@@ -635,8 +724,7 @@ class Match(models.Model):
 		else:
 			return 0
 
-	@property
-	def score(self):
+	def get_score(self, asint=False):
 		if self.high_seed and self.low_seed:
 			score1 = 0
 			score2 = 0
@@ -647,9 +735,31 @@ class Match(models.Model):
 					else:
 						score2 += 1
 
-			return f"{score1} - {score2}"
+			if asint:
+				return [score1, score2]
+			else:
+				return f"{score1} - {score2}"
 		else:
-			return "0 - 0"
+			if asint:
+				return [0, 0]
+			else:
+				return "0 - 0"
+
+	@property
+	def score(self):
+		return self.get_score()
+
+	@property
+	def score_int(self):
+		return self.get_score(asint=True)
+
+	@property
+	def tiebreaker(self) -> bool:
+		#Is match currently in tiebreaker state, is not if match played TB
+		if self.score_int[0] == self.ruleset.wins_needed - 1 and self.score_int[1] == self.ruleset.wins_needed - 1:
+			return True
+		else:
+			return False
 
 	@property
 	def full_name(self):
@@ -670,6 +780,132 @@ class Match(models.Model):
 			elif i == 1:
 				outStr += f" vs {ply.player_ch_name}({ply.seed})"
 		return outStr
+
+	@property
+	def picking_player(self):
+		if self.rounds.count() == 0 and self.bans.count() != self.ruleset.total_bans:
+			if self.bans.count() % self.ruleset.num_players == 0:
+				if self.defer:
+					picked = self.low_seed.player
+				else:
+					picked = self.high_seed.player
+			else:
+				if self.defer:
+					picked = self.high_seed.player
+				else:
+					picked = self.low_seed.player
+		elif self.tiebreaker and self.ruleset.tb_ruleset == 'refdecide':
+			picked = None
+		elif self.tiebreaker and self.ruleset.tb_ruleset == 'csc':
+			picked = None
+		elif self.tiebreaker and self.ruleset.tb_ruleset == 'banpick':
+			if self.bans.count() > self.ruleset.total_bans:
+				picked = self.previous_round.loser
+			else:
+				picked = self.current_round.winner
+		elif self.ruleset.pick_ruleset == "loserpicks":
+			if self.rounds.count() == 1:
+				if self.defer:
+					picked = self.low_seed.player
+				else:
+					picked = self.high_seed.player
+			else:
+				picked = self.previous_round.loser
+		else: #Alternate pick
+			if self.rounds.count() == 1:
+				if self.defer:
+					prevPicked = self.low_seed.player
+				else:
+					prevPicked = self.high_seed.player
+			else:
+				prevPicked = self.previous_round.picked 
+			if self.high_seed.player == prevPicked:
+				picked = self.high_seed.player
+			else:
+				picked = self.low_seed.player
+		return picked
+
+	@property
+	def setlist(self):
+		if self.group:
+			return self.group.bracket.setlist
+		else:
+			return None
+
+	@property
+	def setlist_remaining(self):
+		bans = self.bans.values_list('chart', flat=True)
+		rounds = self.rounds.values_list('chart', flat=True)
+		if self.tiebreaker:
+			if self.ruleset.tb_ruleset == 'refdecide':
+				charts = self.setlist.select_related('icon').exclude(pk__in=list(chain(bans, rounds)))
+			elif self.ruleset.tb_ruleset == "banpick":
+				charts = self.setlist.select_related('icon').filter(tiebreaker=True).exclude(pk__in=bans)
+			else:
+				charts = self.setlist.select_related('icon').filter(tiebreaker=True)
+		else:
+			if self.ruleset.boss_present and not self.ruleset.boss_active:
+				charts = self.setlist.select_related('icon').filter(tiebreaker=False, boss=False).exclude(pk__in=list(chain(bans, rounds)))
+			else:
+				charts = self.setlist.select_related('icon').filter(tiebreaker=False).exclude(pk__in=list(chain(bans, rounds)))
+		return charts
+
+	def add_ban(self, player: TournamentPlayer, chart: Chart):
+		newBan = MatchBan(num=len(self.bans), player=player, chart=chart, match=self)
+		newBan.save()
+		if self.bans.count() == self.ruleset.total_bans or self.tiebreaker:
+			self.add_round()
+
+	def add_round(self):
+		chart = None
+		if len(self.rounds) == 0:
+			if self.defer and self.ruleset.ban_ruleset == "deferboth":
+				picked = self.low_seed.player
+			else:
+				picked = self.high_seed.player
+		elif self.tiebreaker and self.ruleset.tb_ruleset == 'refdecide':
+			picked = None
+		elif self.tiebreaker and self.ruleset.tb_ruleset == 'csc':
+			fret, strum = 0, 0
+			for rnd in self.rounds:
+				if rnd.chart.category == "fret":
+					fret += 1
+				elif rnd.chart.category == "strum":
+					strum += 1
+
+			picked = None
+			if strum < fret:
+				chart = Chart.objects.get(category=CHART_CATEGORIES[3][0], tiebreaker=True, brackets=self.bracket)
+			elif fret < strum:
+				chart = Chart.objects.get(category=CHART_CATEGORIES[2][0], tiebreaker=True, brackets=self.bracket)
+			else:
+				chart = Chart.objects.get(category=CHART_CATEGORIES[1][0], tiebreaker=True, brackets=self.bracket)
+		elif self.tiebreaker and self.ruleset.tb_ruleset == 'banpick':
+			picked = self.current_round.loser
+		elif self.ruleset.pick_ruleset == "loserpicks":
+			picked = self.current_round.loser
+		else:
+			prevPicked = self.current_round.loser
+			if self.high_seed.player == prevPicked:
+				picked = self.high_seed.player
+			else:
+				picked = self.low_seed.player
+
+		if len(self.rounds) > 0:
+			self.current_round.save()
+		if not self.finished:
+			rnd = MatchRound(num=len(self.rounds) + 1, match=self, picked=picked, chart=chart)
+			rnd.save()
+
+	def remove_round(self):
+		rnd = self.rounds[-1]
+		if rnd.id:
+			rnd.delete()
+
+	def remove_ban(self):
+		ban = self.bans.pop()
+		if ban.id:
+			ban.delete()
 
 	def __str__(self):
 		outStr = f"{self.tournament.short_name} - {self.bracket.name} - Group {self.group.name}"
@@ -711,6 +947,7 @@ class MatchRound(models.Model):
 		verbose_name = "Group Match Round"
 		verbose_name_plural = "Group Match Rounds"
 		ordering = ['num']
+		get_latest_by = 'num'
 
 	def __str__(self):
 		outStr = ""
@@ -771,6 +1008,7 @@ class MatchBan(models.Model):
 		verbose_name = "Match Ban"
 		verbose_name_plural = "Match Bans"
 		ordering = ['num']
+		get_latest_by = 'num'
 
 	def __str__(self):
 		return str(self.chart.name)

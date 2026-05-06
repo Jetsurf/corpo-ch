@@ -98,16 +98,16 @@ class CorpoDbot(commands.Bot):
 		from corpoch.models import Match, QualifierSubmission, MatchRound
 		matches = Match.objects.all().filter(complete=False)
 		if len(matches) > 0:
-			rand = random.randrange(0, len(matches), 1)
+			rand = random.randrange(0, matches.count(), 1)
 			activity = discord.Activity(name=f"{matches[rand].tournament.short_name} - {matches[rand].short_name} {matches[rand].score}", type=discord.ActivityType(3))
 		else:
 			rand = random.randrange(0, 2, 1)
 			if rand == 0:
-				activity = discord.Game(f"{len(Match.objects.all())} Tracked Matches")
+				activity = discord.Game(f"{Match.objects.all().count()} Tracked Matches")
 			elif rand == 1:
-				activity = discord.Game(f"{len(MatchRound.objects.all())} Tracked Match Rounds")
+				activity = discord.Game(f"{MatchRound.objects.all().count()} Tracked Match Rounds")
 			elif rand == 2:
-				activity = discord.Game(f"{len(QualifierSubmission.objects.all())} Tracked Qualifier Submissions")
+				activity = discord.Game(f"{QualifierSubmission.objects.all().count()} Tracked Qualifier Submissions")
 		await self._bot.change_presence(status=discord.Status.online, activity=activity)
 		django.db.close_old_connections()
 
@@ -127,9 +127,13 @@ class CorpoDbot(commands.Bot):
 			if not match.message:
 				continue
 			print(f"Got ongoing match {match.id}")
-			view = DiscordMatch(self._bot, uuid=match.id)
-			await view.init()
-			self.matches[match.id] = view
+			try:
+				view = DiscordMatch(self._bot, uuid=match.id)
+				await view.init()
+				self.matches[match.id] = view
+			except Exception as e:
+				print(f"Exception in starting match {e} continuing.")
+				continue
 
 		if not bot_tasks.run_tasks.is_running():
 			print("Starting tasks")
