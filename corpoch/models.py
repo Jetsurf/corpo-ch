@@ -833,7 +833,7 @@ class Match(models.Model):
 			return None
 
 	@property
-	def remaining_setlist(self):
+	def setlist_remaining(self):
 		bans = self.bans.values_list('chart', flat=True)
 		rounds = self.rounds.values_list('chart', flat=True)
 		if self.tiebreaker:

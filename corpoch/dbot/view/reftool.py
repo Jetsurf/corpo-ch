@@ -413,16 +413,10 @@ class DiscordMatchView(discord.ui.View):
 				await rnd.asave()
 			else:
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} already submitted")
-		done = True
-		retRnds = []
-		async for rnd in MatchRound.objects.select_related('picked', 'chart', 'winner', 'loser').all().filter(match=self.match.matchDb):
-			retRnds.append(rnd)
-			if not rnd.steg:
-				done = False
-		self.match.rounds = retRnds
-		if done:
+		
+		if self.match.rounds.filter(steg=None).count() == 0:
 			await self.match.finishMatch(interaction)
-		else:
+		else :
 			await self.match.showTool(interaction)
 
 	async def submitBtn(self, interaction: discord.Interaction):

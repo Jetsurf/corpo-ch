@@ -143,11 +143,10 @@ class DiscordMatch():
 
 	@property
 	def bans(self):
-		return self.matchDb.bans.select_related('chart', 'player').all()
-
-	@property
-	def chart(self):
-		return self.rounds[-1].chart if len(self.rounds) > 0 else None
+		if self.matchDb:
+			return self.matchDb.bans.select_related('chart', 'player').all()
+		else:
+			return []
 
 	@property
 	def complete(self) -> bool:
@@ -158,7 +157,10 @@ class DiscordMatch():
 
 	@property
 	def current_round(self):
-		return self.matchDb.current_round
+		if self.matchDb:
+			return self.matchDb.current_round
+		else:
+			return None
 
 	@property
 	def defer(self):
@@ -214,7 +216,7 @@ class DiscordMatch():
 				outStr += f" - `{rnd.winner}` wins!"
 			outStr+= "\n"
 		if (self.matchDb and self.matchDb.finished):
-			outStr += f"\n**`{self.rounds[-1].winner}` WINS!**"
+			outStr += f"\n**`{self.matchDb.winner}` WINS!**"
 		return outStr
 
 	@property
@@ -243,6 +245,14 @@ class DiscordMatch():
 			return None
 
 	@property
+	def score(self) -> list:
+		return self.matchDb.score_int
+
+	@property
+	def score_str(self) -> str:
+		return self.matchDb.score
+
+	@property
 	def seeding(self):
 		if self.matchDb:
 			return self.matchDb.players.all()
@@ -266,17 +276,9 @@ class DiscordMatch():
 	@property
 	def setlist_remaining(self):
 		if self.matchDb:
-			return self.matchDb.remaining_setlist
+			return self.matchDb.setlist_remaining
 		else:
 			return []
-
-	@property
-	def score(self) -> list:
-		return self.matchDb.score_int
-
-	@property
-	def score_str(self) -> str:
-		return self.matchDb.score
 
 	@property
 	def tiebreaker(self) -> bool:
