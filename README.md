@@ -12,7 +12,7 @@ Access [Corpo CH's main site](https://corpo-ch.org)
 [Corpo Discord Bot](https://discord.com/discovery/applications/1381816611086012456)
  - User install will allow you to use the non-tournament specific (matches/qualifiers) commands most anywhere in discord
 
-## Installation
+## Installation for self-hosting
 
 Git clone this repo down to a new folder.
 
@@ -44,6 +44,7 @@ Start Processes:
 Needs nginx/apache2/web server hosting the static directories - preferable turn off autoindexing/view on images/qualifiers
 
 Setup periodic tasks for management in admin UI:
+ - corpoch.tasks.update_oauth_tokens - 12 hours
  - corpoch.tasks.update_all_users - 6 hours
  - corpoch.tasks.update_all_guilds - 20 mins
  - corpoch.tasks.upload_qualifiers_gsheet - 5 mins
