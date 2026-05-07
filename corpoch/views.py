@@ -66,7 +66,8 @@ def user(request: HttpRequest):
 	return render(request, "user.html", context=context)
 
 def livematches(request: HttpRequest):
-	matches = list(filter(lambda match: match.complete, Match.objects.all()))
+	from corpoch.models import Match
+	matches = list(filter(lambda match: match.ongoing, Match.objects.all()))
 	current_match_ids = ",".join([str(m.id) for m in matches])
 
 	return render(request, "livematches.html", {
@@ -78,7 +79,7 @@ def update_livematches(request: HttpRequest):
 	selected_ids = request.GET.getlist('selected_matches')
 	client_match_ids = request.GET.get('current_match_ids', '')
 	from corpoch.models import Match
-	all_ongoing = list(filter(lambda match: match.complete, Match.objects.all()))
+	all_ongoing = list(filter(lambda match: match.ongoing, Match.objects.all()))
 	current_match_ids = ",".join([str(m.id) for m in all_ongoing])
 
 	matches_changed = (client_match_ids != current_match_ids)

@@ -1,5 +1,5 @@
 import discord
-from corpoch.types import CH_VERSIONS
+from corpoch.types import CH_VERSIONS, StegScreenshotPlayerDummy
 
 async def get_chart_emoji(bot, chart):
 	from corpoch.models import Chart
@@ -41,16 +41,19 @@ def build_stats_embed(steg, title: str) -> discord.Embed:
 		embed.title = title
 		embed.add_field(name="Submission Stats", value=build_chart_str(steg), inline=False)
 		for i, player in enumerate(steg.players):
-			plyStr = f"Score: {player.score}\n"
-			plyStr += f"Notes Hit: {player.notes_hit}/{player.total_notes} - {(player.notes_hit/player.total_notes) * 100:.2f}% {get_crown_emoji(player) if player.is_fc else f'(-{player.notes_missed})'}\n"
-			plyStr += f"Max{'/End Streak' if hasattr(player, 'end_streak') else ' Streak'}: {player.max_streak}{f"/{player.end_streak}" if hasattr(player, 'end_streak') else ''}\n"
-			plyStr += f"Overstrums: (+){player.excess_hits}\n"
-			plyStr += f"Ghosts: {player.frets_ghosted}\n"
-			plyStr += f"SP Phrases: {player.sp_phrases_earned}/{player.sp_phrases_total}\n"
-			if steg.game_version != CH_VERSIONS[0][0]:
-				plyStr += f"Activations: {player.sp_activations} ({player.time_in_sp:.2f}s)\n"
-				plyStr += f"Avg Multiplier: {player.avg_multiplier:.3f}x\n"
-				plyStr += f"Squeeze Hit/Missed/Score: +{player.squeezed_notes}/-{player.squeezed_notes_missed}/{player.squeeze_score}\n"
+			if isinstance(player, StegScreenshotPlayerDummy):
+				plyStr += f"No data for player - error reason: {player.error_reason}"
+			else:
+				plyStr = f"Score: {player.score}\n"
+				plyStr += f"Notes Hit: {player.notes_hit}/{player.total_notes} - {(player.notes_hit/player.total_notes) * 100:.2f}% {get_crown_emoji(player) if player.is_fc else f'(-{player.notes_missed})'}\n"
+				plyStr += f"Max{'/End Streak' if hasattr(player, 'end_streak') else ' Streak'}: {player.max_streak}{f"/{player.end_streak}" if hasattr(player, 'end_streak') else ''}\n"
+				plyStr += f"Overstrums: (+){player.excess_hits}\n"
+				plyStr += f"Ghosts: {player.frets_ghosted}\n"
+				plyStr += f"SP Phrases: {player.sp_phrases_earned}/{player.sp_phrases_total}\n"
+				if steg.game_version != CH_VERSIONS[0][0]:
+					plyStr += f"Activations: {player.sp_activations} ({player.time_in_sp:.2f}s)\n"
+					plyStr += f"Avg Multiplier: {player.avg_multiplier:.3f}x\n"
+					plyStr += f"Squeeze Hit/Missed/Score: +{player.squeezed_notes}/-{player.squeezed_notes_missed}/{player.squeeze_score}\n"
 			embed.add_field(name=f"Player: `{player.profile_name}`", value=plyStr, inline=False)
 		embed.set_footer(text=f"Chart MD5: `{steg.checksum}`")#Get steg info to have chart icon key in output for footer.icon_url?
 		return embed

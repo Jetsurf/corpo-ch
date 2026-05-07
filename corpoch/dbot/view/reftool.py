@@ -1,4 +1,4 @@
-import discord, uuid, json, re
+import discord, uuid, json, re, time
 from itertools import chain
 
 from discord.ext import commands
@@ -10,6 +10,7 @@ from corpoch.dbot import settings
 from corpoch.providers import CHStegTool
 from corpoch.types import StegScreenshot, TB_RULESETS, PICK_RULESETS, BAN_RULESETS
 from corpoch.models import Tournament, Chart, GroupSeed, Match, MatchRound, TournamentPlayer, MatchRound, MatchBan
+from corpoch.dbot.cogs.tourneycmds import ScreenReview
 from corpoch.dbot.models import CHEmoji
 from corpoch.dbot.view.helpers import get_chart_emoji
 
@@ -156,7 +157,7 @@ class GroupSelect(discord.ui.Select):
 	async def callback(self, interaction: discord.Integration):
 		group = self.retOpts[self.values[0]]
 		self.match.matchDb = Match(id=uuid.uuid1(), group=group)
-		print(f"REF: {self.match.referee.global_name} starting match {self.match.id}")
+		print(f"REF: {self.match.referee.global_name} starting match {self.match.matchDb}")
 		await self.match.showTool(interaction)
 
 class PlayerSelect(discord.ui.Select):
@@ -216,6 +217,7 @@ class DiscordMatchView(discord.ui.View):
 		self.submit = discord.ui.Button(label='Submit Match', style=discord.ButtonStyle.green, custom_id="submitBtn")
 		self.submit.callback = self.submitBtn
 		self.submit.disabled = True
+		self.is_uploading = False
 
 	async def setup_round_player_sels(self):
 		sngDis = True if self.match.current_round.chart else False
@@ -371,11 +373,20 @@ class DiscordMatchView(discord.ui.View):
 		modal = MatchScreenModal(self.match)
 		await interaction.response.send_modal(modal)
 		await modal.wait()
+
+		while self.is_uploading:
+			time.sleep(1)				
+
+		if self.match.rounds.filter(steg=None).count() == 0:
+			await interaction.followup.send("All screenshot's already uploaded", ephemeral=True, delete_after=10)
+			return
+
+		self.is_uploading = True
 		for screen in modal.screens:
 			tool = CHStegTool()
 			try:
 				steg = await tool.getStegInfo(screen)
-				rnd = await MatchRound.objects.select_related('chart').aget(match__id=self.match.id, chart__md5=steg.checksum)
+				rnd = await self.match.rounds.select_related('chart').aget(chart__md5=steg.checksum)
 				playedChart = rnd.chart
 			except MatchRound.DoesNotExist:
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} was for a setlist chart not played in this match")
@@ -393,15 +404,26 @@ class DiscordMatchView(discord.ui.View):
 				await interaction.followup.send(f"Screenshot {screen.filename} game version {steg.game_version} does not match tournament {self.tournament.config.version}", ephemeral=True, delete_after=10)
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} game version {steg.game_version} does not match tournament {self.tournament.config.version}")
 				continue
-			stop = False
-			for seed in self.match.seeding:
-				if not seed.player.check_ch_name(steg.players[0].profile_name) and not seed.player.check_ch_name(steg.players[1].profile_name):
-					print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} players do not match players for this match")
-					await interaction.followup.send(f"Screenshot {screen.filename} does not match players for this match", ephemeral=True, delete_after=10)
-					stop = True
-					break
-			if stop:
+
+			if len(steg.players) < self.match.ruleset.num_players:
+				print(f"MATCH SCREENSHOT: Screenshot {screen.filename} has missing players. Adding to review.")
+				msg	= await interaction.followup.send(f"Screenshot {screen.filename} has missing players but is otherwise correct. If this due to a disconnect/issues, please have the ref verify this or reach out to staff!")
+				self.match.screen_review.append(ScreenReview(self.match.matchDb, msg, screen, steg))
 				continue
+			elif len(steg.players) > self.match.ruleset.num_players:
+				print(f"MATCH SCREENSHOT: Screenshot {screen.filename} has too many players.")
+				await interaction.followup.send(f"Screenshot {screen.filename} has too many players.", ephemeral=True, delete_after=10)
+				continue
+			else:
+				stop = False
+				for seed in self.match.seeding:
+					if not seed.player.check_ch_name(steg.players[0].profile_name) and not seed.player.check_ch_name(steg.players[1].profile_name):
+						print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} players do not match players for this match")
+						await interaction.followup.send(f"Screenshot {screen.filename} does not match players for this match", ephemeral=True, delete_after=10)
+						stop = True
+						break
+				if stop:
+					continue
 			try:
 				rnd = await self.match.matchDb.rounds.aget(chart=playedChart)
 			except MatchRound.DoesNotExist:
@@ -414,10 +436,17 @@ class DiscordMatchView(discord.ui.View):
 			else:
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} already submitted")
 		
+		self.is_uploading = False
 		if self.match.rounds.filter(steg=None).count() == 0:
 			await self.match.finishMatch(interaction)
 		else :
 			await self.match.showTool(interaction)
+
+	async def reviewBtn(self, interaction: discord.Interaction):
+		modal = SeedSearchModal(self.match)
+		await interaction.response.send_modal(modal)
+		await modal.wait()
+		await self.match.showTool(interaction)
 
 	async def submitBtn(self, interaction: discord.Interaction):
 		self.match.matchDb.winner = self.match.current_round.winner
