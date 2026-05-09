@@ -7,7 +7,7 @@ from corpoch import settings
 from corpoch.models import Tournament, Chart, Match, MatchRound, Bracket, Group, GroupSeed, TournamentPlayer, MatchRound, MatchBan, DiscordUser
 from corpoch.dbot.models import CHEmoji, Channels
 from corpoch.dbot.view.reftool import DiscordMatchView
-from corpoch.types import TB_RULESETS, PICK_RULESETS, BAN_RULESETS, CHART_CATEGORIES, StegScreenshotPlayer, StegScreenshotPlayerV10, StegScreenshotPlayerDummy
+from corpoch.types import TB_RULESETS, PICK_RULESETS, BAN_RULESETS, CHART_CATEGORIES
 
 class DiscordMatch():
 	def __init__(self, bot, message=None, uuid=None, exhibition=False):

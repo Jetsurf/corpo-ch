@@ -642,7 +642,7 @@ class Match(models.Model):
 	@property
 	def ongoing(self):
 		players = self.players.all()
-		return self.complete == False and players.count() > 1
+		return self.finished == False and players.count() > 1
 
 	@property
 	def high_seed(self):

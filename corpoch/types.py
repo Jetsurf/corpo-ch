@@ -114,8 +114,8 @@ class StegScreenshotPlayerDummy(pydantic.BaseModel):
 	profile_name : str = "Unknown Player"
 	error_reason : str = "Unknown Error"
 	__fields__ = ('profile_name', 'error_reason')
-	#Generate dummy fields for other classes
 
+	#Generate dummy fields for other classes
 	@property
 	def score(self):
 		return 0
@@ -151,9 +151,6 @@ class StegScreenshotPlayerDummy(pydantic.BaseModel):
 	@property
 	def excess_hits(self):
 		return 0
-
-#class StegScreenshotPlayerDummyV10(StegScreenshotPlayerDummy):
-#	pass #When we figure out what new data we're using
 
 #v10 6085-final
 class StegSectionV10(pydantic.BaseModel):
@@ -206,7 +203,6 @@ class StegScreenshot(pydantic.BaseModel):
 		typing.Annotated[StegScreenshotPlayer, pydantic.Field(title='Steg v6 (4080)')] |
 		typing.Annotated[StegScreenshotPlayerV10, pydantic.Field(title='Steg v10 (6085)')] |
 		typing.Annotated[StegScreenshotPlayerDummy, pydantic.Field(title="Error Player v6 (4080)")]
-		#typing.Annotated[StegScreenshotPlayerDummyV10, pydantic.Field(title="Error player v10 (6085)")]
 	] ]
 	score_timestamp: datetime = datetime.now()
 
