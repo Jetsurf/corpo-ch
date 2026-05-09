@@ -202,7 +202,7 @@ class StegScreenshot(pydantic.BaseModel):
 	players : list[ typing.Union[
 		typing.Annotated[StegScreenshotPlayer, pydantic.Field(title='Steg v6 (4080)')] |
 		typing.Annotated[StegScreenshotPlayerV10, pydantic.Field(title='Steg v10 (6085)')] |
-		typing.Annotated[StegScreenshotPlayerDummy, pydantic.Field(title="Error Player v6 (4080)")]
+		typing.Annotated[StegScreenshotPlayerDummy, pydantic.Field(title="Player Error/Issue")]
 	] ]
 	score_timestamp: datetime = datetime.now()
 
