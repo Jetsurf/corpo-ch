@@ -101,7 +101,7 @@ async def send_qualifier_discord_dms(bot, player, quali, req_subs, quali_end, gu
 async def refresh_match_message(bot, match_id):
 	from corpoch.models import Match
 	match = await Match.objects.select_related().aget(id=match_id)
-	if match.complete:
+	if match.finished:
 		print(f"Refreshing match view {match.id}")
 		from corpoch.dbot.cogs.tourneycmds import DiscordMatch
 		view = DiscordMatch(bot, uuid=match.id)

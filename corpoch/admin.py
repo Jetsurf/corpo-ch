@@ -26,7 +26,10 @@ import corpoch.tasks
 
 admin.site.site_header = f'Corpo CH Admin {version}{f' - DEV' if settings.DEBUG else ''}'
 admin.site.site_title = 'Corpo CH'
-admin.site.register(GSheetAPI, SingletonModelAdmin)
+
+@admin.register(GSheetAPI)
+class GSheetAPIAdmin(SingletonModelAdmin):
+	readonly_fields = ['sa_name']
 
 @admin.register(DiscordUser)
 class DiscordUserAdmin(admin.ModelAdmin):

@@ -8,7 +8,7 @@ from kombu.utils.limits import TokenBucket
 from redis import asyncio as aioredis
 from socket import timeout
 
-from corpoch.dbot import bot_tasks
+from corpoch.dbot import bot_tasks, tasks as sync_tasks
 from corpoch.dbot import settings
 from corpoch import __version__ as version
 
@@ -66,17 +66,32 @@ class CorpoDbot(commands.Bot):
 	async def retrieve_owners(self):
 		print("Retrieving bot owners.")
 		app = await self.application_info()
+		to_check = []
 		if app.team:
 			for mem in app.team.members:
 				owner = await self.fetch_user(mem.id)
 				if not owner:
 					print(f"  Can't get user object for team member {str(mem.name)} id {mem.id}")
 				else:
-					self.owners.append(owner)
 					print(f"  Loaded owner: {str(owner.name)} id {owner.id}")
+					self.owners.append(owner)
+					to_check.append(owner.id)
 		else:
 			self.owners = [app.owner]
+			to_check = [app.owner.id]
 			print(f"  Loaded owner: {str(app.owner.name)} id {app.owner.id}")
+
+		from corpoch.models import DiscordUser
+		for owner in to_check:
+			int_user, created = DiscordUser.objects.get_or_create(id=owner)
+			if created:
+				sync_tasks.update_user(owner) #Call non-async to run after done startup
+
+		async for user in DiscordUser.objects.all().filter(pk__in=to_check, is_superuser=False):
+			print(f"  Marking owner {user} as superuser/staff")
+			user.is_superuser = True
+			user.is_staff = True
+			await user.asave()
 
 	@tasks.loop(seconds=1.0)
 	async def poll_queue(self):
@@ -97,7 +112,7 @@ class CorpoDbot(commands.Bot):
 		django.db.close_old_connections()
 		from corpoch.models import Match, QualifierSubmission, MatchRound
 		matches = Match.objects.all().filter(complete=False)
-		if len(matches) > 0:
+		if matches.count() > 0:
 			rand = random.randrange(0, matches.count(), 1)
 			activity = discord.Activity(name=f"{matches[rand].tournament.short_name} - {matches[rand].short_name} {matches[rand].score}", type=discord.ActivityType(3))
 		else:

@@ -41,7 +41,7 @@ def build_stats_embed(steg, title: str) -> discord.Embed:
 		embed.title = title
 		embed.add_field(name="Submission Stats", value=build_chart_str(steg), inline=False)
 		for i, player in enumerate(steg.players):
-			if isinstance(player, StegScreenshotPlayerDummy):
+			if isinstance(player, StegScreenshotPlayerDummy) or isinstance(player, StegScreenshotPlayerDummyV10):
 				plyStr += f"No data for player - error reason: {player.error_reason}"
 			else:
 				plyStr = f"Score: {player.score}\n"

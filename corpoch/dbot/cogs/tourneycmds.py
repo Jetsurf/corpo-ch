@@ -9,55 +9,6 @@ from corpoch.dbot.models import CHEmoji, Channels
 from corpoch.dbot.view.reftool import DiscordMatchView
 from corpoch.types import TB_RULESETS, PICK_RULESETS, BAN_RULESETS, CHART_CATEGORIES, StegScreenshotPlayer, StegScreenshotPlayerV10, StegScreenshotPlayerDummy
 
-class ScreenReview():
-	def __init__(self, match: Match, msg, screen, steg_tool):
-		self.match = match
-		self.msg = msg
-		self.screen = screen
-		self.steg_tool = steg_tool
-		self.steg = steg_tool.output
-		self.round = self.match.rounds.all().select_related('chart').aget(chart__md5=self.steg.checksum)
-
-	@property
-	def attachment(self) -> discord.File:
-		image_io = io.BytesIO()
-		self.screen.save(image_io, 'PNG')
-		image_io.seek(0)
-		file = discord.File(image_io, filename=self.screen.filename)
-		image_io.seek(0)
-		return file
-
-	@property
-	def embed(self) -> discord.Embed:
-		embed = discord.Embed(colour=0x3FFF33)
-		embed.title = f"Problem screenshot"
-		embed.add_field(name="Image name", value=self.screen.filename, inline=False)
-		if len(self.steg.players) < self.match.ruleset.num_players:
-			outStr = ""
-			for ply in self.steg.players:
-				outstr += f"{ply.ch_name}\n"
-			embed.add_field(name="Players", value=outStr, inline=False)
-
-		embed.set_thumbnail(url=f"attachment://{screen.filename}")
-		embed.add_field(name="Pl")
-
-	async def fix(self):
-		if len(self.steg.players) < self.match.ruleset.num_players:
-			missing = self.match.match_players.all()
-			for ply in self.match.match_players.all():
-				for check in self.steg.players:
-					if ply.player.check_ch_name(check.profile_name):
-						print(f"Found {ply.player}")
-						missing = missing.exclude(player=ply)
-			print(f"Left missing: {missing}")
-			for ply in missing:
-				self.steg.players.append(StegScreenshotPlayerDummy(profile_name=ply.player.ch_name, error_reason="Player Disconnect"))
-
-		self.round.screenshot.save(screen.filename, open(self.steg_tool.img_path, 'rb'))
-		self.round.steg = self.steg
-		await self.round.asave()
-		await self.msg.delete()
-
 class DiscordMatch():
 	def __init__(self, bot, message=None, uuid=None, exhibition=False):
 		self.bot = bot
@@ -97,6 +48,8 @@ class DiscordMatch():
 		except Bracket.DoesNotExist: 
 			await self.msg.respond("Channel is not a score log channel or no brackets are currently active.", ephemeral=True)
 			return False
+		except Bracket.MultipleObjectsReturned:
+			pass
 
 		if isinstance(self.msg, discord.ApplicationContext):
 			await self.msg.respond("Setting up")
@@ -106,7 +59,7 @@ class DiscordMatch():
 			return True
 
 	async def finishMatch(self, interaction):
-		print(f"Finishing match {self.id}")
+		print(f"Finishing match {self.matchDb.id}")
 		self.matchDb.finished = True
 		await self.matchDb.asave()
 		embeds = [await self.genMatchEmbed()]
@@ -116,7 +69,7 @@ class DiscordMatch():
 			embed.set_image(url=f"https://{settings.BASE_URL}{settings.MEDIA_URL}{rnd.screenshot}")
 			embeds.append(embed)
 		await interaction.edit(embeds=embeds[:10], view=None)
-		self.bot.matches.pop(self.id)
+		self.bot.matches.pop(self.matchDb.id)
 
 	async def showTool(self, interaction=None):
 		files = []
@@ -147,14 +100,15 @@ class DiscordMatch():
 			embeds.append(await self.genScreenEmbed())
 			for issue in self.screen_review:
 				embeds.append(issue.embed)
-				files.append(issue.attachment)
+				if issue.attachment:
+					files.append(await issue.attachment())
 
 		if is_message:
-			await interaction.edit(embeds=embeds, content=None, view=view, files=files)
+			await interaction.edit(embeds=embeds, content=None, view=view, files=files, attachments=[])
 		elif is_ctx:
-			await interaction.interaction.edit_original_response(embeds=embeds, content=None, view=view, files=files)
+			await interaction.interaction.edit_original_response(embeds=embeds, content=None, view=view, files=files, attachments=[])
 		else:
-			await interaction.edit_original_response(embeds=embeds, content=None, view=view, files=files)
+			await interaction.edit_original_response(embeds=embeds, content=None, view=view, files=files, attachments=[])
 
 	def load_match(self):
 		if isinstance(self.matchDb, str):
@@ -169,7 +123,7 @@ class DiscordMatch():
 
 	def save_match(self):
 		if self.group:
-			self.bot.matches[self.id] = self
+			self.bot.matches[self.matchDb.id] = self
 			self.matchDb.group = self.group
 			self.matchDb.message = self.msg.id if self.msg else None
 			self.matchDb.channel = Channels.objects.get(id=self.channel.id)
@@ -387,7 +341,7 @@ class DiscordMatch():
 		if len(self.rounds) > 0:
 			embed.add_field(name="Rounds", value=self.formatted_rounds, inline=False)
 		if self.matchDb:
-			embed.set_footer(text=f"Match ID: {self.id}")
+			embed.set_footer(text=f"Match ID: {self.matchDb.id}")
 		return embed
 
 class TourneyCmds(commands.Cog):

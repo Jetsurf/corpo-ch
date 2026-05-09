@@ -10,7 +10,7 @@ from typing import Optional, Union, Literal
 from corpoch import __user_agent__
 from corpoch import settings
 from corpoch.models import GSheetAPI, Chart, Tournament, Match, Qualifier, QualifierSubmission
-from corpoch.types import StegScreenshot, SearchResponse, CH_DIFFICULTIES, CH_INSTRUMENTS, CH_VERSIONS
+from corpoch.types import StegScreenshot, SearchResponse, CH_DIFFICULTIES, CH_INSTRUMENTS, CH_VERSIONS, StegScreenshotPlayerDummy
 from corpoch.utils.hydra.hydra.hyutil import analyze_chart_bytes_chart, analyze_chart_bytes_mid
 from corpoch.utils.snghandler import SNGHandler
 from corpoch.dbot.view.helpers import build_stats_embed, build_full_stats_embed
@@ -423,7 +423,6 @@ class GSheets():
 					wl = "L"
 				missed = ply.notes_missed
 				hit = ply.notes_hit
-				phrases = ply.sp_phrases_earned
 				fc = ply.is_fc
 				excess = ply.excess_hits
 				ghosts = ply.frets_ghosted
