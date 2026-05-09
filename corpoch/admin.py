@@ -697,7 +697,14 @@ class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
 				kwargs['queryset'] = Channels.objects.all().filter(guild=match.tournament.guild)
 			else:
 				kwargs["queryset"] = Channels.objects.none()
-
+		if db_field.name == "referee":
+			if 'object_id' in request.resolver_match.kwargs:
+				match = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				queryset =  match.tournament.guild.referees.all() | match.tournament.guild.admins.all() | DiscordUser.objects.filter(pk=match.referee.id)
+				queryset = queryset.distinct()
+				kwargs['queryset'] = queryset
+			else:
+				kwargs['queryset'] = DiscordUser.objects.none()
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 	@admin.action(description="Mark Match GSheet Unsent")
