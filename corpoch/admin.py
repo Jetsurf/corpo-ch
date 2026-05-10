@@ -98,8 +98,7 @@ class ChartAdmin(admin.ModelAdmin):
 
 	def get_queryset(self, request):
 		qs = super().get_queryset(request)
-		if request.user.is_superuser:
-			return qs
+
 		for obj in qs:
 			for bracket in obj.brackets.all():
 				if bracket.revealed:

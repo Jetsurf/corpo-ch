@@ -114,10 +114,6 @@ class DiscordToken(models.Model):
 			if self.id:
 				self.save()
 			return
-		if response.json['error'] == 'invalid_grant':
-			self.access_token = {}
-			self.refresh_token = {}
-			return
 		raise self.AuthError(f"Failed to connect to discord API {response.json()}")
 	
 	def update_code(self) -> str:

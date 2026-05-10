@@ -5,7 +5,7 @@ from discord.enums import ComponentType, InputTextStyle
 from asgiref.sync import sync_to_async
 
 from corpoch.providers import CHOpt, EncoreClient, CHStegTool, Hydra
-from corpoch.models import Tournament, Chart
+from corpoch.models import Tournament, Chart, DiscordUser
 from corpoch.types import CH_INSTRUMENTS, CH_DIFFICULTIES, CH_VERSIONS
 from corpoch.dbot.models import CHEmoji
 from corpoch.dbot.view.helpers import get_chart_emoji
@@ -168,8 +168,13 @@ class BracketSelect(discord.ui.Select):
 
 	async def init(self):
 		opts = []
+		try:
+			admin = bracket.tournament.guild.admins.get(pk=self.path.user.id)
+		except DiscordUser.DoesNotExist:
+			admin = None
+
 		async for bracket in self.path.tournament.brackets.select_related():
-			if bracket.revealed:
+			if bracket.revealed or admin:
 				self.retOpts[str(bracket)] = bracket
 				opts.append(discord.SelectOption(label=str(bracket), default=True if self.path.bracket == bracket else False))
 

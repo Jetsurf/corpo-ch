@@ -32,7 +32,7 @@ class DiscordMatch():
 			self.msg = await self.channel.fetch_message(self.matchDb.message)
 			self.referee = await self.guild.fetch_member(self.matchDb.referee.id)
 			await self.showTool(self.msg)
-			return
+			return True
 		try:
 			self.tourney = await Tournament.objects.select_related().aget(guild=self.msg.guild.id, active=True)
 		except Tournament.DoesNotExist:
@@ -341,7 +341,7 @@ class DiscordMatch():
 		if len(self.rounds) > 0:
 			embed.add_field(name="Rounds", value=self.formatted_rounds, inline=False)
 		if self.matchDb:
-			embed.set_footer(text=f"Match ID: {self.matchDb.id}")
+			embed.set_footer(text=f"Match ID: `{self.matchDb.id}`")
 		return embed
 
 class TourneyCmds(commands.Cog):
