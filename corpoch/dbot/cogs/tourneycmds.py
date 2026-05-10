@@ -341,7 +341,7 @@ class DiscordMatch():
 		if len(self.rounds) > 0:
 			embed.add_field(name="Rounds", value=self.formatted_rounds, inline=False)
 		if self.matchDb:
-			embed.set_footer(text=f"Match ID: `{self.matchDb.id}`")
+			embed.set_footer(text=f"Match ID: {self.matchDb.id}")
 		return embed
 
 class TourneyCmds(commands.Cog):
