@@ -54,7 +54,7 @@ class DiscordUserAdmin(admin.ModelAdmin):
 
 @admin.register(Chart)
 class ChartAdmin(admin.ModelAdmin):
-	list_display = ('_icon','name',  '_bracket', 'charter', 'artist', 'album', 'speed', '_modifiers', 'tiebreaker')
+	list_display = ('_icon','name', '_bracket', 'charter', 'artist', 'album', '_category', 'speed', '_modifiers', 'boss', 'tiebreaker')
 	list_filter = ['brackets__tournament', 'tiebreaker', 'boss']
 	actions = ['run_encore_import', 'import_song_ini']
 	readonly_fields = ['_icon', 'game_version']
@@ -68,13 +68,10 @@ class ChartAdmin(admin.ModelAdmin):
 		return retList
 
 	def _modifiers(self, obj):
-		return obj.modifiers
+		return obj.modifiers_short
 
-	def modifiers_long(self, obj):
-		out = []
-		for i in range(0, len(obj.modifiers)):
-			out.append(CH_MODIFIERS[i][1])
-		return out
+	def _category(self, obj):
+		return obj.category.capitalize()
 
 	@mark_safe
 	def _icon(self, obj):
@@ -98,6 +95,9 @@ class ChartAdmin(admin.ModelAdmin):
 
 	def get_queryset(self, request):
 		qs = super().get_queryset(request)
+		#Ensure DEV envs always return for SU's
+		if settings.DEBUG and request.user.is_superuser:
+			return qs
 
 		for obj in qs:
 			for bracket in obj.brackets.all():
@@ -302,14 +302,15 @@ class TournamentPlayerAdmin(admin.ModelAdmin):
 					corpoch.dbot.tasks.set_group_role(ply.user.id, guild.id, grole.id)
 				if brole is not None:
 					corpoch.dbot.tasks.set_group_role(ply.user.id, guild.id, brole.id)
-				if trole is not None:
-					corpoch.dbot.tasks.set_group_role(ply.user.id, guild.id, trole.id)
+			if trole is not None:
+				corpoch.dbot.tasks.set_group_role(ply.user.id, guild.id, trole.id)
 
 @admin.register(Qualifier)
 class QualifierAdmin(admin.ModelAdmin):
 	list_display = ('id', 'tournament', '_players', '_submissions')
 	list_filter = ['tournament']
 	actions = ['submit_final_scores']
+	filter_horizontal = ['charts']
 
 	def _players(self, obj):
 		return QualifierSubmission.objects.all().filter(qualifier__tournament=obj.tournament).values('player').distinct().count()

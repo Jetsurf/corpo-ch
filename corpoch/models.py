@@ -200,11 +200,33 @@ class Chart(models.Model):
 	@property
 	def modifiers_short(self):
 		outStr = ""
-		if self.modifiers[0][1] != "NoModifiers":
+		if self.modifiers[0] == "NM":
 			return outStr
 		else:
 			for mod in self.modifiers:
-				outStr += f" ,{mod[0]}"
+				outStr += f" {mod}"
+			return outStr
+
+	@property
+	def modifiers_long(self):
+		return " ".join(self.modifiers_list)
+
+	@property
+	def modifiers_list(self) -> list:
+		out = []
+		for i in range(0, len(self.modifiers)):
+			for mod in CH_MODIFIERS:
+				if mod[0] == self.modifiers[i]:
+					out.append(mod[1])
+		return out
+
+	@property
+	def modifiers_steg(self) -> list:
+		retList = []
+		for mod in self.modifiers_list:
+			retList.append(mod.replace(" ", ""))
+		return retList
+
 	@property
 	def tournament_name(self):
 		retStr = f"{self.name}"
