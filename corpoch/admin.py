@@ -26,7 +26,10 @@ import corpoch.tasks
 
 admin.site.site_header = f'Corpo CH Admin {version}{f' - DEV' if settings.DEBUG else ''}'
 admin.site.site_title = 'Corpo CH'
-admin.site.register(GSheetAPI, SingletonModelAdmin)
+
+@admin.register(GSheetAPI)
+class GSheetAPIAdmin(SingletonModelAdmin):
+	readonly_fields = ['sa_name']
 
 @admin.register(DiscordUser)
 class DiscordUserAdmin(admin.ModelAdmin):
@@ -95,8 +98,7 @@ class ChartAdmin(admin.ModelAdmin):
 
 	def get_queryset(self, request):
 		qs = super().get_queryset(request)
-		if request.user.is_superuser:
-			return qs
+
 		for obj in qs:
 			for bracket in obj.brackets.all():
 				if bracket.revealed:
@@ -694,7 +696,14 @@ class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
 				kwargs['queryset'] = Channels.objects.all().filter(guild=match.tournament.guild)
 			else:
 				kwargs["queryset"] = Channels.objects.none()
-
+		if db_field.name == "referee":
+			if 'object_id' in request.resolver_match.kwargs:
+				match = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+				queryset =  match.tournament.guild.referees.all() | match.tournament.guild.admins.all() | DiscordUser.objects.filter(pk=match.referee.id)
+				queryset = queryset.distinct()
+				kwargs['queryset'] = queryset
+			else:
+				kwargs['queryset'] = DiscordUser.objects.none()
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 	@admin.action(description="Mark Match GSheet Unsent")

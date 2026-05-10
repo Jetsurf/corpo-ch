@@ -423,7 +423,6 @@ class GSheets():
 					wl = "L"
 				missed = ply.notes_missed
 				hit = ply.notes_hit
-				phrases = ply.sp_phrases_earned
 				fc = ply.is_fc
 				excess = ply.excess_hits
 				ghosts = ply.frets_ghosted

@@ -1,7 +1,7 @@
 from .celery import app as celery_app
 
 __all__ = ['celery_app']
-__version__ = '1.5.3'
+__version__ = '1.5.4'
 __name__ = "corpoch"
 __title__ = 'Corpo CH'
 __url__ = 'https://github.com/Jetsurf/corpo-ch'

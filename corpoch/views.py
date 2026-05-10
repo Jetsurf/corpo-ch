@@ -6,6 +6,7 @@ from django.http import HttpRequest
 from django.shortcuts import redirect, render
 
 from corpoch import settings
+from corpoch.dbot.tasks import update_user
 
 def null(request: HttpRequest):
   return redirect("home")
@@ -24,6 +25,7 @@ def auth(request: HttpRequest):
 	if code:# if code is valid
 		oauth = DiscordToken()
 		oauth.login(code=code)
+
 		request.session["access_token"] = oauth.access_token
 		user = OAuthUser(oauth.identity())
 		request.session['user_id'] = user.id
@@ -35,6 +37,9 @@ def auth(request: HttpRequest):
 			token.save()
 			oauth = token
 		except DiscordToken.DoesNotExist:
+			oauth.user, created = DiscordUser.objects.get_or_create(pk=user.id)
+			if created:
+				update_user(user.id)
 			oauth.save()
 	else:
 		access_token = request.session.get("access_token")
@@ -66,7 +71,8 @@ def user(request: HttpRequest):
 	return render(request, "user.html", context=context)
 
 def livematches(request: HttpRequest):
-	matches = list(filter(lambda match: match.complete, Match.objects.all()))
+	from corpoch.models import Match
+	matches = list(filter(lambda match: match.ongoing, Match.objects.all()))
 	current_match_ids = ",".join([str(m.id) for m in matches])
 
 	return render(request, "livematches.html", {
@@ -78,7 +84,7 @@ def update_livematches(request: HttpRequest):
 	selected_ids = request.GET.getlist('selected_matches')
 	client_match_ids = request.GET.get('current_match_ids', '')
 	from corpoch.models import Match
-	all_ongoing = list(filter(lambda match: match.complete, Match.objects.all()))
+	all_ongoing = list(filter(lambda match: match.ongoing, Match.objects.all()))
 	current_match_ids = ",".join([str(m.id) for m in all_ongoing])
 
 	matches_changed = (client_match_ids != current_match_ids)

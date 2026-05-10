@@ -31,8 +31,6 @@ def quali_upload_dir(self, filename):
 
 class GSheetAPI(SingletonModel):
 	api_key = EncryptedJSONField(null=False, blank=True, default=dict)
-	sa_name = models.CharField(verbose_name="API Service Account Name", max_length=96)
-
 	singleton_instance_id = 1
 
 	def __str__(self):
@@ -40,6 +38,15 @@ class GSheetAPI(SingletonModel):
 
 	class Meta:
 		verbose_name = "Google Sheets API"
+
+	def name(self):
+		if self.api_key:
+			return self.api_key.get('client_email')
+		else:
+			return "None"
+
+	name.short_description = "Service Account Name"
+	sa_name = property(name)
 
 class DiscordUser(AbstractUser):
 	"""
@@ -631,7 +638,7 @@ class Match(models.Model):
 	@property
 	def ongoing(self):
 		players = self.players.all()
-		return self.complete == False and players.count() > 1
+		return self.finished == False and players.count() > 1
 
 	@property
 	def high_seed(self):

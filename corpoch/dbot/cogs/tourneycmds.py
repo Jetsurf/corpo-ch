@@ -19,6 +19,7 @@ class DiscordMatch():
 		self.tourney = None
 		self.bracket = None
 		self.seeding_search = []
+		self.screen_review = []
 		self.matchDb = uuid
 		self.exhibition = exhibition
 		self.confirm_cancel = False
@@ -31,7 +32,7 @@ class DiscordMatch():
 			self.msg = await self.channel.fetch_message(self.matchDb.message)
 			self.referee = await self.guild.fetch_member(self.matchDb.referee.id)
 			await self.showTool(self.msg)
-			return
+			return True
 		try:
 			self.tourney = await Tournament.objects.select_related().aget(guild=self.msg.guild.id, active=True)
 		except Tournament.DoesNotExist:
@@ -47,6 +48,8 @@ class DiscordMatch():
 		except Bracket.DoesNotExist: 
 			await self.msg.respond("Channel is not a score log channel or no brackets are currently active.", ephemeral=True)
 			return False
+		except Bracket.MultipleObjectsReturned:
+			pass
 
 		if isinstance(self.msg, discord.ApplicationContext):
 			await self.msg.respond("Setting up")
@@ -56,7 +59,7 @@ class DiscordMatch():
 			return True
 
 	async def finishMatch(self, interaction):
-		print(f"Finishing match {self.id}")
+		print(f"Finishing match {self.matchDb.id}")
 		self.matchDb.finished = True
 		await self.matchDb.asave()
 		embeds = [await self.genMatchEmbed()]
@@ -66,9 +69,10 @@ class DiscordMatch():
 			embed.set_image(url=f"https://{settings.BASE_URL}{settings.MEDIA_URL}{rnd.screenshot}")
 			embeds.append(embed)
 		await interaction.edit(embeds=embeds[:10], view=None)
-		self.bot.matches.pop(self.id)
+		self.bot.matches.pop(self.matchDb.id)
 
 	async def showTool(self, interaction=None):
+		files = []
 		is_message = isinstance(interaction, discord.Message)
 		is_ctx = hasattr(interaction, 'interaction') and hasattr(interaction, 'command')
 
@@ -94,13 +98,17 @@ class DiscordMatch():
 		embeds = [await self.genMatchEmbed()]
 		if self.matchDb and self.complete:
 			embeds.append(await self.genScreenEmbed())
+			for issue in self.screen_review:
+				embeds.append(issue.embed)
+				if issue.attachment:
+					files.append(await issue.attachment())
 
 		if is_message:
-			await interaction.edit(embeds=embeds, content=None, view=view)
+			await interaction.edit(embeds=embeds, content=None, view=view, files=files, attachments=[])
 		elif is_ctx:
-			await interaction.interaction.edit_original_response(embeds=embeds, content=None, view=view)
+			await interaction.interaction.edit_original_response(embeds=embeds, content=None, view=view, files=files, attachments=[])
 		else:
-			await interaction.edit_original_response(embeds=embeds, content=None, view=view)
+			await interaction.edit_original_response(embeds=embeds, content=None, view=view, files=files, attachments=[])
 
 	def load_match(self):
 		if isinstance(self.matchDb, str):
@@ -115,7 +123,7 @@ class DiscordMatch():
 
 	def save_match(self):
 		if self.group:
-			self.bot.matches[self.id] = self
+			self.bot.matches[self.matchDb.id] = self
 			self.matchDb.group = self.group
 			self.matchDb.message = self.msg.id if self.msg else None
 			self.matchDb.channel = Channels.objects.get(id=self.channel.id)
@@ -284,13 +292,6 @@ class DiscordMatch():
 	def tiebreaker(self) -> bool:
 		return self.matchDb.tiebreaker
 
-	@property
-	def id(self):
-		if self.matchDb:
-			return self.matchDb.id
-		else:
-			return None
-
 	async def genScreenEmbed(self):
 		embed = discord.Embed(colour=0xFFFF66)
 		embed.title = "Upload screenshots"
@@ -340,7 +341,7 @@ class DiscordMatch():
 		if len(self.rounds) > 0:
 			embed.add_field(name="Rounds", value=self.formatted_rounds, inline=False)
 		if self.matchDb:
-			embed.set_footer(text=f"Match ID: {self.id}")
+			embed.set_footer(text=f"Match ID: {self.matchDb.id}")
 		return embed
 
 class TourneyCmds(commands.Cog):

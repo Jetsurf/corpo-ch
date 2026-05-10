@@ -18,6 +18,14 @@ Git clone this repo down to a new folder.
 
 Create Discord bot app -> needs discord.intents.members = True
 
+Bot Installation Permissions
+ - Attach Files
+ - Create Private/Public Threads
+ - Embed Links
+ - Manage Roles
+ - Send Messages + in Threads
+ - View Channels
+
 Install redis+MySQL + populate .env vars for needed fields.
 
 Install requirements `pip3 install -r requirements.txt`
@@ -29,6 +37,10 @@ Collect Static -> `python3 manage.py collectstatic`
 Load CH Icons/AppEmotes -> `python3 manage.py ch_icon_import`
 
 Login to Main Site to create a discord user.
+
+(Re)Start the Discord Bot, and all Discord App Team members or the singular owner will be made a SuperUser on start
+
+OR
 
 Set your user as superuser. `python3 manage.py set_discord_superuser -d DISCORDID`
 

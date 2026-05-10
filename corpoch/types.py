@@ -109,6 +109,49 @@ class StegScreenshotPlayer(pydantic.BaseModel):
 	excess_hits : int = 0
 	notes_missed : int = 0
 
+#For problem rounds
+class StegScreenshotPlayerDummy(pydantic.BaseModel):
+	profile_name : str = "Unknown Player"
+	error_reason : str = "Unknown Error"
+	__fields__ = ('profile_name', 'error_reason')
+
+	#Generate dummy fields for other classes
+	@property
+	def score(self):
+		return 0
+
+	@property
+	def total_notes(self):
+		return 0
+
+	@property
+	def notes_missed(self):
+		return 0
+
+	@property
+	def notes_hit(self):
+		return 0
+
+	@property
+	def sp_phrases_earned(self):
+		return 0
+
+	@property
+	def sp_phrases_total(self):
+		return 0
+
+	@property
+	def frets_ghosted(self):
+		return 0
+
+	@property
+	def is_fc(self):
+		return False
+
+	@property
+	def excess_hits(self):
+		return 0
+
 #v10 6085-final
 class StegSectionV10(pydantic.BaseModel):
 	model_config = pydantic.ConfigDict(title=f'Steg v10 (6085)')
@@ -156,7 +199,11 @@ class StegScreenshot(pydantic.BaseModel):
 	game_version : str = CH_VERSIONS[0][0]
 	game_mode : str = "Versus"
 	playback_speed : int = 100
-	players : list[ typing.Union[typing.Annotated[StegScreenshotPlayer, pydantic.Field(title='Steg v6 (4080)')] |  typing.Annotated[StegScreenshotPlayerV10, pydantic.Field(title='Steg v10 (6085)')] ] ]
+	players : list[ typing.Union[
+		typing.Annotated[StegScreenshotPlayer, pydantic.Field(title='Steg v6 (4080)')] |
+		typing.Annotated[StegScreenshotPlayerV10, pydantic.Field(title='Steg v10 (6085)')] |
+		typing.Annotated[StegScreenshotPlayerDummy, pydantic.Field(title="Player Error/Issue")]
+	] ]
 	score_timestamp: datetime = datetime.now()
 
 #Encore API Models

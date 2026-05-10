@@ -1,4 +1,4 @@
-import discord, uuid, json, re
+import discord, io, json, re, time, uuid
 from itertools import chain
 
 from discord.ext import commands
@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from corpoch.dbot import settings
 from corpoch.providers import CHStegTool
-from corpoch.types import StegScreenshot, TB_RULESETS, PICK_RULESETS, BAN_RULESETS
+from corpoch.types import StegScreenshot, StegScreenshotPlayerDummy, TB_RULESETS, PICK_RULESETS, BAN_RULESETS
 from corpoch.models import Tournament, Chart, GroupSeed, Match, MatchRound, TournamentPlayer, MatchRound, MatchBan
 from corpoch.dbot.models import CHEmoji
 from corpoch.dbot.view.helpers import get_chart_emoji
@@ -156,7 +156,7 @@ class GroupSelect(discord.ui.Select):
 	async def callback(self, interaction: discord.Integration):
 		group = self.retOpts[self.values[0]]
 		self.match.matchDb = Match(id=uuid.uuid1(), group=group)
-		print(f"REF: {self.match.referee.global_name} starting match {self.match.id}")
+		print(f"REF: {self.match.referee.global_name} starting match {self.match.matchDb}")
 		await self.match.showTool(interaction)
 
 class PlayerSelect(discord.ui.Select):
@@ -182,6 +182,59 @@ class PlayerSelect(discord.ui.Select):
 			self.match.seeding_mgr.add(self.retOpts[ply])
 		await self.match.showTool(interaction)
 
+class RoundReview:
+	def __init__(self, match: Match, msg, screen, steg):
+		self.match = match
+		self.msg = msg
+		self.screen = screen
+		self.steg = steg
+		self.round = self.match.rounds.all().select_related('chart').get(chart__md5=self.steg.checksum)
+		if len(self.steg.players) < self.match.ruleset.num_players:
+			self.reason = 'Player Disconnect'
+		else:
+			self.reason = ""
+
+	async def attachment(self) -> discord.File:
+		return await self.screen.to_file()
+
+	@property
+	def embed(self) -> discord.Embed:
+		embed = discord.Embed(colour=0x3FFF33)
+		embed.title = f"Problem Round"
+		if len(self.steg.players) < self.match.ruleset.num_players:
+			embed.add_field(name="Image name", value=self.screen.filename, inline=False)
+			embed.add_field(name="Played Chart", value=self.round.chart.tournament_name, inline=False)
+			outStr = ""
+			for ply in self.steg.players:
+				outStr += f"{ply.profile_name}\n"
+			embed.add_field(name="Found Players", value=outStr, inline=False)
+			embed.set_thumbnail(url=f"attachment://{self.screen.filename}")
+
+		embed.add_field(name="Issue", value=self.reason, inline=False)
+		return embed
+
+	async def fix(self):
+		#NOTE: Do NOT edit the self.round.steg.players list directly.
+		# Copy out to a new list, edit, then re-set the players field to correctly revalidate
+		self.round.steg = self.steg
+		if len(self.steg.players) < self.match.ruleset.num_players:
+			missing = self.match.players.all()
+			for seed in self.match.players.all():
+				for check in self.steg.players:
+					if seed.player.check_ch_name(check.profile_name):
+						missing = missing.exclude(player=seed.player)
+
+			players = self.round.steg.players
+			for seed in missing:
+				players.append(StegScreenshotPlayerDummy(profile_name=seed.player.ch_name, error_reason=self.reason))
+
+		print(f"MATCH SCREENSHOT REVIEW: Fixed round {self.round.num} in match {self.match.id} with reason {self.reason}")
+		self.round.steg.players = players
+		screen = await self.attachment()
+		self.round.screenshot.save(screen.filename, screen.fp)
+		await self.round.asave()
+		await self.msg.delete()
+
 class DiscordMatchView(discord.ui.View):
 	def __init__(self, match):
 		super().__init__(timeout = None)
@@ -196,6 +249,9 @@ class DiscordMatchView(discord.ui.View):
 		if len(self.match.seeding) == 0:
 			self.back.disabled = True
 		self.back.callback = self.backBtn
+
+		self.review = discord.ui.Button(style=discord.ButtonStyle.secondary)#Fill in label/custom_id on init
+		self.review.callback = self.reviewBtn
 
 		self.defer = discord.ui.Button(label="Defer", style=discord.ButtonStyle.secondary, custom_id="deferBtn")
 		self.defer.callback = self.deferBtn
@@ -216,6 +272,7 @@ class DiscordMatchView(discord.ui.View):
 		self.submit = discord.ui.Button(label='Submit Match', style=discord.ButtonStyle.green, custom_id="submitBtn")
 		self.submit.callback = self.submitBtn
 		self.submit.disabled = True
+		self.is_uploading = False
 
 	async def setup_round_player_sels(self):
 		sngDis = True if self.match.current_round.chart else False
@@ -230,6 +287,10 @@ class DiscordMatchView(discord.ui.View):
 	async def init(self):
 		if self.match.complete:
 			self.add_item(self.upload)
+			for i, item in enumerate(self.match.screen_review):
+				self.review.label = f"Approve {i + 1}"
+				self.review.custom_id = f"reviewBtn_{i}"
+				self.add_item(self.review)
 		else:
 			self.add_item(self.cancel)
 
@@ -290,12 +351,16 @@ class DiscordMatchView(discord.ui.View):
 		if isinstance(interaction.user, discord.Member) and interaction.user.guild_permissions.administrator:
 			return True
 		try:
-			self.match.matchDb.players.get(player__user__id=interaction.user.id)
+			player = await self.match.matchDb.players.aget(player__user__id=interaction.user.id)
 		except GroupSeed.DoesNotExist:
 			await interaction.response.send_message("You are not the ref for, nor a player in this match!", ephemeral=True, delete_after=10)
 			return False
 		if self.match.complete:#If match is complete and player is part of match
-			return True
+			if 'reviewBtn' in caller:
+				await interaction.response.send_message("Screenshot review not allowed for players.")
+				return False
+			else:
+				return True
 		if self.match.player_input and (caller == "roundsong_sel" or caller == "ban_sel"):
 			if self.match.picking_player and self.match.picking_player.user.id == interaction.user.id:
 				return True
@@ -371,11 +436,20 @@ class DiscordMatchView(discord.ui.View):
 		modal = MatchScreenModal(self.match)
 		await interaction.response.send_modal(modal)
 		await modal.wait()
+
+		while self.is_uploading:
+			time.sleep(1)				
+
+		if self.match.rounds.filter(screenshot='').count() == 0:
+			await interaction.followup.send("All screenshot's already uploaded", ephemeral=True, delete_after=10)
+			return
+
+		self.is_uploading = True
 		for screen in modal.screens:
 			tool = CHStegTool()
 			try:
 				steg = await tool.getStegInfo(screen)
-				rnd = await MatchRound.objects.select_related('chart').aget(match__id=self.match.id, chart__md5=steg.checksum)
+				rnd = await self.match.rounds.select_related('chart').aget(chart__md5=steg.checksum)
 				playedChart = rnd.chart
 			except MatchRound.DoesNotExist:
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} was for a setlist chart not played in this match")
@@ -393,20 +467,31 @@ class DiscordMatchView(discord.ui.View):
 				await interaction.followup.send(f"Screenshot {screen.filename} game version {steg.game_version} does not match tournament {self.tournament.config.version}", ephemeral=True, delete_after=10)
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} game version {steg.game_version} does not match tournament {self.tournament.config.version}")
 				continue
-			stop = False
-			for seed in self.match.seeding:
-				if not seed.player.check_ch_name(steg.players[0].profile_name) and not seed.player.check_ch_name(steg.players[1].profile_name):
-					print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} players do not match players for this match")
-					await interaction.followup.send(f"Screenshot {screen.filename} does not match players for this match", ephemeral=True, delete_after=10)
-					stop = True
-					break
-			if stop:
+
+			if len(steg.players) < self.match.ruleset.num_players:
+				print(f"MATCH SCREENSHOT: Screenshot {screen.filename} has missing players. Adding to review.")
+				msg	= await interaction.followup.send(f"Screenshot {screen.filename} has missing players but is otherwise correct. If this due to a disconnect/issues, please have the ref verify this or reach out to staff!")
+				self.match.screen_review.append(RoundReview(self.match.matchDb, msg, screen, steg))
 				continue
+			elif len(steg.players) > self.match.ruleset.num_players:
+				print(f"MATCH SCREENSHOT: Screenshot {screen.filename} has too many players.")
+				await interaction.followup.send(f"Screenshot {screen.filename} has too many players.", ephemeral=True, delete_after=10)
+				continue
+			else:
+				stop = False
+				for seed in self.match.seeding:
+					if not seed.player.check_ch_name(steg.players[0].profile_name) and not seed.player.check_ch_name(steg.players[1].profile_name):
+						print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} players do not match players for this match")
+						await interaction.followup.send(f"Screenshot {screen.filename} does not match players for this match", ephemeral=True, delete_after=10)
+						stop = True
+						break
+				if stop:
+					continue
 			try:
 				rnd = await self.match.matchDb.rounds.aget(chart=playedChart)
 			except MatchRound.DoesNotExist:
 				continue
-			if not rnd.screenshot:
+			if rnd.screenshot == '':
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} accepted")
 				rnd.screenshot.save(screen.filename, open(tool.img_path, 'rb'))
 				rnd.steg = steg
@@ -414,7 +499,21 @@ class DiscordMatchView(discord.ui.View):
 			else:
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} already submitted")
 		
-		if self.match.rounds.filter(steg=None).count() == 0:
+		self.is_uploading = False
+		if self.match.rounds.filter(screenshot='').count() == 0:
+			await self.match.finishMatch(interaction)
+		else :
+			await self.match.showTool(interaction)
+
+	async def reviewBtn(self, interaction: discord.Interaction):
+		index = int(interaction.custom_id.split('_')[-1])
+		reviewed = self.match.screen_review[index]
+		print(f"MATCH SCREEN: Fixing {index + 1} with reason {reviewed.reason}")
+		await interaction.response.defer()
+		await interaction.followup.send(f"Fixing round {index + 1} with reason {reviewed.reason}!", delete_after=10)
+		await reviewed.fix()
+		self.match.screen_review.pop(index)
+		if self.match.rounds.filter(screenshot='').count() == 0:
 			await self.match.finishMatch(interaction)
 		else :
 			await self.match.showTool(interaction)
