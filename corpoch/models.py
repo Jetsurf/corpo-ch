@@ -203,8 +203,11 @@ class Chart(models.Model):
 		if self.modifiers[0] == "NM":
 			return outStr
 		else:
-			for mod in self.modifiers:
-				outStr += f" {mod}"
+			for i, mod in enumerate(self.modifiers):
+				if i == 0:
+					outStr += mod
+				else:
+					outStr += f" {mod}"
 			return outStr
 
 	@property
@@ -233,7 +236,7 @@ class Chart(models.Model):
 		if self.speed != 100:
 			retStr += f" ({self.speed}%)"
 		if self.modifiers != ['NM']:
-			retStr += self.modifiers_short
+			retStr += f" [{self.modifiers_short}]"
 		return retStr
 
 	def __str__(self):
