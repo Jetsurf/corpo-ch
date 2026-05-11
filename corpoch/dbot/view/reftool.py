@@ -468,7 +468,7 @@ class DiscordMatchView(discord.ui.View):
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} game version {steg.game_version} does not match tournament {self.tournament.config.version}")
 				continue
 
-			stop = False
+			#Check Player Cound
 			if len(steg.players) < self.match.ruleset.num_players:
 				print(f"MATCH SCREENSHOT: Screenshot {screen.filename} has missing players. Adding to review.")
 				msg	= await interaction.followup.send(f"Screenshot {screen.filename} has missing players but is otherwise correct. If this due to a disconnect/issues, please have the ref verify this or reach out to staff!")
@@ -478,18 +478,20 @@ class DiscordMatchView(discord.ui.View):
 				print(f"MATCH SCREENSHOT: Screenshot {screen.filename} has too many players.")
 				await interaction.followup.send(f"Screenshot {screen.filename} has too many players.", ephemeral=True, delete_after=10)
 				continue
-			else:				
-				for seed in self.match.seeding:
-					if not seed.player.check_ch_name(steg.players[0].profile_name) and not seed.player.check_ch_name(steg.players[1].profile_name):
-						print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} players do not match players for this match")
-						await interaction.followup.send(f"Screenshot {screen.filename} does not match players for this match", ephemeral=True, delete_after=10)
-						stop = True
-						break
-				if stop:
-					continue
+
+			#Check Player Names
+			stop = False
+			for seed in self.match.seeding:
+				if not seed.player.check_ch_name(steg.players[0].profile_name) and not seed.player.check_ch_name(steg.players[1].profile_name):
+					print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} players do not match players for this match")
+					await interaction.followup.send(f"Screenshot {screen.filename} does not match players for this match", ephemeral=True, delete_after=10)
+					stop = True
+					break
+			if stop:
+				continue
 			#Check modifiers
 			for player in steg.players:
-				if player.modifiers.sort() != playedChart.modifiers_steg:
+				if set(player.modifiers) != set(playedChart.modifiers_steg):
 					await interaction.followup.send(f"Screenshot {screen.filename} player {player.profile_name} has incorrect modifiers {player.modifiers} for chart {playedChart.modifiers_steg}", ephemeral=True, delete_after=10)
 					print(f"MATCH SCREEENSHOT: Screenshot {screen.filename} player {player.profile_name} has incorrect modifiers {player.modifiers} for chart {playedChart.modifiers_steg}")
 					stop = True
