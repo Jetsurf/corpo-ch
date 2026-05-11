@@ -447,6 +447,7 @@ class DiscordMatchView(discord.ui.View):
 		self.is_uploading = True
 		for screen in modal.screens:
 			tool = CHStegTool()
+			review = None
 			try:
 				steg = await tool.getStegInfo(screen)
 				rnd = await self.match.rounds.select_related('chart').aget(chart__md5=steg.checksum)
@@ -468,27 +469,21 @@ class DiscordMatchView(discord.ui.View):
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} game version {steg.game_version} does not match tournament {self.tournament.config.version}")
 				continue
 
-			#Check Player Cound
-			if len(steg.players) < self.match.ruleset.num_players:
-				print(f"MATCH SCREENSHOT: Screenshot {screen.filename} has missing players. Adding to review.")
-				msg	= await interaction.followup.send(f"Screenshot {screen.filename} has missing players but is otherwise correct. If this due to a disconnect/issues, please have the ref verify this or reach out to staff!")
-				self.match.screen_review.append(RoundReview(self.match.matchDb, msg, screen, steg))
-				continue
-			elif len(steg.players) > self.match.ruleset.num_players:
-				print(f"MATCH SCREENSHOT: Screenshot {screen.filename} has too many players.")
-				await interaction.followup.send(f"Screenshot {screen.filename} has too many players.", ephemeral=True, delete_after=10)
-				continue
-
 			#Check Player Names
 			stop = False
-			for seed in self.match.seeding:
-				if not seed.player.check_ch_name(steg.players[0].profile_name) and not seed.player.check_ch_name(steg.players[1].profile_name):
+			for player in steg.players:
+				matched = False
+				for seed in self.match.seeding:
+					if not seed.player.check_ch_name(player.profile_name):
+						matched = True
+						break
+
+				if not matched:
 					print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} players do not match players for this match")
 					await interaction.followup.send(f"Screenshot {screen.filename} does not match players for this match", ephemeral=True, delete_after=10)
 					stop = True
 					break
-			if stop:
-				continue
+
 			#Check modifiers
 			for player in steg.players:
 				if set(player.modifiers) != set(playedChart.modifiers_steg):
@@ -496,8 +491,23 @@ class DiscordMatchView(discord.ui.View):
 					print(f"MATCH SCREEENSHOT: Screenshot {screen.filename} player {player.profile_name} has incorrect modifiers {player.modifiers} for chart {playedChart.modifiers_steg}")
 					stop = True
 					break
+
+			#Check Player Cound
+			if len(steg.players) < self.match.ruleset.num_players and not stop:
+				print(f"MATCH SCREENSHOT: Screenshot {screen.filename} has missing players. Adding to review.")
+				msg	= await interaction.followup.send(f"Screenshot {screen.filename} has missing players but is otherwise correct. If this due to a disconnect/issues, please have the ref verify this or reach out to staff!")
+				review = RoundReview(self.match.matchDb, msg, screen, steg)
+				stop = True
+			elif len(steg.players) > self.match.ruleset.num_players and not stop:
+				print(f"MATCH SCREENSHOT: Screenshot {screen.filename} has too many players.")
+				await interaction.followup.send(f"Screenshot {screen.filename} has too many players.", ephemeral=True, delete_after=10)
+				stop = True
+
 			if stop:
+				if review:
+					self.match.screen_review.append(review)
 				continue
+
 			try:
 				rnd = await self.match.matchDb.rounds.aget(chart=playedChart)
 			except MatchRound.DoesNotExist:
