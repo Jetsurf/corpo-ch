@@ -200,15 +200,14 @@ class Chart(models.Model):
 	@property
 	def modifiers_short(self):
 		outStr = ""
-		if self.modifiers[0] == "NM":
-			return outStr
-		else:
+		if self.modifiers[0] != "NM":
 			for i, mod in enumerate(self.modifiers):
 				if i == 0:
 					outStr += mod
 				else:
 					outStr += f" {mod}"
-			return outStr
+
+		return outStr
 
 	@property
 	def modifiers_long(self):
