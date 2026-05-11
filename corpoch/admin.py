@@ -68,6 +68,10 @@ class ChartAdmin(admin.ModelAdmin):
 		retList = []
 		for bracket in obj.brackets.iterator():
 			retList.append(bracket)
+
+		for quali in Qualifier.objects.all().filter(charts__in=[obj]):
+			retList.append(f"{quali} Qualifier")
+
 		return retList
 
 	def _category(self, obj):
