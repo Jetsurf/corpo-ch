@@ -508,6 +508,7 @@ class DiscordMatchView(discord.ui.View):
 					self.match.screen_review.append(review)
 				continue
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 =======
 			else:				
@@ -519,9 +520,22 @@ class DiscordMatchView(discord.ui.View):
 						break
 				if stop:
 					continue
+=======
+
+			#Check Player Names
+			stop = False
+			for seed in self.match.seeding:
+				if not seed.player.check_ch_name(steg.players[0].profile_name) and not seed.player.check_ch_name(steg.players[1].profile_name):
+					print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} players do not match players for this match")
+					await interaction.followup.send(f"Screenshot {screen.filename} does not match players for this match", ephemeral=True, delete_after=10)
+					stop = True
+					break
+			if stop:
+				continue
+>>>>>>> 42a93ae (Functional modifier qualifier/reftool checks)
 			#Check modifiers
 			for player in steg.players:
-				if player.modifiers.sort() != playedChart.modifiers_steg:
+				if set(player.modifiers) != set(playedChart.modifiers_steg):
 					await interaction.followup.send(f"Screenshot {screen.filename} player {player.profile_name} has incorrect modifiers {player.modifiers} for chart {playedChart.modifiers_steg}", ephemeral=True, delete_after=10)
 					print(f"MATCH SCREEENSHOT: Screenshot {screen.filename} player {player.profile_name} has incorrect modifiers {player.modifiers} for chart {playedChart.modifiers_steg}")
 					stop = True
