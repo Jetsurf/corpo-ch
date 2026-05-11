@@ -438,7 +438,7 @@ class DiscordMatchView(discord.ui.View):
 		await modal.wait()
 
 		while self.is_uploading:
-			time.sleep(1)				
+			time.sleep(1)
 
 		if self.match.rounds.filter(screenshot='').count() == 0:
 			await interaction.followup.send("All screenshot's already uploaded", ephemeral=True, delete_after=10)
@@ -507,32 +507,7 @@ class DiscordMatchView(discord.ui.View):
 				if review:
 					self.match.screen_review.append(review)
 				continue
-<<<<<<< HEAD
-<<<<<<< HEAD
 
-=======
-			else:				
-				for seed in self.match.seeding:
-					if not seed.player.check_ch_name(steg.players[0].profile_name) and not seed.player.check_ch_name(steg.players[1].profile_name):
-						print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} players do not match players for this match")
-						await interaction.followup.send(f"Screenshot {screen.filename} does not match players for this match", ephemeral=True, delete_after=10)
-						stop = True
-						break
-				if stop:
-					continue
-=======
-
-			#Check Player Names
-			stop = False
-			for seed in self.match.seeding:
-				if not seed.player.check_ch_name(steg.players[0].profile_name) and not seed.player.check_ch_name(steg.players[1].profile_name):
-					print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} players do not match players for this match")
-					await interaction.followup.send(f"Screenshot {screen.filename} does not match players for this match", ephemeral=True, delete_after=10)
-					stop = True
-					break
-			if stop:
-				continue
->>>>>>> 42a93ae (Functional modifier qualifier/reftool checks)
 			#Check modifiers
 			for player in steg.players:
 				if set(player.modifiers) != set(playedChart.modifiers_steg):
@@ -540,9 +515,22 @@ class DiscordMatchView(discord.ui.View):
 					print(f"MATCH SCREEENSHOT: Screenshot {screen.filename} player {player.profile_name} has incorrect modifiers {player.modifiers} for chart {playedChart.modifiers_steg}")
 					stop = True
 					break
+
+			#Check Player Cound
+			if len(steg.players) < self.match.ruleset.num_players and not stop:
+				print(f"MATCH SCREENSHOT: Screenshot {screen.filename} has missing players. Adding to review.")
+				msg	= await interaction.followup.send(f"Screenshot {screen.filename} has missing players but is otherwise correct. If this due to a disconnect/issues, please have the ref verify this or reach out to staff!")
+				review = RoundReview(self.match.matchDb, msg, screen, steg)
+				stop = True
+			elif len(steg.players) > self.match.ruleset.num_players and not stop:
+				print(f"MATCH SCREENSHOT: Screenshot {screen.filename} has too many players.")
+				await interaction.followup.send(f"Screenshot {screen.filename} has too many players.", ephemeral=True, delete_after=10)
+				stop = True
+
 			if stop:
+				if review:
+					self.match.screen_review.append(review)
 				continue
->>>>>>> 89ae08e (Cleanup ChartAdmin+Initial reftool modifier check)
 			try:
 				rnd = await self.match.matchDb.rounds.aget(chart=playedChart)
 			except MatchRound.DoesNotExist:
@@ -554,7 +542,7 @@ class DiscordMatchView(discord.ui.View):
 				await rnd.asave()
 			else:
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} already submitted")
-		
+
 		self.is_uploading = False
 		if self.match.rounds.filter(screenshot='').count() == 0:
 			await self.match.finishMatch(interaction)
