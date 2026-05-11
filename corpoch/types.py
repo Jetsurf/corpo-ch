@@ -9,12 +9,12 @@ CH_MODIFIERS = (
 	("AO", "All Opens"),
 	("BM", "Brutal Mode"),
 	("DD", "Deadly Dynamics"),
+	("DK", "Double Kick"),
 	("DN", "Double Notes"),
 	("DS", "Dropless Sustains"),
-	("PM", "Precision Mode"),
-	("NS", "Note Shuffle"),
-	("DK", "Double Kick"),
 	("NK", "No Kick"),
+	("NS", "Note Shuffle"),
+	("PM", "Precision Mode"),
 )
 
 CH_VERSIONS = (

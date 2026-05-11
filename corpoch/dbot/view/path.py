@@ -168,12 +168,11 @@ class BracketSelect(discord.ui.Select):
 
 	async def init(self):
 		opts = []
-		try:
-			admin = bracket.tournament.guild.admins.get(pk=self.path.user.id)
-		except DiscordUser.DoesNotExist:
-			admin = None
-
 		async for bracket in self.path.tournament.brackets.select_related():
+			try:
+				admin = bracket.tournament.guild.admins.get(pk=self.path.user.id)
+			except DiscordUser.DoesNotExist:
+				admin = None
 			if bracket.revealed or admin:
 				self.retOpts[str(bracket)] = bracket
 				opts.append(discord.SelectOption(label=str(bracket), default=True if self.path.bracket == bracket else False))
