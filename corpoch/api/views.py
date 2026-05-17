@@ -6,13 +6,16 @@ from django.utils import timezone
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import api_view
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.response import Response
+from django.shortcuts import get_object_or_404
 
 import corpoch.models as corpomodels
 import corpoch.dbot.models as dbotmodels
 from corpoch.api import serializers 
 
 class LargeResultsSetPagination(PageNumberPagination):
-    page_size = 25
+	page_size = 25
+	page_query_param = "page"
 
 class DiscordUserViewSet(viewsets.ModelViewSet):
 	"""
@@ -138,8 +141,9 @@ class MatchViewSet(viewsets.ModelViewSet):
 	"""
 	API endpoint that gets and edits Matches.
 	"""
-	queryset = corpomodels.Match.objects.all().order_by("id")
-	serializer_class = serializers.MatchSerializer
+	queryset = corpomodels.Match.objects.all().order_by("ended_on")
+	serializer_class = serializers.MatchSerializerLight
+	detail_serializer_class = serializers.MatchSerializer
 	pagination_class = LargeResultsSetPagination
 
 	@api_view
@@ -148,6 +152,12 @@ class MatchViewSet(viewsets.ModelViewSet):
 			return corpomodels.Match.objects.get(id=match.id)
 		except corpomodels.Match.DoesNotExist:
 			return None
+
+	def get_serializer_class(self):
+		if self.action == 'retrieve':
+			return self.detail_serializer_class
+		else:
+			return self.serializer_class
 
 class CHIconViewSet(viewsets.ModelViewSet):
 	"""
@@ -187,7 +197,7 @@ class TournamentPlayerViewSet(viewsets.ModelViewSet):
 	@api_view
 	def get_player(self, player: corpomodels.TournamentPlayer) -> corpomodels.TournamentPlayer | None:
 		try:
-			return TournamentPlayer.objects.get(id=player.id)
+			player = TournamentPlayer.objects.get(id=player.id)
 		except TournamentPlayer.DoesNotExist:
 			return None
 

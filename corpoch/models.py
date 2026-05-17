@@ -197,6 +197,7 @@ class Chart(models.Model):
 	def encore_search_query(self):
 		return { 'name' : self.name, 'charter' : self.charter, 'artist' : self.artist, 'album' : self.album, 'instrument': self.instrument, 'difficulty' : self.difficulty, 'blake3' : self.blake3 }
 
+	# These modifiers could be made better. Not sure quite yet on how the 0 index in the types should be defined back to here as class vars
 	@property
 	def modifiers_short(self):
 		outStr = ""

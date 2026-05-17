@@ -356,7 +356,11 @@ class SeedingInline(SortableStackedInline):
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 	def check_perm(self, request):
-		obj = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+		if 'object_id' in request.resolver_match.kwargs:
+			obj = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+		else:
+			obj = None
+
 		if not obj or request.user.is_superuser:
 			return True
 		try:
