@@ -24,6 +24,8 @@ DEBUG = os.getenv("DEBUG", False)
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND")
 
+SECURE_PROXY_SSL_HEADER = ('X-Forwarded-Scheme', 'https')
+
 # Application definition
 
 INSTALLED_APPS = [

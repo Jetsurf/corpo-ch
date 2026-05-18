@@ -52,8 +52,6 @@ class TournamentPlayerSerializer(serializers.ModelSerializer):
 			ret.pop('tournament')
 			ret.pop('config')
 			ret.pop('is_active')
-		else:
-			print("NOT A ROOT")
 		return ret
 
 class BracketRulesSerializer(serializers.ModelSerializer):
@@ -134,6 +132,7 @@ class GroupSerializer(serializers.ModelSerializer):
 	
 	def to_representation(self, instance):
 		ret = super().to_representation(instance)
+		ret['full_name'] = str(instance)
 		if self.root is not None:
 			ret.pop('seeding')
 		return ret
