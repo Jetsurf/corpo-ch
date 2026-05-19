@@ -954,8 +954,8 @@ class Match(models.Model):
 			if rnd.screenshot and (not rnd.steg or len(rnd.steg.players) == 0):
 				from corpoch.providers import CHStegTool
 				tool = CHStegTool()
-				rnd.steg = tool.getStegInfoSync(rnd.screenshot)
-
+				rnd.steg = tool.getStegInfoSync(rnd.screenshot
+)
 		super().save()
 
 class MatchRound(models.Model):

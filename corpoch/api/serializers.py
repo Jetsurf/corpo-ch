@@ -39,6 +39,8 @@ class TournamentSerializer(serializers.ModelSerializer):
 		return ret
 
 class TournamentPlayerSerializer(serializers.ModelSerializer):
+	user = DiscordUserSerializer()
+
 	class Meta:
 		model = corpomodels.TournamentPlayer
 		fields = ['id', 'user', 'name', 'ch_name', 'tournament', 'is_active', 'config']
@@ -47,7 +49,6 @@ class TournamentPlayerSerializer(serializers.ModelSerializer):
 	def to_representation(self, instance):
 		ret = super().to_representation(instance)
 		if self.root is not None:
-			ret.pop('user')
 			ret.pop('name')
 			ret.pop('tournament')
 			ret.pop('config')
@@ -65,12 +66,15 @@ class BracketSerializer(serializers.ModelSerializer):
 
 	class Meta:
 		model = corpomodels.Bracket
-		fields = '__all__'
+		fields = ['id', 'name', 'tournament', 'is_active', 'revealed', 'ruleset']
 
 	def to_representation(self, instance):
 		ret = super().to_representation(instance)
+		ret['full_name'] = str(instance)
 		if self.root is not None:
 			ret.pop('ruleset')
+			ret.pop('is_active')
+			ret.pop('revealed')
 		return ret
 
 class CHIconSerializer(serializers.ModelSerializer):
@@ -129,7 +133,7 @@ class GroupSerializer(serializers.ModelSerializer):
 		model = corpomodels.Group
 		fields = ['id', 'name', 'bracket', 'seeding']
 		depth = 1
-	
+
 	def to_representation(self, instance):
 		ret = super().to_representation(instance)
 		ret['full_name'] = str(instance)
