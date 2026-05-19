@@ -657,7 +657,6 @@ class MatchAdmin(admin.ModelAdmin, SortableAdminBase):
 	list_per_page = 25
 	search_fields = ['id']
 	actions = ['set_unsubmitted', "reread_steg", "resubmit_gsheet", "resubmit_discord"]
-	filter_horizontal = ['players']
 
 	def get_readonly_fields(self, request, obj=None):
 		if request.user.is_superuser:

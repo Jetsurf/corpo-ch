@@ -7,7 +7,6 @@ from rest_framework import permissions, viewsets
 from rest_framework.decorators import api_view
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
-from django.shortcuts import get_object_or_404
 
 import corpoch.models as corpomodels
 import corpoch.dbot.models as dbotmodels
@@ -15,7 +14,6 @@ from corpoch.api import serializers
 
 class LargeResultsSetPagination(PageNumberPagination):
 	page_size = 25
-	page_query_param = "page"
 
 class DiscordUserViewSet(viewsets.ModelViewSet):
 	"""
