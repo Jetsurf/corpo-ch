@@ -355,8 +355,7 @@ class SeedingInline(SortableStackedInline):
 				kwargs["queryset"] = GroupSeed.objects.none()
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
-	def check_perm(self, request):
-		obj = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+	def check_perm(self, request, obj):
 		if not obj or request.user.is_superuser:
 			return True
 		try:
@@ -366,13 +365,13 @@ class SeedingInline(SortableStackedInline):
 			return False
 
 	def has_add_permission(self, request, obj=None):
-		return self.check_perm(request)
+		return self.check_perm(request, obj)
 
 	def has_delete_permission(self, request, obj=None):
-		return self.check_perm(request)
+		return self.check_perm(request, obj)
 
 	def has_change_permission(self, request, obj=None):
-		return self.check_perm(request)
+		return self.check_perm(request, obj)
 
 	def get_readonly_fields(self, request, obj=None):
 		if not obj or request.user.is_superuser:
@@ -651,7 +650,7 @@ class BansInline(SortableStackedInline):
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 @admin.register(Match)
-class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
+class MatchAdmin(admin.ModelAdmin, SortableAdminBase):
 	list_display = ('__str__', 'group', '_match_players', 'score', 'started_on', 'ended_on', 'complete', 'finished', 'submitted')
 	list_filter = ('group__bracket__tournament',)
 	inlines = [BansInline, RoundsInline]

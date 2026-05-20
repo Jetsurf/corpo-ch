@@ -107,6 +107,7 @@ AUTH_PASSWORD_VALIDATORS = [
 REST_FRAMEWORK = {
 	'DEFAULT_AUTHENTICATION_CLASSES': [],
 	'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.IsAuthenticatedOrReadOnly'],
+	'COERCE_BIGINT_TO_STRING': True,
 }
 
 # Internationalization

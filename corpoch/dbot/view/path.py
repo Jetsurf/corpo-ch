@@ -204,7 +204,7 @@ class ChartSelect(discord.ui.Select):
 				opt = discord.SelectOption(label=chart.tournament_name, emoji=emoji, value=chart.md5, description=f"{'TB - ' if chart.tiebreaker else ''}{chartStr}"[:99])
 				opt.default = True if chart in self.path.chart_paths else False
 			else:
-				opt = discord.SelectOption(label=chart.name, emoji=emoji, value=chart.md5, description=chartStr, default=False)
+				opt = discord.SelectOption(label=chart.name[:99], emoji=emoji, value=chart.md5, description=chartStr[:99], default=False)
 				for check in self.path.chart_paths:
 					if check.md5 == chart.md5:
 						opt.default = True
