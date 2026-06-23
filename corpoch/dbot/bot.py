@@ -114,10 +114,10 @@ class CorpoDbot(commands.Bot):
 		from corpoch.models import Match, QualifierSubmission, MatchRound
 		matches = Match.objects.all().filter(complete=False)
 		if matches.count() > 0:
-			rand = random.randrange(0, matches.count(), 1)
+			rand = random.randint(0, matches.count())
 			activity = discord.Activity(name=f"{matches[rand].tournament.short_name} - {matches[rand].short_name} {matches[rand].score}", type=discord.ActivityType(3))
 		else:
-			rand = random.randrange(0, 2, 1)
+			rand = random.randint(0, 2)
 			if rand == 0:
 				activity = discord.Game(f"{Match.objects.all().count()} Tracked Matches")
 			elif rand == 1:
