@@ -10,7 +10,7 @@ from rest_framework.response import Response
 
 import corpoch.models as corpomodels
 import corpoch.dbot.models as dbotmodels
-from corpoch.api import serializers 
+from corpoch.api import serializers
 
 class LargeResultsSetPagination(PageNumberPagination):
 	page_size = 25
@@ -92,7 +92,8 @@ class MatchViewSet(viewsets.ModelViewSet):
 		serializer = self.get_serializer(instance)
 		for rnd in serializer.data['match_rounds']:
 			#Going to need to change for >2 players
-			if not instance.high_seed.check_ch_name(rnd['steg']['players'][0]['profile_name']): 
+
+			if rnd['steg'] and not instance.high_seed.check_ch_name(rnd['steg']['players'][0]['profile_name']):
 				rnd['steg']['players'].reverse()
 		return Response(serializer.data, status=200)
 
