@@ -19,7 +19,7 @@ CH_MODIFIERS = (
 
 CH_VERSIONS = (
 	("v1.0.0.4080-final", "v1.0.0.4080-final"),
-	("v1.1.0.6085-final", "v1.1.0.6085-final"),
+	("v1.1.0.6085-final", "v1.1.0.6142-final"),
 )
 
 CH_INSTRUMENTS = (

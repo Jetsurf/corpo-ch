@@ -654,7 +654,7 @@ class BansInline(SortableStackedInline):
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 @admin.register(Match)
-class MatchAdmin(admin.ModelAdmin, SortableAdminBase):
+class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
 	list_display = ('__str__', 'group', '_match_players', 'score', 'started_on', 'ended_on', 'complete', 'finished', 'submitted')
 	list_filter = ('group__bracket__tournament',)
 	inlines = [BansInline, RoundsInline]
