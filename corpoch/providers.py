@@ -123,7 +123,8 @@ class CHOpt:
 			self.opts.difficulty = chart.difficulty
 		else:
 			content = self._encore.download_from_url(self._encore.url(chart))
-			self.opts.instrument = self.opts.instrument[0]
+			if isinstance(self.opts.instrument, tuple):
+				self.opts.instrument = self.opts.instrument[0]
 
 		self._sng = SNGHandler(content)
 		self._prep_chart()
