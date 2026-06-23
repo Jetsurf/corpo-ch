@@ -29,6 +29,7 @@ class CorpoDbot(commands.Bot):
 		self.message_consumer = Consumer(self.message_connection, [Queue("corpoch.dbot")], callbacks=[self.on_queue_message])
 		self.tasks = []
 		self.matches = {}
+		self.done_startup = False
 		print(f"redis pool started {settings.CELERY_BROKER_URL}")
 
 		for cog in settings.COGS_ENABLED:
@@ -132,31 +133,33 @@ class CorpoDbot(commands.Bot):
 		bot_tasks.run_tasks.stop()
 		await super().close()
 
-	async def on_ready(self, once=True):
-		print(f"Logged in as {self.user.name}#{self.user.discriminator} id {self.user.id} v{version}")
-		await self.retrieve_owners()
-		print("Loading on-going matches")
-		from corpoch.dbot.cogs.tourneycmds import DiscordMatch
-		from corpoch.models import Match
-		async for match in Match.objects.exclude(channel=None).filter(finished=False):
-			if not match.message:
-				continue
-			print(f"Got ongoing match {match.id}")
-			try:
-				view = DiscordMatch(self._bot, uuid=match.id)
-				await view.init()
-				self.matches[match.id] = view
-			except Exception as e:
-				print(f"Exception in starting match {e} continuing.")
-				continue
+	async def on_ready(self):
+		if not self.done_startup:
+			print(f"Logged in as {self.user.name}#{self.user.discriminator} id {self.user.id} v{version}")
+			await self.retrieve_owners()
+			print("Loading on-going matches")
+			from corpoch.dbot.cogs.tourneycmds import DiscordMatch
+			from corpoch.models import Match
+			async for match in Match.objects.exclude(channel=None).filter(finished=False):
+				if not match.message:
+					continue
+				print(f"Got ongoing match {match.id}")
+				try:
+					view = DiscordMatch(self._bot, uuid=match.id)
+					await view.init()
+					self.matches[match.id] = view
+				except Exception as e:
+					print(f"Exception in starting match {e} continuing.")
+					continue
 
-		if not bot_tasks.run_tasks.is_running():
-			print("Starting tasks")
-			self.message_consumer.consume(no_ack=False)
-			self.poll_queue.start()
-			self.switch_status.start()
+			if not bot_tasks.run_tasks.is_running():
+				print("Starting tasks")
+				self.message_consumer.consume(no_ack=False)
+				self.poll_queue.start()
+				self.switch_status.start()
 
-		print('------Done with Startup------')
+			print('------Done with Startup------')
+			self.done_startup = True
 
 if __name__ == "__main__":
 	bot = CorpoDbot()
