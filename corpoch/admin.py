@@ -611,7 +611,11 @@ class BansInline(SortableStackedInline):
 	extra = 0
 
 	def check_perm(self, request):
-		obj = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+		if 'object_id' in request.resolver_match.kwargs:
+			obj = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
+		else:
+			obj = None
+
 		if not obj or request.user.is_superuser:
 			return True
 		try:
@@ -650,7 +654,7 @@ class BansInline(SortableStackedInline):
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 @admin.register(Match)
-class MatchAdmin(admin.ModelAdmin, SortableAdminBase):
+class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
 	list_display = ('__str__', 'group', '_match_players', 'score', 'started_on', 'ended_on', 'complete', 'finished', 'submitted')
 	list_filter = ('group__bracket__tournament',)
 	inlines = [BansInline, RoundsInline]
@@ -703,7 +707,9 @@ class MatchAdmin(admin.ModelAdmin, SortableAdminBase):
 		if db_field.name == "referee":
 			if 'object_id' in request.resolver_match.kwargs:
 				match = self.model.objects.get(pk=request.resolver_match.kwargs['object_id'])
-				queryset =  match.tournament.guild.referees.all() | match.tournament.guild.admins.all() | DiscordUser.objects.filter(pk=match.referee.id)
+				queryset =  match.tournament.guild.referees.all() | match.tournament.guild.admins.all()
+				if match.referee:
+					queryset = queryset | DiscordUser.objects.filter(pk=match.referee.id)
 				queryset = queryset.distinct()
 				kwargs['queryset'] = queryset
 			else:
