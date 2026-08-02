@@ -480,13 +480,14 @@ class QualifierSubmissionAdmin(admin.ModelAdmin):
 		form = super(QualifierSubmissionAdmin, self).get_form(request, obj=obj, **kwargs)
 		user = request.user
 		staff = False
-		try:
-			is_staff = obj.qualifier.tournament.guild.admins.get(id=user.id)
-			staff = True
-		except DiscordUser.DoesNotExist:
-			pass
-		if not staff or (obj and not obj.screenshot):
-			form.base_fields['steg'].disabled = True
+		if obj:
+			try:
+				is_staff = obj.qualifier.tournament.guild.admins.get(id=user.id)
+				staff = True
+			except DiscordUser.DoesNotExist:
+				pass
+			if not staff or (obj and not obj.screenshot):
+				form.base_fields['steg'].disabled = True
 		return form
 
 	def get_readonly_fields(self, request, obj=None):

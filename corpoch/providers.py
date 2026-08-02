@@ -198,7 +198,10 @@ class CHStegTool:
 
 	def __del__(self):
 		if self.delete and self.img:
-			os.remove(self.img_path)
+			try:
+				os.remove(self.img_path)
+			except:
+				pass
 
 	def _get_over_strums(self):
 		outStr = pytesseract.image_to_string(self.img)

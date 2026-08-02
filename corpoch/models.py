@@ -27,7 +27,7 @@ def steg_upload_dir(self, filename):
 	return f"matches/{str(self.match.group).replace(' ', '').replace(":", "")}/{self.match.id}/{uuid.uuid1()}.{filename.split('.')[-1]}"
 
 def quali_upload_dir(self, filename):
-	return f"qualifiers/{str(self.qualifier).replace(' ', '').replace(':', '')}/{self.match.id}/{uuid.uuid1()}.{filename.split('.')[-1]}"
+	return f"qualifiers/{str(self.qualifier).replace(' ', '').replace(':', '')}/{self.qualifier.tournament.short_name}/{uuid.uuid1()}.{filename.split('.')[-1]}"
 
 class GSheetAPI(SingletonModel):
 	api_key = EncryptedJSONField(null=False, blank=True, default=dict)
@@ -628,10 +628,13 @@ class QualifierSubmission(models.Model):
 		if self.screenshot and not self.steg:
 			from corpoch.providers import CHStegTool
 			tool = CHStegTool()
-			self.steg = tool.getStegInfoSync(self.screenshot)
-			for i, ply in enumerate(self.steg.players):
-				if not self.player.check_ch_name(ply.profile_name):
-					self.steg.players.pop(i)
+			try:
+				self.steg = tool.getStegInfoSync(self.screenshot)
+				for i, ply in enumerate(self.steg.players):
+					if not self.player.check_ch_name(ply.profile_name):
+						self.steg.players.pop(i)
+			except:
+				pass
 		super().save()
 
 class Match(models.Model):

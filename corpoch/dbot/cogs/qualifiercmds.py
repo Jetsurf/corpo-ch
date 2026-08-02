@@ -133,7 +133,7 @@ class DiscordQualifierView(discord.ui.View):
 		if self.num_subs > 0:
 			embeds.append(self.buildSubmissionsEmbed())
 		if self.steg:
-			embeds.append(self.steg.buildStatsEmbed("Qualifier Submission"))
+			embeds.append(self.steg.steg_embed)
 			if len(self.steg.output.players) > 1:
 				embeds.append(self.buildPlySelEmbed())
 				self.add_item(QualiPlayerSel(self))
