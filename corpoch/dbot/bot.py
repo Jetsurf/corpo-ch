@@ -113,6 +113,7 @@ class CorpoDbot(commands.Bot):
 		from corpoch.models import Match, QualifierSubmission, MatchRound
 		matches = Match.objects.all().filter(complete=False)
 		if matches.count() > 0:
+			#TODO: Make it so non 'valid' matches (no players) doesn't throw exception
 			rand = random.randrange(0, matches.count(), 1)
 			activity = discord.Activity(name=f"{matches[rand].tournament.short_name} - {matches[rand].short_name} {matches[rand].score}", type=discord.ActivityType(3))
 		else:
