@@ -33,7 +33,6 @@ class MatchAbstract(PolymorphicModel):
 	exhibition = models.BooleanField(default=False, help_text="Is a match an exhibition match (not an official match).")
 
 	class Meta:
-		abstract = True
 		app_label = 'corpoch'
 
 	@property
@@ -365,17 +364,18 @@ class MatchRoundAbstract(PolymorphicModel):
 	Represents a round of a Match played for a Tournament. 
 	"""
 	id = models.AutoField(primary_key=True, help_text="Internal ID for a round.")
+	match = models.ForeignKey(MatchAbstract, related_name="match_rounds", verbose_name="Match ID", on_delete=models.CASCADE, null=True, blank=True, help_text="Match the round was played for.")
 	num = models.PositiveIntegerField(blank=False, null=False, help_text="Round number of a specific match.")
 	#w_points = models.PositiveIntegerField(verbose_name="Players", validators=[MinValueValidator(1), MaxValueValidator(5)], default=1)
 	#l_points = models.PositiveIntegerField(verbose_name="Players", validators=[MinValueValidator(1), MaxValueValidator(5)], default=0)
 	steg = SchemaField(StegScreenshot, verbose_name="Steg Data", null=True, blank=True, help_text="Clone Hero screenshot steg data.")
 	screenshot = models.ImageField(upload_to=steg_upload_dir, verbose_name="Screenshot", null=True, blank=True, help_text="Screenshot for a match.")
 	created = models.DateTimeField(verbose_name="Created Time", auto_now_add=True, null=True, blank=True, help_text="Timestamp the round was started.")
+	chart = models.ForeignKey("ChartAbstract", on_delete=models.CASCADE, related_name="chart_plays")
 	chart: PolymorphicForwardManyToOneDescriptor[ ChartAbstract | Chart | BYOSChart, ChartAbstract ] = models.ForeignKey("ChartAbstract", verbose_name="Chart Played", null=True, blank=True, on_delete=models.SET_NULL, help_text="Chart that was played.")
 	rounds_played: PolymorphicReverseManyToOneDescriptor[ ChartAbstract | Chart | BYOSChart, ChartAbstract ]
 
 	class Meta:
-		abstract = True
 		app_label = 'corpoch'
 
 	def __str__(self):
@@ -420,8 +420,6 @@ class MatchRound(MatchRoundAbstract):
 	picked = models.ForeignKey("TournamentPlayer", related_name="picks", verbose_name="Picker", on_delete=models.CASCADE, blank=True, null=True, help_text="Player that picked the chart played.")
 	winner = models.ForeignKey("TournamentPlayer", related_name="rounds_won", verbose_name="Winner", null=True, blank=True, on_delete=models.SET_NULL, help_text="Winner of a round.")
 	loser = models.ForeignKey("TournamentPlayer", related_name="rounds_lost", verbose_name="Loser", null=True, blank=True, on_delete=models.SET_NULL, help_text="Loser of a round.")
-	match = models.ForeignKey(Match, related_name="match_rounds", verbose_name="Match ID", on_delete=models.CASCADE, null=True, blank=True, help_text="Match the round was played for.")
-
 
 	class Meta:
 		verbose_name = "Group Match Round"
@@ -433,8 +431,6 @@ class ExhibitionMatchRound(MatchRoundAbstract):
 	picked = models.ForeignKey("DiscordUser", related_name="exhibition_picks", verbose_name="Picker", on_delete=models.CASCADE, blank=True, null=True, help_text="Player that picked the chart played.")
 	winner = models.ForeignKey("DiscordUser", related_name="exhibition_rounds_won", verbose_name="Winner", null=True, blank=True, on_delete=models.SET_NULL, help_text="Winner of a round.")
 	loser = models.ForeignKey("DiscordUser", related_name="exhibition_rounds_lost", verbose_name="Loser", null=True, blank=True, on_delete=models.SET_NULL, help_text="Loser of a round.")
-	chart = models.ForeignKey("ChartAbstract", related_name="exhibition_rounds_played", verbose_name="Chart Played", null=True, blank=True, on_delete=models.SET_NULL, help_text="Chart that was played.")
-	match = models.ForeignKey(ExhibitionMatch, related_name="exhibition_match_rounds", verbose_name="Match ID", on_delete=models.CASCADE, null=True, blank=True, help_text="Match the round was played for.")
 
 	class Meta:
 		verbose_name = "Exhibition Match Round"
@@ -447,13 +443,13 @@ class MatchBanAbstract(PolymorphicModel):
 	Represents a player ban for a Match played in a Tournament. 
 	"""
 	id = models.AutoField(primary_key=True, help_text="Internal ID for a ban.")
+	match = models.ForeignKey(MatchAbstract, related_name="match_bans", verbose_name="Match ID", on_delete=models.CASCADE, null=True, blank=True, help_text="Match the round was played for.")
 	num = models.PositiveIntegerField(blank=False, null=False, help_text="Order in which a ban was picked.")
 	created = models.DateTimeField(verbose_name="Created Time", auto_now_add=True, null=True, blank=True, help_text="Timestamp a ban was chosen.")
 	chart : PolymorphicForwardManyToOneDescriptor[ ChartAbstract | Chart | BYOSChart, ChartAbstract ] = models.ForeignKey("ChartAbstract", verbose_name="Chart Played", null=True, blank=True, on_delete=models.SET_NULL, help_text="Chart that was played.")
 	bans : PolymorphicReverseManyToOneDescriptor[ ChartAbstract | Chart | BYOSChart, ChartAbstract ]
 
 	class Meta:
-		abstract = True
 		app_label = 'corpoch'
 
 	def __str__(self):
@@ -465,8 +461,6 @@ class MatchBanAbstract(PolymorphicModel):
 
 class MatchBan(MatchBanAbstract):
 	player = models.ForeignKey("TournamentPlayer", related_name="player_bans", verbose_name="Player", null=True, blank=True, on_delete=models.SET_NULL, help_text="Player that chose a ban.")
-	match = models.ForeignKey(Match, related_name="match_bans", verbose_name="Match ID", on_delete=models.CASCADE, null=True, blank=True, help_text="Match a ban was made for.")
-
 
 	class Meta:
 		verbose_name = "Match Ban"
@@ -476,8 +470,6 @@ class MatchBan(MatchBanAbstract):
 
 class ExhibitionMatchBan(MatchBanAbstract):
 	player = models.ForeignKey("DiscordUser", related_name="exhibition_bans", verbose_name="Player", null=True, blank=True, on_delete=models.SET_NULL, help_text="Player that chose a ban.")
-	chart = models.ForeignKey("ChartAbstract", related_name="exhibition_bans", verbose_name="Chart Banned", null=True, blank=True, on_delete=models.SET_NULL, help_text="The chart that was banned.")
-	match = models.ForeignKey(Match, related_name="exhibition_match_bans", verbose_name="Match ID", on_delete=models.CASCADE, null=True, blank=True, help_text="Match a ban was made for.")
 
 	class Meta:
 		verbose_name = "Exhibition Match Ban"
