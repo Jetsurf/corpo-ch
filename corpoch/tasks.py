@@ -109,7 +109,7 @@ def encore_import(chart_id, *args, **kwargs):
 	chartdb = Chart.objects.get(id=chart_id)
 	encore = EncoreClient()
 	search = encore.search(chartdb.encore_search_query)
-	i = 0 
+	i = 0
 	if len(search.data) == 0:
 		print(f"Chart {chartdb.name} encore lookup with query {chartdb.encore_search_query} failed with {search}")
 		return
