@@ -49,7 +49,6 @@ class ChartAbstract(PolymorphicModel):
 	sngfile = models.FileField(upload_to="sngfiles/", validators=[validate_chart_file], verbose_name="SNG File", null=True, blank=True, help_text="The chart file. Stored as .sng but available as old .chart format.")
 
 	class Meta:
-		abstract = True
 		app_label = 'corpoch'
 
 	@property
