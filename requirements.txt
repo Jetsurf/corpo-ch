@@ -24,6 +24,7 @@ django-celery-results
 django-jsonform
 python-decouple
 django-solo
+django-polymorphic
 daphne
 gspread
 mido

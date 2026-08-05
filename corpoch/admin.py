@@ -11,12 +11,13 @@ from django.utils.html import format_html
 
 from adminsortable2.admin import CustomInlineFormSet, SortableAdminBase, SortableStackedInline, SortableAdminMixin
 from django_jsonform.widgets import JSONFormWidget
+from polymorphic.admin import PolymorphicInlineSupportMixin, StackedPolymorphicInline
 from django_pydantic_field import fields
 from solo.admin import SingletonModelAdmin
 
 from corpoch.forms import TournamentPlayerForm
-from corpoch.models import Chart, Tournament, TournamentConfig, BracketRules, Bracket, Qualifier, TournamentPlayer, GroupSeed, MatchRound, CHIcon
-from corpoch.models import Match, Group, QualifierSubmission, CH_MODIFIERS, MatchBan, GSheetAPI, DiscordUser
+from corpoch.models import Chart, Tournament, TournamentConfig, BracketRules, Bracket, Qualifier, TournamentPlayer, GroupSeed, MatchRoundAbstract, MatchRound, ExhibitionMatchRound, CHIcon
+from corpoch.models import Match, Group, QualifierSubmission, MatchBanAbstract, MatchBan, ExhibitionMatchBan, GSheetAPI, DiscordUser
 from corpoch.dbot.models import Guilds, Channels, Roles
 from corpoch.providers import EncoreClient, GSheets
 from corpoch import __version__ as version
@@ -540,20 +541,20 @@ class QualifierSubmissionAdmin(admin.ModelAdmin):
 		for submission in queryset:
 			corpoch.tasks.update_gsheet.apply_async(args=[submission.id])
 
-class RoundsForm(ModelForm):
-	class Meta:
-		model = MatchRound
-		fields = '__all__'
+#class RoundsForm(ModelForm):
+#	class Meta:
+#		model = MatchRound
+#		fields = '__all__'
+#
+#	def __init__(self, *args, **kwargs):
+#		super(RoundsForm, self).__init__(*args, **kwargs)
+#		if self.instance and self.instance.pk:
+#			if not self.instance.screenshot and 'steg' in self.fields:
+#				self.fields['steg'].disabled = True
+#		return
 
-	def __init__(self, *args, **kwargs):
-		super(RoundsForm, self).__init__(*args, **kwargs)
-		if self.instance and self.instance.pk:
-			if not self.instance.screenshot and 'steg' in self.fields:
-				self.fields['steg'].disabled = True
-		return
-
-class RoundsInline(SortableStackedInline):
-	model = MatchRound
+class RoundsAbstractInline(StackedPolymorphicInline):
+	model = MatchRoundAbstract
 	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
 	extra = 0
 
@@ -606,8 +607,16 @@ class RoundsInline(SortableStackedInline):
 				kwargs["queryset"] = GroupSeed.objects.none()
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
-class BansInline(SortableStackedInline):
-	model = MatchBan
+	class RoundsInline(StackedPolymorphicInline.Child):
+		model = MatchRound
+
+	class ExhibitionRoundsInline(StackedPolymorphicInline.Child):
+		model = ExhibitionMatchRound
+
+	child_inlines = ( RoundsInline, ExhibitionRoundsInline )
+
+class BansAbstractInline(StackedPolymorphicInline):
+	model = MatchBanAbstract
 	readonly_fields = ['created']
 	extra = 0
 
@@ -654,11 +663,19 @@ class BansInline(SortableStackedInline):
 				kwargs["queryset"] = Chart.objects.none()
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
+	class BansInline(StackedPolymorphicInline.Child):
+		model = MatchRound
+
+	class ExhibitionBansInline(StackedPolymorphicInline.Child):
+		model = MatchRound
+
+	child_inlines = ( BansInline, ExhibitionBansInline )
+
 @admin.register(Match)
-class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
+class MatchAdmin(SortableAdminBase, PolymorphicInlineSupportMixin, admin.ModelAdmin):
 	list_display = ('__str__', 'group', '_match_players', 'score', 'started_on', 'ended_on', 'complete', 'finished', 'submitted')
 	list_filter = ('group__bracket__tournament',)
-	inlines = [BansInline, RoundsInline]
+	inlines = [BansAbstractInline, RoundsAbstractInline]
 	list_per_page = 25
 	search_fields = ['id']
 	actions = ['set_unsubmitted', "reread_steg", "resubmit_gsheet", "resubmit_discord"]
