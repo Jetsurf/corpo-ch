@@ -12,6 +12,34 @@ import uuid
 from django.conf import settings
 from django.db import migrations, models
 
+def chart_func(apps, schema_editor):
+    Chart = apps.get_model('corpoch', 'Chart')
+    ContentType = apps.get_model('contenttypes', 'ContentType')
+
+    new_ct = ContentType.objects.get_for_model(Chart)
+    Chart.objects.filter(polymorphic_ctype__isnull=True).update(polymorphic_ctype=new_ct)
+
+def match_func(apps, schema_editor):
+    Match = apps.get_model('corpoch', 'Match')
+    MatchAbstract = apps.get_model('corpoch', 'MatchAbstract')
+    ContentType = apps.get_model('contenttypes', 'ContentType')
+
+    new_ct = ContentType.objects.get_for_model(MatchAbstract)
+    Match.objects.filter(polymorphic_ctype__isnull=True).update(polymorphic_ctype=new_ct)
+
+def round_func(apps, schema_editor):
+    MatchRound = apps.get_model('corpoch', 'MatchRound')
+    ContentType = apps.get_model('contenttypes', 'ContentType')
+
+    new_ct = ContentType.objects.get_for_model(MatchRound)
+    MatchRound.objects.filter(polymorphic_ctype__isnull=True).update(polymorphic_ctype=new_ct)
+
+def ban_func(apps, schema_editor):
+    MatchBan = apps.get_model('corpoch', 'MatchBan')
+    ContentType = apps.get_model('contenttypes', 'ContentType')
+
+    new_ct = ContentType.objects.get_for_model(MatchBan)
+    MatchBan.objects.filter(polymorphic_ctype__isnull=True).update(polymorphic_ctype=new_ct)
 
 class Migration(migrations.Migration):
 
@@ -42,6 +70,18 @@ class Migration(migrations.Migration):
                 ('polymorphic_ctype', models.ForeignKey(editable=False, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='polymorphic_%(app_label)s.%(class)s_set+', to='contenttypes.contenttype')),
             ],
         ),
+        migrations.AddField(
+            model_name='Chart',
+            name='polymorphic_ctype',
+            field=models.ForeignKey(
+                related_name='polymorphic_%(app_label)s.%(class)s_set+',
+                on_delete=django.db.models.deletion.CASCADE,
+                editable=False,
+                to='contenttypes.ContentType',
+                null=True
+            ),
+        ),
+        migrations.RunPython(chart_func, migrations.RunPython),
         migrations.CreateModel(
             name='MatchAbstract',
             fields=[
@@ -58,6 +98,18 @@ class Migration(migrations.Migration):
                 ('polymorphic_ctype', models.ForeignKey(editable=False, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='polymorphic_%(app_label)s.%(class)s_set+', to='contenttypes.contenttype')),
             ],
         ),
+        migrations.AddField(
+            model_name='Match',
+            name='polymorphic_ctype',
+            field=models.ForeignKey(
+                related_name='polymorphic_%(app_label)s.%(class)s_set+',
+                on_delete=django.db.models.deletion.CASCADE,
+                editable=False,
+                to='contenttypes.ContentType',
+                null=True
+            ),
+        ),
+        migrations.RunPython(match_func, migrations.RunPython),
         migrations.CreateModel(
             name='MatchBanAbstract',
             fields=[
@@ -69,6 +121,18 @@ class Migration(migrations.Migration):
                 ('polymorphic_ctype', models.ForeignKey(editable=False, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='polymorphic_%(app_label)s.%(class)s_set+', to='contenttypes.contenttype')),
             ],
         ),
+        migrations.AddField(
+            model_name='MatchBan',
+            name='polymorphic_ctype',
+            field=models.ForeignKey(
+                related_name='polymorphic_%(app_label)s.%(class)s_set+',
+                on_delete=django.db.models.deletion.CASCADE,
+                editable=False,
+                to='contenttypes.ContentType',
+                null=True
+            ),
+        ),
+        migrations.RunPython(ban_func, migrations.RunPython.noop),
         migrations.CreateModel(
             name='MatchRoundAbstract',
             fields=[
@@ -82,6 +146,18 @@ class Migration(migrations.Migration):
                 ('polymorphic_ctype', models.ForeignKey(editable=False, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='polymorphic_%(app_label)s.%(class)s_set+', to='contenttypes.contenttype')),
             ],
         ),
+        migrations.AddField(
+            model_name='MatchRound',
+            name='polymorphic_ctype',
+            field=models.ForeignKey(
+                related_name='polymorphic_%(app_label)s.%(class)s_set+',
+                on_delete=django.db.models.deletion.CASCADE,
+                editable=False,
+                to='contenttypes.ContentType',
+                null=True
+            ),
+        ),
+        migrations.RunPython(round_func, migrations.RunPython.noop),
         migrations.AlterModelOptions(
             name='discordtoken',
             options={'verbose_name': 'Discord Token', 'verbose_name_plural': 'Discord Tokens'},
