@@ -115,7 +115,12 @@ class CorpoDbot(commands.Bot):
 		matches = Match.objects.all().filter(complete=False)
 		if matches.count() > 0:
 			rand = random.randint(0, matches.count())
-			activity = discord.Activity(name=f"{matches[rand].tournament.short_name} - {matches[rand].short_name} {matches[rand].score}", type=discord.ActivityType(3))
+			if matches.count() == 1 and rand == 1:
+				rand = 0
+			try:
+				activity = discord.Activity(name=f"{matches[rand].tournament.short_name} - {matches[rand].short_name} {matches[rand].score}", type=discord.ActivityType(3))
+			except:
+				activity = discord.Game(f"TTFAF")
 		else:
 			rand = random.randint(0, 2)
 			if rand == 0:

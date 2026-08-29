@@ -27,7 +27,7 @@ def steg_upload_dir(self, filename):
 	return f"matches/{str(self.match.group).replace(' ', '').replace(":", "")}/{self.match.id}/{uuid.uuid1()}.{filename.split('.')[-1]}"
 
 def quali_upload_dir(self, filename):
-	return f"qualifiers/{str(self.qualifier).replace(' ', '').replace(':', '')}/{self.match.id}/{uuid.uuid1()}.{filename.split('.')[-1]}"
+	return f"qualifiers/{str(self.qualifier).replace(' ', '').replace(':', '')}/{self.qualifier.tournament.short_name}/{uuid.uuid1()}.{filename.split('.')[-1]}"
 
 class GSheetAPI(SingletonModel):
 	api_key = EncryptedJSONField(null=False, blank=True, default=dict)
@@ -106,7 +106,7 @@ class DiscordToken(models.Model):
 		else:
 			self.__data = { "grant_type": "authorization_code",	"code": code, "redirect_uri": settings.REDIRECT_URI }
 			self.__exchange_code()
-	
+
 	def __exchange_code(self):
 		response = self.__session.post(f"{self.__base_url}/oauth2/token", data=self.__data, headers=self.__content_header, auth=self.__auth_header)
 		if response.status_code == 200:
@@ -115,7 +115,7 @@ class DiscordToken(models.Model):
 				self.save()
 			return
 		raise self.AuthError(f"Failed to connect to discord API {response.json()}")
-	
+
 	def update_code(self) -> str:
 		if self.expires < timezone.now() + datetime.timedelta(days=2):
 			self.__exchange_code()
@@ -170,7 +170,7 @@ class Chart(models.Model):
 	name = models.CharField(verbose_name="Chart Name", max_length=256, blank=True, help_text="Name of the chart.")
 	artist = models.CharField(verbose_name="Artist", max_length=256, blank=True, help_text="Artist of the song.")
 	album = models.CharField(verbose_name="Album", max_length=256, blank=True, help_text="Album the song is from.")
-	charter = models.CharField(verbose_name="Charter", max_length=32, blank=True, help_text="Author of a chart.")
+	charter = models.CharField(verbose_name="Charter", max_length=64, blank=True, help_text="Author of a chart.")
 	boss = models.BooleanField(verbose_name="Boss Song", default=False, help_text="Is chart a 'boss' song.")
 	tiebreaker = models.BooleanField(verbose_name="Tiebreaker", default=False, help_text="Is this chart a tiebreaker in a setlist.")
 	difficulty = models.CharField(verbose_name="Difficulty", choices=CH_DIFFICULTIES, max_length=16, default=CH_DIFFICULTIES[0][0], help_text="Difficulty this chart is to be played on.")
@@ -615,7 +615,10 @@ class QualifierSubmission(models.Model):
 
 	@property
 	def score(self):
-		return self.steg.players[0].score
+		if self.steg.players:
+			return self.steg.players[0].score
+		else:
+			return '-'
 
 	@property
 	def display_profile_name(self) -> str:
@@ -629,10 +632,13 @@ class QualifierSubmission(models.Model):
 		if self.screenshot and not self.steg:
 			from corpoch.providers import CHStegTool
 			tool = CHStegTool()
-			self.steg = tool.getStegInfoSync(self.screenshot)
-			for i, ply in enumerate(self.steg.players):
-				if not self.player.check_ch_name(ply.profile_name):
-					self.steg.players.pop(i)
+			try:
+				self.steg = tool.getStegInfoSync(self.screenshot)
+				for i, ply in enumerate(self.steg.players):
+					if not self.player.check_ch_name(ply.profile_name):
+						self.steg.players.pop(i)
+			except:
+				pass
 		super().save()
 
 class Match(models.Model):

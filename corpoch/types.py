@@ -109,6 +109,32 @@ class StegScreenshotPlayer(pydantic.BaseModel):
 	excess_hits : int = 0
 	notes_missed : int = 0
 
+#For manual non-ingame submissions w/ v6 steg
+class StegScreenshotManual6(pydantic.BaseModel):
+	profile_name : str = "Manual Player Entry"
+	error_reason : str = "Manual Player Non In-Game Screenshot Submission"
+
+	score : int = 0
+	is_fc : bool = False
+	total_notes : int = 0
+	notes_hit : int = 0
+	notes_missed : int = 0
+	max_streak : int = 0
+	avg_multiplier : float = 0
+	excess_hits : int = 0
+
+	@property
+	def sp_phrases_earned(self):
+		return -1
+
+	@property
+	def sp_phrases_total(self):
+		return -1
+
+	@property
+	def frets_ghosted(self):
+		return -1
+
 #For problem rounds
 class StegScreenshotPlayerDummy(pydantic.BaseModel):
 	profile_name : str = "Unknown Player"
@@ -202,7 +228,8 @@ class StegScreenshot(pydantic.BaseModel):
 	players : list[ typing.Union[
 		typing.Annotated[StegScreenshotPlayer, pydantic.Field(title='Steg v6 (4080)')] |
 		typing.Annotated[StegScreenshotPlayerV10, pydantic.Field(title='Steg v10 (6085)')] |
-		typing.Annotated[StegScreenshotPlayerDummy, pydantic.Field(title="Player Error/Issue")]
+		typing.Annotated[StegScreenshotPlayerDummy, pydantic.Field(title="Player Error/Issue")] |
+		typing.Annotated[StegScreenshotManual6, pydantic.Field(title="Manual Player Screenshot Submission")]
 	] ]
 	score_timestamp: datetime = datetime.now()
 
@@ -284,7 +311,7 @@ class SongItem(BaseEncoreModel):
 	version_group_id: int
 	charter: str
 	song_length: typing.Optional[int] = None
-	
+
 	diff_band: int
 	diff_guitar: int
 	diff_guitar_coop: int
@@ -298,7 +325,7 @@ class SongItem(BaseEncoreModel):
 	diff_rhythm_ghl: int
 	diff_bassghl: int
 	diff_vocals: int
-	
+
 	preview_start_time: int
 	icon: str
 	loading_phrase: str

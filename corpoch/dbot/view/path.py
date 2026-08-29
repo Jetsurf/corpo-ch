@@ -142,7 +142,12 @@ class TournamentSelect(discord.ui.Select):
 	async def init(self):
 		opts = []
 		async for tourney in Tournament.objects.all():
-			if not await sync_to_async(tourney.has_revealed_setlist)():
+			try:
+				admin = tourney.guild.admins.get(pk=self.path.user.id)
+			except DiscordUser.DoesNotExist:
+				admin = None
+
+			if not await sync_to_async(tourney.has_revealed_setlist)() and not admin:
 				continue
 
 			self.retOpts[tourney.name] = tourney
