@@ -101,6 +101,9 @@ def submit_final_sheet(qualifier_id, *args, **kwargs):
 			print(f"Submitting Final Score for {ply} - {subs[-1].steg.players[0].score}")
 			sheet.set_submission(subs[-1])
 			sheet.submit_qualifier()
+		else:
+			print(f"Player {ply} did not meet submission requirements!")
+
 	close_old_connections()
 
 @app.task
@@ -109,7 +112,7 @@ def encore_import(chart_id, *args, **kwargs):
 	chartdb = Chart.objects.get(id=chart_id)
 	encore = EncoreClient()
 	search = encore.search(chartdb.encore_search_query)
-	i = 0 
+	i = 0
 	if len(search.data) == 0:
 		print(f"Chart {chartdb.name} encore lookup with query {chartdb.encore_search_query} failed with {search}")
 		return
