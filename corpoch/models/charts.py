@@ -29,7 +29,7 @@ class CHIcon(models.Model):
 	def emote(self):
 		return self.discord if self.discord else None
 
-class ChartAbstract(PolymorphicModel):
+class Chart(PolymorphicModel):
 	"""
 	Represents a Chart for a Bracket setlist or Qualifier. 
 	"""
@@ -37,19 +37,24 @@ class ChartAbstract(PolymorphicModel):
 	name = models.CharField(verbose_name="Chart Name", max_length=256, blank=True, help_text="Name of the chart.")
 	artist = models.CharField(verbose_name="Artist", max_length=256, blank=True, help_text="Artist of the song.")
 	album = models.CharField(verbose_name="Album", max_length=256, blank=True, help_text="Album the song is from.")
-	charter = models.CharField(verbose_name="Charter", max_length=32, blank=True, help_text="Author of a chart.")
+	charter = models.CharField(verbose_name="Charter", max_length=64, blank=True, help_text="Author of a chart.")
+	boss = models.BooleanField(verbose_name="Boss Song", default=False, help_text="Is chart a 'boss' song.")
+	tiebreaker = models.BooleanField(verbose_name="Tiebreaker", default=False, help_text="Is this chart a tiebreaker in a setlist.")
 	difficulty = models.CharField(verbose_name="Difficulty", choices=CH_DIFFICULTIES, max_length=16, default=CH_DIFFICULTIES[0][0], help_text="Difficulty this chart is to be played on.")
 	instrument = models.CharField(verbose_name="Instrument", choices=CH_INSTRUMENTS, max_length=32, default=CH_INSTRUMENTS[0][0])
-	modifiers = MultiSelectField(verbose_name="Modifiers", choices=CH_MODIFIERS, default=CH_MODIFIERS[0][0], help_text="Modifiers expected to be used.")
+	modifiers = MultiSelectField("Modifiers", choices=CH_MODIFIERS, default=CH_MODIFIERS[0][0], help_text="Modifiers expected to be used.")
 	speed = models.PositiveIntegerField(verbose_name="Speed", validators=[MinValueValidator(5), MaxValueValidator(1000)], default=100, help_text="Expected playback speed.")
+	category = models.CharField(verbose_name="Chart Category", choices=CHART_CATEGORIES, max_length=16, default=CHART_CATEGORIES[0][0])#This needs to be choices
+	brackets = models.ManyToManyField("Bracket", related_name="setlist", verbose_name="Bracket Setlist", blank=True, help_text="Bracket setlists this chart is used in.")
 	md5 = models.CharField(verbose_name="MD5 Hash", max_length=32, blank=True, help_text="The md5sum of the notes.chart/mid file. Used for steg verification.")
 	blake3 = models.CharField(verbose_name="Blake3 Hash", max_length=32, blank=True, help_text="The Encore blake3 hash for a chart to import.")
 	url = models.URLField(verbose_name="Chart URL", blank=True, help_text="URL this chart is available at.")
-	icon = models.ForeignKey('CHIcon', related_name="charts", verbose_name="CH Icon", null=True, blank=True, on_delete=models.SET_NULL, help_text="The in-game setlist icon for the chart.")
+	icon = models.ForeignKey(CHIcon, related_name="charts", verbose_name="CH Icon", null=True, blank=True, on_delete=models.SET_NULL, help_text="The in-game setlist icon for the chart.")
 	sngfile = models.FileField(upload_to="sngfiles/", validators=[validate_chart_file], verbose_name="SNG File", null=True, blank=True, help_text="The chart file. Stored as .sng but available as old .chart format.")
 
 	class Meta:
-		app_label = 'corpoch'
+		verbose_name = "Chart"
+		verbose_name_plural = "Charts"
 
 	@property
 	def long_name(self):
@@ -59,6 +64,7 @@ class ChartAbstract(PolymorphicModel):
 	def encore_search_query(self):
 		return { 'name' : self.name, 'charter' : self.charter, 'artist' : self.artist, 'album' : self.album, 'instrument': self.instrument, 'difficulty' : self.difficulty, 'blake3' : self.blake3 }
 
+	# These modifiers could be made better. Not sure quite yet on how the 0 index in the types should be defined back to here as class vars
 	@property
 	def modifiers_short(self):
 		outStr = ""
@@ -124,18 +130,9 @@ class ChartAbstract(PolymorphicModel):
 			self.sngfile.save(f"{zip_file.outputChartName}.sng",File(io.BytesIO(zip_file.build_sng())))
 		super().save()
 
-class Chart(ChartAbstract):
-	category = models.CharField(verbose_name="Chart Category", choices=CHART_CATEGORIES, max_length=16, default=CHART_CATEGORIES[0][0])
-	brackets = models.ManyToManyField("Bracket", related_name="setlist", verbose_name="Bracket Setlist", blank=True, help_text="Bracket setlists this chart is used in.")
-	boss = models.BooleanField(verbose_name="Boss Song", default=False, help_text="Is chart a 'boss' song.")
-	tiebreaker = models.BooleanField(verbose_name="Tiebreaker", default=False, help_text="Is this chart a tiebreaker in a setlist.")
-
-	class Meta:
-		verbose_name = "Chart"
-		verbose_name_plural = "Charts"
-
-class BYOSChart(ChartAbstract):
+class BYOSChart(Chart):
 	group = models.ManyToManyField("Group", related_name="byos_setlist", verbose_name="Groups", blank=True, help_text="Groups using this chart in their BYOS Pool")
+	brackets = None
 
 	class Meta:
 		verbose_name = "BYOS Chart"

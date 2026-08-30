@@ -16,8 +16,8 @@ from django_pydantic_field import fields
 from solo.admin import SingletonModelAdmin
 
 from corpoch.forms import TournamentPlayerForm
-from corpoch.models import Chart, Tournament, TournamentConfig, BracketRules, Bracket, Qualifier, TournamentPlayer, GroupSeed, MatchRoundAbstract, MatchRound, ExhibitionMatchRound, CHIcon
-from corpoch.models import Match, Group, QualifierSubmission, MatchBanAbstract, MatchBan, ExhibitionMatchBan, GSheetAPI, DiscordUser
+from corpoch.models import Chart, Tournament, TournamentConfig, BracketRules, Bracket, Qualifier, TournamentPlayer, GroupSeed, MatchRound, ExhibitionMatchRound, CHIcon
+from corpoch.models import Match, Group, QualifierSubmission, MatchBan, ExhibitionMatchBan, GSheetAPI, DiscordUser
 from corpoch.dbot.models import Guilds, Channels, Roles
 from corpoch.providers import EncoreClient, GSheets
 from corpoch import __version__ as version
@@ -553,8 +553,8 @@ class QualifierSubmissionAdmin(admin.ModelAdmin):
 #				self.fields['steg'].disabled = True
 #		return
 
-class RoundsAbstractInline(StackedPolymorphicInline):
-	model = MatchRoundAbstract
+class RoundsInline(SortableStackedInline):
+	model = MatchRound
 	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
 	extra = 0
 
@@ -607,16 +607,8 @@ class RoundsAbstractInline(StackedPolymorphicInline):
 				kwargs["queryset"] = GroupSeed.objects.none()
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
-	class RoundsInline(StackedPolymorphicInline.Child):
-		model = MatchRound
-
-	class ExhibitionRoundsInline(StackedPolymorphicInline.Child):
-		model = ExhibitionMatchRound
-
-	child_inlines = ( RoundsInline, ExhibitionRoundsInline )
-
-class BansAbstractInline(StackedPolymorphicInline):
-	model = MatchBanAbstract
+class BansInline(SortableStackedInline):
+	model = MatchBan
 	readonly_fields = ['created']
 	extra = 0
 
@@ -663,19 +655,11 @@ class BansAbstractInline(StackedPolymorphicInline):
 				kwargs["queryset"] = Chart.objects.none()
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
-	class BansInline(StackedPolymorphicInline.Child):
-		model = MatchRound
-
-	class ExhibitionBansInline(StackedPolymorphicInline.Child):
-		model = MatchRound
-
-	child_inlines = ( BansInline, ExhibitionBansInline )
-
 @admin.register(Match)
-class MatchAdmin(SortableAdminBase, PolymorphicInlineSupportMixin, admin.ModelAdmin):
+class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
 	list_display = ('__str__', 'group', '_match_players', 'score', 'started_on', 'ended_on', 'complete', 'finished', 'submitted')
 	list_filter = ('group__bracket__tournament',)
-	inlines = [BansAbstractInline, RoundsAbstractInline]
+	inlines = [BansInline, RoundsInline]
 	list_per_page = 25
 	search_fields = ['id']
 	actions = ['set_unsubmitted', "reread_steg", "resubmit_gsheet", "resubmit_discord"]

@@ -12,12 +12,12 @@ from corpoch.types import CHART_CATEGORIES, StegScreenshot, CH_Name
 from corpoch.dbot.view.helpers import build_stats_embed, build_full_stats_embed
 
 from .tournament import TournamentPlayer
-from .charts import ChartAbstract, Chart, BYOSChart
+from .charts import Chart, BYOSChart
 
 def steg_upload_dir(self, filename):
 	return f"matches/{str(self.match.group).replace(' ', '').replace(":", "")}/{self.match.id}/{uuid.uuid1()}.{filename.split('.')[-1]}"
 
-class MatchAbstract(PolymorphicModel):
+class MatchAbstract(models.Model):
 	"""
 	Represents a Match played for a Tournament. 
 	"""
@@ -34,6 +34,7 @@ class MatchAbstract(PolymorphicModel):
 
 	class Meta:
 		app_label = 'corpoch'
+		abstract = True
 
 	@property
 	def ongoing(self):
@@ -359,24 +360,23 @@ class ExhibitionMatch(MatchAbstract):
 		verbose_name_plural = "Exhibition Matches"
 		ordering = ['-started_on']
 
-class MatchRoundAbstract(PolymorphicModel):
+class MatchRoundAbstract(models.Model):
 	"""
 	Represents a round of a Match played for a Tournament. 
 	"""
 	id = models.AutoField(primary_key=True, help_text="Internal ID for a round.")
-	match = models.ForeignKey(MatchAbstract, related_name="match_rounds", verbose_name="Match ID", on_delete=models.CASCADE, null=True, blank=True, help_text="Match the round was played for.")
 	num = models.PositiveIntegerField(blank=False, null=False, help_text="Round number of a specific match.")
 	#w_points = models.PositiveIntegerField(verbose_name="Players", validators=[MinValueValidator(1), MaxValueValidator(5)], default=1)
 	#l_points = models.PositiveIntegerField(verbose_name="Players", validators=[MinValueValidator(1), MaxValueValidator(5)], default=0)
 	steg = SchemaField(StegScreenshot, verbose_name="Steg Data", null=True, blank=True, help_text="Clone Hero screenshot steg data.")
 	screenshot = models.ImageField(upload_to=steg_upload_dir, verbose_name="Screenshot", null=True, blank=True, help_text="Screenshot for a match.")
 	created = models.DateTimeField(verbose_name="Created Time", auto_now_add=True, null=True, blank=True, help_text="Timestamp the round was started.")
-	chart = models.ForeignKey("ChartAbstract", on_delete=models.CASCADE, related_name="chart_plays")
-	chart: PolymorphicForwardManyToOneDescriptor[ ChartAbstract | Chart | BYOSChart, ChartAbstract ] = models.ForeignKey("ChartAbstract", verbose_name="Chart Played", null=True, blank=True, on_delete=models.SET_NULL, help_text="Chart that was played.")
-	rounds_played: PolymorphicReverseManyToOneDescriptor[ ChartAbstract | Chart | BYOSChart, ChartAbstract ]
+	chart : PolymorphicForwardManyToOneDescriptor[ Chart | BYOSChart, Chart ] = models.ForeignKey("Chart", verbose_name="Chart Played", null=True, blank=True, on_delete=models.SET_NULL, help_text="Chart that was played.")
+	plays : PolymorphicReverseManyToOneDescriptor[ Chart | BYOSChart, Chart ]
 
 	class Meta:
 		app_label = 'corpoch'
+		abstract = True
 
 	def __str__(self):
 		outStr = ""
@@ -417,6 +417,7 @@ class MatchRoundAbstract(PolymorphicModel):
 		return embed
 
 class MatchRound(MatchRoundAbstract):
+	match = models.ForeignKey(Match, related_name="match_rounds", verbose_name="Match ID", on_delete=models.CASCADE, null=True, blank=True, help_text="Match the round was played for.")
 	picked = models.ForeignKey("TournamentPlayer", related_name="picks", verbose_name="Picker", on_delete=models.CASCADE, blank=True, null=True, help_text="Player that picked the chart played.")
 	winner = models.ForeignKey("TournamentPlayer", related_name="rounds_won", verbose_name="Winner", null=True, blank=True, on_delete=models.SET_NULL, help_text="Winner of a round.")
 	loser = models.ForeignKey("TournamentPlayer", related_name="rounds_lost", verbose_name="Loser", null=True, blank=True, on_delete=models.SET_NULL, help_text="Loser of a round.")
@@ -428,6 +429,7 @@ class MatchRound(MatchRoundAbstract):
 		get_latest_by = 'num'
 
 class ExhibitionMatchRound(MatchRoundAbstract):
+	match = models.ForeignKey(ExhibitionMatch, related_name="exhibition_rounds", verbose_name="Match ID", on_delete=models.CASCADE, null=True, blank=True, help_text="Match the round was played for.")
 	picked = models.ForeignKey("DiscordUser", related_name="exhibition_picks", verbose_name="Picker", on_delete=models.CASCADE, blank=True, null=True, help_text="Player that picked the chart played.")
 	winner = models.ForeignKey("DiscordUser", related_name="exhibition_rounds_won", verbose_name="Winner", null=True, blank=True, on_delete=models.SET_NULL, help_text="Winner of a round.")
 	loser = models.ForeignKey("DiscordUser", related_name="exhibition_rounds_lost", verbose_name="Loser", null=True, blank=True, on_delete=models.SET_NULL, help_text="Loser of a round.")
@@ -438,19 +440,19 @@ class ExhibitionMatchRound(MatchRoundAbstract):
 		ordering = ['num']
 		get_latest_by = 'num'
 
-class MatchBanAbstract(PolymorphicModel):
+class MatchBanAbstract(models.Model):
 	"""
 	Represents a player ban for a Match played in a Tournament. 
 	"""
 	id = models.AutoField(primary_key=True, help_text="Internal ID for a ban.")
-	match = models.ForeignKey(MatchAbstract, related_name="match_bans", verbose_name="Match ID", on_delete=models.CASCADE, null=True, blank=True, help_text="Match the round was played for.")
 	num = models.PositiveIntegerField(blank=False, null=False, help_text="Order in which a ban was picked.")
 	created = models.DateTimeField(verbose_name="Created Time", auto_now_add=True, null=True, blank=True, help_text="Timestamp a ban was chosen.")
-	chart : PolymorphicForwardManyToOneDescriptor[ ChartAbstract | Chart | BYOSChart, ChartAbstract ] = models.ForeignKey("ChartAbstract", verbose_name="Chart Played", null=True, blank=True, on_delete=models.SET_NULL, help_text="Chart that was played.")
-	bans : PolymorphicReverseManyToOneDescriptor[ ChartAbstract | Chart | BYOSChart, ChartAbstract ]
+	chart : PolymorphicForwardManyToOneDescriptor[ Chart | BYOSChart, Chart ] = models.ForeignKey("Chart", verbose_name="Chart Banned", null=True, blank=True, on_delete=models.SET_NULL, help_text="Chart that was banned.")
+	bans : PolymorphicReverseManyToOneDescriptor[ Chart | BYOSChart, Chart ]
 
 	class Meta:
 		app_label = 'corpoch'
+		abstract = True
 
 	def __str__(self):
 		return str(self.chart.name)
@@ -460,6 +462,7 @@ class MatchBanAbstract(PolymorphicModel):
 		return str(self.player.ch_name)
 
 class MatchBan(MatchBanAbstract):
+	match = models.ForeignKey(Match, related_name="match_bans", verbose_name="Match ID", on_delete=models.CASCADE, null=True, blank=True, help_text="Match the round was played for.")
 	player = models.ForeignKey("TournamentPlayer", related_name="player_bans", verbose_name="Player", null=True, blank=True, on_delete=models.SET_NULL, help_text="Player that chose a ban.")
 
 	class Meta:
@@ -469,6 +472,7 @@ class MatchBan(MatchBanAbstract):
 		get_latest_by = 'num'
 
 class ExhibitionMatchBan(MatchBanAbstract):
+	match = models.ForeignKey(ExhibitionMatch, related_name="exhibition_bans", verbose_name="Match ID", on_delete=models.CASCADE, null=True, blank=True, help_text="Match the round was played for.")
 	player = models.ForeignKey("DiscordUser", related_name="exhibition_bans", verbose_name="Player", null=True, blank=True, on_delete=models.SET_NULL, help_text="Player that chose a ban.")
 
 	class Meta:
