@@ -131,21 +131,10 @@ class Chart(PolymorphicModel):
 		super().save()
 
 class BYOSChart(Chart):
-	group = models.ManyToManyField("Group", related_name="byos_setlist", verbose_name="Groups", blank=True, help_text="Groups using this chart in their BYOS Pool")
+	groups = models.ManyToManyField("Group", related_name="byos_setlist", verbose_name="Groups", blank=True, help_text="Groups using this chart in their BYOS Pool")
 	brackets = None
+	category = None
 
 	class Meta:
 		verbose_name = "BYOS Chart"
 		verbose_name_plural = "BYOS Charts"
-
-	@property
-	def bracket(self):
-		return self.group.bracket
-
-	@property
-	def category(self):
-		return "BYOS" #Hard code category as BYOS for all relevant locations
-
-	@property
-	def tournament(self):
-		return self.group.bracket.tournament
