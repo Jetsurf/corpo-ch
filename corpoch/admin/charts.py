@@ -3,7 +3,7 @@ from itertools import chain
 from django.contrib import admin
 from django.utils.safestring import mark_safe
 
-from corpoch.models import Chart, BYOSChart
+from corpoch.models import Chart, BYOSChart, Qualifier
 from corpoch import settings
 
 @admin.register(Chart)

@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.utils.html import format_html
 
 from adminsortable2.admin import SortableStackedInline, SortableAdminBase
 from django_jsonform.widgets import JSONFormWidget
@@ -6,6 +7,7 @@ from django_pydantic_field import fields
 
 from corpoch.forms import TournamentPlayerForm
 from corpoch.models import Tournament, TournamentConfig, BracketRules, Bracket, Qualifier, QualifierSubmission, TournamentPlayer, Group, GroupSeed
+from corpoch.dbot.models import Channels, Guilds, Roles
 
 class TournamentConfigInline(admin.StackedInline):
 	model = TournamentConfig

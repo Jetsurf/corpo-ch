@@ -6,7 +6,8 @@ from django_jsonform.widgets import JSONFormWidget
 from django_pydantic_field import fields
 
 import corpoch.dbot.tasks
-from corpoch.models import TournamentConfig, Match, MatchRound, MatchBan
+from corpoch.models import TournamentConfig, Match, MatchRound, MatchBan, TournamentPlayer, DiscordUser, GroupSeed, Group, Bracket
+from corpoch.dbot.models import Channels
 import corpoch.tasks
 
 class RoundsForm(ModelForm):
