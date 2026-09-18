@@ -183,23 +183,37 @@ class MatchAbstract(models.Model):
 
 	@property
 	def picking_player(self):
+		"""
+		Returns the player that's currently "up" to select the next step in the match
+		"""
 		if self.rounds.count() == 0 and self.bans.count() != self.ruleset.total_bans:
-			if self.bans.count() % self.ruleset.num_players == 0:
-				if self.defer:
-					picked = self.low_seed.player
-				else:
+			if self.ruleset.ban_ruleset == "bansave":
+				if self.bans.count() == 0 or self.bans.count() == 3:
 					picked = self.high_seed.player
+				else:
+					picked = self.low_seed.player
 			else:
-				if self.defer:
-					picked = self.high_seed.player
+				if self.bans.count() % self.ruleset.num_players == 0:
+					if self.defer:
+						picked = self.low_seed.player
+					else:
+						picked = self.high_seed.player
 				else:
-					picked = self.low_seed.player
+					if self.defer:
+						picked = self.high_seed.player
+					else:
+						picked = self.low_seed.player
 		elif self.tiebreaker and self.ruleset.tb_ruleset == 'refdecide':
 			picked = None
 		elif self.tiebreaker and self.ruleset.tb_ruleset == 'csc':
 			picked = None
 		elif self.tiebreaker and self.ruleset.tb_ruleset == 'banpick':
 			if self.bans.count() > self.ruleset.total_bans:
+				picked = self.previous_round.loser
+			else:
+				picked = self.current_round.winner
+		elif self.tiebreaker and self.ruleset.tb_ruleset == 'bansave':
+			if length(self.setlist_remaining) > 1 and self.bans.count() > self.ruleset.total_bans:
 				picked = self.previous_round.loser
 			else:
 				picked = self.current_round.winner
@@ -226,6 +240,26 @@ class MatchAbstract(models.Model):
 		return picked
 
 	@property
+	def player_saved(self):
+		"""
+		Has the current player used a save
+		"""
+		picked = self.picking_player
+
+		if isinstance(self, Match):
+			try:
+				bans = self.match_bans.objects.filter(player=picked, save=True)
+				return True
+			except MatchBan.DoesNotExist:
+				return False
+		else: #Exhibition Match
+			try:
+				bans = self.exhibition_bans.objects.filter(player=picked, save=True)
+				return True
+			except ExhibitionMatchBan.DoesNotExist:
+				return False
+
+	@property
 	def setlist(self):
 		if self.group:
 			return self.group.bracket.setlist
@@ -233,14 +267,33 @@ class MatchAbstract(models.Model):
 			return None
 
 	@property
+	def effective_bans(self):
+		bans = self.bans
+		for ban in bans:
+			if ban.saved:
+				bans = bans.exclude(chart=ban.chart)
+
+		print(f"SETLIST REMAINING DEBUG: Effective bans: {bans}")
+		return bans
+
+	@property
 	def setlist_remaining(self):
-		bans = self.bans.values_list('chart', flat=True)
+		"""
+		Returns the rest of the setlist that hasn't been played for the match
+		"""
+		if self.ruleset.ban_ruleset == "bansave":
+			bans = self.effective_bans.values_list("chart", flat=True)
+		else:
+			bans = self.bans.values_list('chart', flat=True)
+
 		rounds = self.rounds.values_list('chart', flat=True)
 		if self.tiebreaker:
 			if self.ruleset.tb_ruleset == 'refdecide':
 				charts = self.setlist.select_related('icon').exclude(pk__in=list(chain(bans, rounds)))
 			elif self.ruleset.tb_ruleset == "banpick":
 				charts = self.setlist.select_related('icon').filter(tiebreaker=True).exclude(pk__in=bans)
+			elif self.ruleset.tb_ruleset == "bansave":
+				charts = self.setlist.select_related('icon').exclude(pk__in=list(chain(bans, rounds)))
 			else:
 				charts = self.setlist.select_related('icon').filter(tiebreaker=True)
 		else:
@@ -255,6 +308,13 @@ class MatchAbstract(models.Model):
 		newBan.save()
 		if self.bans.count() == self.ruleset.total_bans or self.tiebreaker:
 			self.add_round()
+
+		return newBan
+
+	def add_save(self, player: TournamentPlayer, chart: Chart):
+		ban = self.add_ban(player, chart)
+		ban.saved = True
+		ban.save()
 
 	def add_round(self):
 		chart = None
@@ -447,6 +507,7 @@ class MatchBanAbstract(models.Model):
 	id = models.AutoField(primary_key=True, help_text="Internal ID for a ban.")
 	num = models.PositiveIntegerField(blank=False, null=False, help_text="Order in which a ban was picked.")
 	created = models.DateTimeField(verbose_name="Created Time", auto_now_add=True, null=True, blank=True, help_text="Timestamp a ban was chosen.")
+	saved = models.BooleanField(verbose_name="Save", default=False, help_text="Was this a save (for Ban-Save ruleset)")
 	chart : PolymorphicForwardManyToOneDescriptor[ Chart | BYOSChart, Chart ] = models.ForeignKey("Chart", verbose_name="Chart Banned", null=True, blank=True, on_delete=models.SET_NULL, help_text="Chart that was banned.")
 	bans : PolymorphicReverseManyToOneDescriptor[ Chart | BYOSChart, Chart ]
 

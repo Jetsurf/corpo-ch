@@ -133,7 +133,7 @@ class BracketRules(models.Model):
 
 	@property 
 	def bannable_tb(self) -> bool:
-		if self.tb_ruleset == TB_RULESETS[2][0]:
+		if self.tb_ruleset == TB_RULESETS[2][0] or self.tb_ruleset == TB_RULESETS[4][0]: #Banpick or Bansave
 			return True
 		else:
 			return False
@@ -143,7 +143,7 @@ class BracketRules(models.Model):
 		"""
 		Is the tie-breaker chart pickable
 		"""
-		if self.tb_ruleset == TB_RULESETS[0][0] or self.tb_ruleset == TB_RULESETS[1][0]:
+		if self.tb_ruleset == TB_RULESETS[0][0] or self.tb_ruleset == TB_RULESETS[1][0] or self.tb_ruleset[4][0]: #default, deferban, or  Bansave
 			return False
 		else:
 			return True

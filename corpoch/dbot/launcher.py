@@ -8,7 +8,6 @@ from django.utils import autoreload
 from .bot import CorpoDbot
 
 def run_bot():
-    loop = asyncio.get_event_loop()
     log = logging.getLogger()
 
     bot = CorpoDbot()

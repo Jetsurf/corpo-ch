@@ -57,16 +57,36 @@ class BanSelect(discord.ui.Select):
 
 	async def init(self):
 		opts = []
-		async for chart in self.match.setlist_remaining:
+		if self.match.save_used:
+			print(f"EFFECTIVE BANS: INIT: {self.match.effective_bans})")
+			print(f"EFFECTIVE BANS CHARTS: {self.match.effective_bans.values_list("chart", flat=True)}")
+			charts = []
+			for ban in self.match.effective_bans:
+				if ban.player != self.match.picking_player:
+					charts.append(ban.chart)
+
+			print(f"CHARTS: {charts}")
+		else:
+			charts = self.match.setlist_remaining
+
+		for chart in charts:
 			emoji = await get_chart_emoji(self.match.bot, chart)
 			self.retOpts[chart.md5] = chart
 			opts.append(discord.SelectOption(label=str(chart.tournament_name), description=f"{chart.artist} - {chart.charter}", emoji=emoji, value=chart.md5))
 
-		super().__init__(placeholder=f"{self.match.picking_player.ch_name} Ban", max_values=1, options=opts, custom_id="ban_sel")
+		if self.match.save_used:
+			placeholder=f"{self.match.picking_player.ch_name} Save"
+		else:
+			placeholder = f"{self.match.picking_player.ch_name} Ban"
+		super().__init__(placeholder=placeholder, max_values=1, options=opts, custom_id="ban_sel")
 
 	async def callback(self, interaction: discord.Interaction):
 		chart = self.retOpts[self.values[0]]
-		self.match.add_ban(self.match.picking_player, chart)
+		if self.match.save_used:
+			self.match.add_save(self.match.picking_player, chart)
+			self.match.save_used = False
+		else:
+			self.match.add_ban(self.match.picking_player, chart)
 		await self.match.showTool(interaction)
 
 class SongRoundSelect(discord.ui.Select):
@@ -256,6 +276,15 @@ class DiscordMatchView(discord.ui.View):
 		self.defer = discord.ui.Button(label="Defer", style=discord.ButtonStyle.secondary, custom_id="deferBtn")
 		self.defer.callback = self.deferBtn
 
+		if self.match.ruleset.ban_ruleset == "bansave":
+			if self.match.save_used:
+				label = "Ban"
+			else:
+				label = "Save"
+				
+			self.save = discord.ui.Button(label=label, style=discord.ButtonStyle.secondary, custom_id="saveBtn")
+			self.save.callback = self.saveBtn
+
 		self.search = discord.ui.Button(label="Player Select", style=discord.ButtonStyle.secondary, custom_id="searchBtn")
 		self.search.callback = self.searchBtn
 
@@ -264,7 +293,7 @@ class DiscordMatchView(discord.ui.View):
 		else:
 			label = "Player input ❌"
 		self.plyin = discord.ui.Button(label=label, style=discord.ButtonStyle.secondary, custom_id="plyinBtn")
-		self.plyin.callback = self.plyinBtn # Future idea
+		self.plyin.callback = self.plyinBtn
 
 		self.upload = discord.ui.Button(label="Upload Screenshots", style=discord.ButtonStyle.secondary, custom_id="uploadBtn")
 		self.upload.callback = self.uploadBtn
@@ -314,8 +343,12 @@ class DiscordMatchView(discord.ui.View):
 		elif len(self.match.bans) < self.match.ruleset.total_bans:
 			self.add_item(self.back)
 			self.add_item(self.plyin)
+
 			if 'defer' in self.match.ruleset.ban_ruleset and len(self.match.bans) == 0:
 				self.add_item(self.defer)
+			elif self.match.ruleset.ban_ruleset == "bansave" and not self.match.bans.filter(player=self.match.picking_player, saved=True).exists():
+				self.add_item(self.save)
+
 			sel = BanSelect(self.match)
 			await sel.init()
 			self.add_item(sel)
@@ -424,6 +457,10 @@ class DiscordMatchView(discord.ui.View):
 
 	async def deferBtn(self, interaction: discord.Interaction):
 		self.match.matchDb.defer = not self.match.defer
+		await self.match.showTool(interaction)
+
+	async def saveBtn(self, interaction: discord.Interaction):
+		self.match.save_used = not self.match.save_used
 		await self.match.showTool(interaction)
 
 	async def searchBtn(self, interaction: discord.Interaction):

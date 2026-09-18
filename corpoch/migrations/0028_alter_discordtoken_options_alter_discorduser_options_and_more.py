@@ -155,4 +155,39 @@ class Migration(migrations.Migration):
             name='byos_picks',
             field=models.IntegerField(default=1, help_text='Number of BYOS chart picks a player gets per-match.', validators=[django.core.validators.MinValueValidator(1), django.core.validators.MaxValueValidator(2)], verbose_name='BYOS Picks per match'),
         ),
+        migrations.AlterField(
+            model_name='chart',
+            name='album',
+            field=models.CharField(blank=True, help_text='Album the song is from.', max_length=256, null=True, verbose_name='Album'),
+        ),
+        migrations.AlterField(
+            model_name='chart',
+            name='artist',
+            field=models.CharField(blank=True, help_text='Artist of the song.', max_length=256, null=True, verbose_name='Artist'),
+        ),
+        migrations.AlterField(
+            model_name='chart',
+            name='charter',
+            field=models.CharField(blank=True, help_text='Author of a chart.', max_length=64, null=True, verbose_name='Charter'),
+        ),
+        migrations.AddField(
+            model_name='exhibitionmatchban',
+            name='saved',
+            field=models.BooleanField(default=False, help_text='Was this a save (for Ban-Save ruleset)', verbose_name='Save'),
+        ),
+        migrations.AddField(
+            model_name='matchban',
+            name='saved',
+            field=models.BooleanField(default=False, help_text='Was this a save (for Ban-Save ruleset)', verbose_name='Save'),
+        ),
+        migrations.AlterField(
+            model_name='bracketrules',
+            name='ban_ruleset',
+            field=models.CharField(choices=[('default', 'No Defer/High Seed first'), ('deferban', 'High Seed can defer ban/picks first'), ('deferboth', 'High Seed can defer both ban/pick'), ('bansave', 'Ban Save alternating')], default='default', help_text='Ruleset to determine how bans work.', max_length=32, verbose_name='Match Bans Ruleset'),
+        ),
+        migrations.AlterField(
+            model_name='bracketrules',
+            name='tb_ruleset',
+            field=models.CharField(choices=[('single', 'Single TB'), ('csc', 'CSC TB Rules'), ('banpick', "'NPDO' Ban/Pick"), ('refdecide', 'Ref picks from unplayed'), ('bansave', 'Ban-Save')], default='single', help_text='Ruleset to determine how tiebreakers player.', max_length=32, verbose_name='Tiebreaker Ruleset'),
+        ),
     ]

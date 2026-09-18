@@ -24,6 +24,7 @@ class DiscordMatch():
 		self.exhibition = exhibition
 		self.confirm_cancel = False
 		self.player_input = False
+		self.save_used = False
 
 	async def init(self) -> bool:
 		if self.matchDb:
@@ -140,6 +141,9 @@ class DiscordMatch():
 	def add_round(self):
 		self.matchDb.add_round()
 
+	def add_save(self, player, chart):
+		self.matchDb.add_save(player, chart)
+
 	def remove_round(self):
 		if self.current_round.id:
 			self.current_round.delete()
@@ -148,6 +152,7 @@ class DiscordMatch():
 	def remove_ban(self):
 		if self.bans.latest().id:
 			self.bans.latest().delete()
+		self.save_used = False
 
 	@property
 	def bans(self):
@@ -178,6 +183,10 @@ class DiscordMatch():
 			return False
 
 	@property
+	def effective_bans(self):
+		return self.matchDb.effective_bans
+
+	@property
 	def finished(self) -> bool:
 		if not self.matchDb:
 			return False
@@ -204,10 +213,10 @@ class DiscordMatch():
 		return outStr
 
 	def format_bans_player(self, seed, bans):
-		outStr = f"**{seed.player_ch_name} Bans**\n"
+		outStr = f"**{seed.player_ch_name} Bans{"/Saves" if self.ruleset.tb_ruleset == "bansave" else ""}**\n"
 		for i in range(0, self.ruleset.num_bans):
 			try:
-				outStr += f"{bans[i].chart.tournament_name}\n"
+				outStr += f"{bans[i].chart.tournament_name}{" - SAVED" if bans[i].saved else ""}\n"
 			except IndexError:
 				outStr += "--\n"
 		return outStr

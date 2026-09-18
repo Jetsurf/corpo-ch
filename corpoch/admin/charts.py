@@ -6,6 +6,8 @@ from django.utils.safestring import mark_safe
 from corpoch.models import Chart, BYOSChart, Qualifier
 from corpoch import settings
 
+import corpoch.tasks
+
 @admin.register(Chart)
 class ChartAdmin(admin.ModelAdmin):
 	list_display = ('_icon','_tournament_name', '_brackets', '_category', 'boss', 'tiebreaker')

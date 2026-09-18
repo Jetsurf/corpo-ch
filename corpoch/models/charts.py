@@ -35,9 +35,9 @@ class Chart(PolymorphicModel):
 	"""
 	id = models.AutoField(primary_key=True, help_text="Internal ID of a chart.")
 	name = models.CharField(verbose_name="Chart Name", max_length=256, blank=True, help_text="Name of the chart.")
-	artist = models.CharField(verbose_name="Artist", max_length=256, blank=True, help_text="Artist of the song.")
-	album = models.CharField(verbose_name="Album", max_length=256, blank=True, help_text="Album the song is from.")
-	charter = models.CharField(verbose_name="Charter", max_length=64, blank=True, help_text="Author of a chart.")
+	artist = models.CharField(verbose_name="Artist", max_length=256, blank=True, null=True, help_text="Artist of the song.")
+	album = models.CharField(verbose_name="Album", max_length=256, blank=True, null=True, help_text="Album the song is from.")
+	charter = models.CharField(verbose_name="Charter", max_length=64, blank=True, null=True, help_text="Author of a chart.")
 	boss = models.BooleanField(verbose_name="Boss Song", default=False, help_text="Is chart a 'boss' song.")
 	tiebreaker = models.BooleanField(verbose_name="Tiebreaker", default=False, help_text="Is this chart a tiebreaker in a setlist.")
 	difficulty = models.CharField(verbose_name="Difficulty", choices=CH_DIFFICULTIES, max_length=16, default=CH_DIFFICULTIES[0][0], help_text="Difficulty this chart is to be played on.")
