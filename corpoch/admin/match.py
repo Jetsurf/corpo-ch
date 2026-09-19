@@ -81,6 +81,12 @@ class BansInline(SortableStackedInline):
 	readonly_fields = ['created']
 	extra = 0
 
+	def get_fields(self, request, obj=None):
+		if obj.bracket.ruleset.ban_ruleset == "bansave":
+			return ('saved', 'player', 'chart')
+		else:
+			return ('player', 'chart')
+
 	def check_perm(self, request):
 		if 'object_id' in request.resolver_match.kwargs:
 			obj = self.parent_model.objects.get(pk=request.resolver_match.kwargs['object_id'])
