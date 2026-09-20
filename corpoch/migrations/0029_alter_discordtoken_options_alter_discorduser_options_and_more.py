@@ -10,6 +10,12 @@ import uuid
 from django.conf import settings
 from django.db import migrations, models
 
+def forwards_func(apps, schema_editor):
+    chart = apps.get_model('corpoch', 'Chart')
+    ContentType = apps.get_model('contenttypes', 'ContentType')
+
+    new_ct = ContentType.objects.get_for_model(chart)
+    chart.objects.filter(polymorphic_ctype__isnull=True).update(polymorphic_ctype=new_ct)
 
 class Migration(migrations.Migration):
 
@@ -169,5 +175,9 @@ class Migration(migrations.Migration):
                 'ordering': ['num'],
                 'get_latest_by': 'num',
             },
+        ),
+        migrations.RunPython(
+            code=forwards_func,
+            reverse_code=django.db.migrations.operations.special.RunPython,
         ),
     ]
