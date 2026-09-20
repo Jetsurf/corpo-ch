@@ -328,7 +328,7 @@ class GSheets():
 			ws = self._sheet.add_worksheet(title=f"{self._submission.qualifier} - Data", rows=1, cols=13)
 		else:
 			ws = self._sheet.add_worksheet(title=f"{self._submission.qualifier} - Final Top Scores", rows=1, cols=13)
-		ws.update([["Qualifier ID", "Discord Name", "Clone Hero Name", "Score", "Notes Missed", "Notes Hit", "Is FC", "Overstrums", "Ghosts", "Phrases Hit", "Submission Timestamp", "Screenshot Timestamp", "Screenshot", "Game Version" ]], "A1:N1")
+		ws.update([["Qualifier ID", "Discord Name", "Clone Hero Name", "Score", "Notes Missed", "Notes Hit", "Is FC", "Gamepad", "Overstrums", "Ghosts", "Phrases Hit", "Submission Timestamp", "Screenshot Timestamp", "Screenshot", "Game Version" ]], "A1:O1")
 		
 		ws.format("A1:N1", self._format_header)
 		#ws.freeze("A1:M1")
@@ -338,7 +338,7 @@ class GSheets():
 	def setup_completed_sheet(self) -> bool:
 		print(f"Creating Match Air Table {self._submission.tournament} worksheet in sheet {self._url}")
 		ws = self._sheet.add_worksheet(title=f"{self._submission.tournament.short_name} - Match Data", rows=1, cols=17)
-		ws.update([["Match ID", "Bracket", "Group", "Match", "PickSong", "Song", "Player", "Score", "W/L",  "Notes Missed", "Notes Hit", "Is FC", "Overstrums", "Ghosts", "Phrases Hit", "Timestamp", "Screenshot"]], "A1:Q1")
+		ws.update([["Match ID", "Bracket", "Group", "Match", "PickSong", "Song", "Player", "Score", "W/L",  "Notes Missed", "Notes Hit", "Is FC", "Gamepad", "Overstrums", "Ghosts", "Phrases Hit", "Timestamp", "Screenshot"]], "A1:P1")
 		ws.format("A1:Q1", self._format_header)
 		#ws.freeze("A1:P1")
 		#TODO - Add "the live table formatting/formulas for the viewable worksheets
@@ -397,6 +397,7 @@ class GSheets():
 		missed = self._submission.steg.players[0].notes_missed
 		hit = self._submission.steg.players[0].notes_hit
 		fc = self._submission.steg.players[0].is_fc
+		gp = self._submission.steg.players[0].gamepad_mode
 		excess = self._submission.steg.players[0].excess_hits
 		ghosts = self._submission.steg.players[0].frets_ghosted
 		phrases = self._submission.steg.players[0].sp_phrases_earned
@@ -404,7 +405,7 @@ class GSheets():
 		screenshotTimestamp = f"{self._submission.steg.score_timestamp.strftime('%Y-%m-%d %H:%M:%S')}-UTC"
 		link = f'=HYPERLINK("https://{settings.BASE_URL}{self._submission.screenshot.url}", "Screenshot Link")'
 		gameVer = self._submission.qualifier.tournament.config.version
-		return [qid, self._submission.player.name, chName, score, missed, hit, fc, excess, ghosts, phrases, submissionTimestamp, screenshotTimestamp, link, gameVer]
+		return [qid, self._submission.player.name, chName, score, missed, hit, fc, gp, excess, ghosts, phrases, submissionTimestamp, screenshotTimestamp, link, gameVer]
 
 	@property
 	def completed_lines(self):
@@ -428,12 +429,13 @@ class GSheets():
 				missed = ply.notes_missed
 				hit = ply.notes_hit
 				fc = ply.is_fc
+				gp = ply.gamepad_mode
 				excess = ply.excess_hits
 				ghosts = ply.frets_ghosted
 				phrases = ply.sp_phrases_earned
 				ts = f"{rnd.created.strftime('%Y-%m-%d %H:%M:%S')}-UTC"
 				link = f'=HYPERLINK("https://{settings.BASE_URL}{rnd.screenshot.url}", "Screenshot Link")'
-				retLines.append([matchId, bracket, group, match, picked, song, ch_Name, score, wl, missed, hit, fc, excess, ghosts, phrases, ts, link])
+				retLines.append([matchId, bracket, group, match, picked, song, ch_Name, score, wl, missed, hit, fc, gp, excess, ghosts, phrases, ts, link])
 		return retLines
 
 	@property

@@ -58,14 +58,10 @@ class BanSelect(discord.ui.Select):
 	async def init(self):
 		opts = []
 		if self.match.save_used:
-			print(f"EFFECTIVE BANS: INIT: {self.match.effective_bans})")
-			print(f"EFFECTIVE BANS CHARTS: {self.match.effective_bans.values_list("chart", flat=True)}")
 			charts = []
 			for ban in self.match.effective_bans:
 				if ban.player != self.match.picking_player:
 					charts.append(ban.chart)
-
-			print(f"CHARTS: {charts}")
 		else:
 			charts = self.match.setlist_remaining
 
@@ -75,9 +71,9 @@ class BanSelect(discord.ui.Select):
 			opts.append(discord.SelectOption(label=str(chart.tournament_name), description=f"{chart.artist} - {chart.charter}", emoji=emoji, value=chart.md5))
 
 		if self.match.save_used:
-			placeholder=f"{self.match.picking_player.ch_name} Save"
+			placeholder=f"{self.match.picking_player.ch_name} Saves"
 		else:
-			placeholder = f"{self.match.picking_player.ch_name} Ban"
+			placeholder = f"{self.match.picking_player.ch_name} Bans"
 		super().__init__(placeholder=placeholder, max_values=1, options=opts, custom_id="ban_sel")
 
 	async def callback(self, interaction: discord.Interaction):
@@ -394,7 +390,7 @@ class DiscordMatchView(discord.ui.View):
 				return False
 			else:
 				return True
-		if self.match.player_input and (caller == "roundsong_sel" or caller == "ban_sel"):
+		if self.match.player_input and (caller == "roundsong_sel" or caller == "ban_sel" or caller == "saveBtn"):
 			if self.match.picking_player and self.match.picking_player.user.id == interaction.user.id:
 				return True
 			else:
