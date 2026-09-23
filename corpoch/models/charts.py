@@ -1,5 +1,6 @@
 import io
 
+from django.core.files import File
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
@@ -59,6 +60,16 @@ class Chart(PolymorphicModel):
 	@property
 	def long_name(self):
 		return f"{self.name} - {self.charter} - {self.artist} - {self.album}{f' -{self.instrument[1]}' if self.instrument[0] != 'guitar' else ''}{f' {self.difficulty[1]}' if self.difficulty[0] != 'expert' else ''}"
+
+	@property
+	def description(self) -> str:
+		"""
+		Used for discord dropdown selector descriptions
+		"""
+		if self.category:
+			return f"{self.category.capitalize()} - {self.artist} - {self.charter}"
+		else:
+			return f"{self.artist} - {self.charter}"
 
 	@property
 	def encore_search_query(self):

@@ -24,7 +24,6 @@ class DiscordMatch():
 		self.exhibition = exhibition
 		self.confirm_cancel = False
 		self.player_input = False
-		self.save_used = False
 
 	async def init(self) -> bool:
 		if self.matchDb:
@@ -152,7 +151,6 @@ class DiscordMatch():
 	def remove_ban(self):
 		if self.bans.latest().id:
 			self.bans.latest().delete()
-		self.save_used = False
 
 	@property
 	def bans(self):
@@ -216,7 +214,7 @@ class DiscordMatch():
 		outStr = f"**{seed.player_ch_name} Bans{"/Saves" if self.ruleset.tb_ruleset == "bansave" else ""}**\n"
 		for i in range(0, self.ruleset.num_bans):
 			try:
-				outStr += f"{bans[i].chart.tournament_name}{" - SAVED" if bans[i].saved else ""}\n"
+				outStr += f"{bans[i].num + 1} - {bans[i].chart.tournament_name}{" - SAVED" if bans[i].saved else ""}\n"
 			except IndexError:
 				outStr += "--\n"
 		return outStr
@@ -248,6 +246,10 @@ class DiscordMatch():
 		return self.matchDb.picking_player
 
 	@property
+	def rev_seeds(self):
+		return self.matchDb.rev_seeds
+
+	@property
 	def rounds(self):
 		if self.matchDb:
 			return self.matchDb.rounds.all()
@@ -272,7 +274,10 @@ class DiscordMatch():
 	@property
 	def seeding(self):
 		if self.matchDb:
-			return self.matchDb.players.all()
+			if self.matchDb.rev_seeds:
+				return self.matchDb.players.all().reverse()
+			else:
+				return self.matchDb.players.all()
 		else:
 			return []
 
@@ -333,8 +338,8 @@ class DiscordMatch():
 			else:
 				embed.add_field(name="Player Select", value=f"Select which players the match is for", inline=False)
 		else:
-			embed.title = f"{self.group}\n{self.seeding[0]} vs {self.seeding[1]}"
-			embed.add_field(name="Match VS", value=f"{self.seeding[0].mention} vs {self.seeding[1].mention}")
+			embed.title = f"{self.group}\n{self.matchDb.short_name}"
+			embed.add_field(name="Match VS", value=f"{self.matchDb.high_seed.mention} vs {self.matchDb.low_seed.mention}")
 			embed.add_field(name="Score", value=self.score_str, inline=False)
 			if self.defer:
 				embed.add_field(name="Deferral", value=f"{self.matchDb.high_seed.player.ch_name} has deferred.")

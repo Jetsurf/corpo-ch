@@ -104,6 +104,7 @@ class BracketRules(models.Model):
 	ban_ruleset = models.CharField(verbose_name="Match Bans Ruleset", choices=BAN_RULESETS, max_length=32, default=BAN_RULESETS[0][0], help_text="Ruleset to determine how bans work.")
 	pick_ruleset = models.CharField(verbose_name="'Who Picks' Ruleset", choices=PICK_RULESETS, max_length=32, default=PICK_RULESETS[0][0], help_text="Ruleset to determine who picks the next song for a round.")
 	tb_ruleset = models.CharField(verbose_name="Tiebreaker Ruleset", choices=TB_RULESETS, max_length=32, default=TB_RULESETS[0][0], help_text="Ruleset to determine how tiebreakers player.")
+	seed_inversions = models.BooleanField(verbose_name="Match Seed Inversions", default=False, help_text="Allow seeding inversions for certain rulesets.")
 	byos_group_only = models.BooleanField(verbose_name="Pick from Group BYOS Only", default=True, help_text="Limit BYOS charts to only those in same group instead of bracket.")
 	byos_picks = models.IntegerField(verbose_name="BYOS Picks per match", validators=[MinValueValidator(1), MaxValueValidator(2)], default=1, help_text="Number of BYOS chart picks a player gets per-match.")
 
@@ -131,6 +132,7 @@ class BracketRules(models.Model):
 	def byos_enabled(self):
 		return self.bracket.tournament.config.byos
 
+	#Maybe additionally add a match function pointing here for dynamic tb bans?
 	@property 
 	def bannable_tb(self) -> bool:
 		if self.tb_ruleset == TB_RULESETS[2][0] or self.tb_ruleset == TB_RULESETS[4][0]: #Banpick or Bansave

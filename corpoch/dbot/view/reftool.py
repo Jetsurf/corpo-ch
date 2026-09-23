@@ -57,32 +57,19 @@ class BanSelect(discord.ui.Select):
 
 	async def init(self):
 		opts = []
-		if self.match.save_used:
-			charts = []
-			for ban in self.match.effective_bans:
-				if ban.player != self.match.picking_player:
-					charts.append(ban.chart)
-		else:
-			charts = self.match.setlist_remaining
+		charts = self.match.setlist_remaining
 
 		for chart in charts:
 			emoji = await get_chart_emoji(self.match.bot, chart)
+			opts.append(discord.SelectOption(label=str(chart.tournament_name), description=chart.description, emoji=emoji, value=chart.md5))
 			self.retOpts[chart.md5] = chart
-			opts.append(discord.SelectOption(label=str(chart.tournament_name), description=f"{chart.artist} - {chart.charter}", emoji=emoji, value=chart.md5))
-
-		if self.match.save_used:
-			placeholder=f"{self.match.picking_player.ch_name} Saves"
 		else:
 			placeholder = f"{self.match.picking_player.ch_name} Bans"
 		super().__init__(placeholder=placeholder, max_values=1, options=opts, custom_id="ban_sel")
 
 	async def callback(self, interaction: discord.Interaction):
 		chart = self.retOpts[self.values[0]]
-		if self.match.save_used:
-			self.match.add_save(self.match.picking_player, chart)
-			self.match.save_used = False
-		else:
-			self.match.add_ban(self.match.picking_player, chart)
+		self.match.add_ban(self.match.picking_player, chart)
 		await self.match.showTool(interaction)
 
 class SongRoundSelect(discord.ui.Select):
@@ -103,10 +90,16 @@ class SongRoundSelect(discord.ui.Select):
 			selStr += f" - {self.round.chart.tournament_name}"
 
 		opts = []
-		async for chart in self.match.setlist_remaining:
-			self.retOpts[chart.md5] = chart
+		if self.match.setlist_remaining.count() == 0:
+			#If tiebreaker is pre-determined, force that into the options ensuring opts isn't 0 long
+			chart = self.match.current_round.chart
 			emoji = await get_chart_emoji(self.match.bot, chart)
-			opts.append(discord.SelectOption(label=chart.tournament_name, value=chart.md5, description=f"{chart.artist} - {chart.charter}", emoji=emoji))
+			opts.append(discord.SelectOption(label=chart.tournament_name, value=chart.md5, description=chart.description, emoji=emoji))
+		else:
+			async for chart in self.match.setlist_remaining:
+				self.retOpts[chart.md5] = chart
+				emoji = await get_chart_emoji(self.match.bot, chart)
+				opts.append(discord.SelectOption(label=chart.tournament_name, value=chart.md5, description=chart.description, emoji=emoji))
 		super().__init__(placeholder=selStr, max_values=1, options=opts, custom_id="roundsong_sel", disabled=self.dis)
 
 	async def callback(self, interaction: discord.Integration):
@@ -139,6 +132,8 @@ class PlayerRoundSelect(discord.ui.Select):
 		await self.round.asave()
 		if not self.match.finished and (not self.match.tiebreaker or not self.match.ruleset.bannable_tb):
 			self.match.add_round()
+		elif self.match.ruleset.tb_ruleset == "bansave" and self.match.setlist_remaining.count() == 1:
+			self.match.add_round() #Separate check for possible bansave ruleset ban-phase
 		await self.match.showTool(interaction)
 
 class BracketSelect(discord.ui.Select):
@@ -272,12 +267,11 @@ class DiscordMatchView(discord.ui.View):
 		self.defer = discord.ui.Button(label="Defer", style=discord.ButtonStyle.secondary, custom_id="deferBtn")
 		self.defer.callback = self.deferBtn
 
-		if self.match.ruleset.ban_ruleset == "bansave":
-			if self.match.save_used:
-				label = "Ban"
-			else:
-				label = "Save"
-				
+		self.seed_flip = discord.ui.Button(label="Flip Seeding", style=discord.ButtonStyle.secondary, custom_id="seedFlipBtn")
+		self.seed_flip.callback = self.seedFlipBtn
+
+		if self.match.matchDb and self.match.ruleset.ban_ruleset == "bansave" and self.match.bans.count() > 0:
+			label = f"Save {self.match.bans.last().chart}"[:75]				
 			self.save = discord.ui.Button(label=label, style=discord.ButtonStyle.secondary, custom_id="saveBtn")
 			self.save.callback = self.saveBtn
 
@@ -342,8 +336,11 @@ class DiscordMatchView(discord.ui.View):
 
 			if 'defer' in self.match.ruleset.ban_ruleset and len(self.match.bans) == 0:
 				self.add_item(self.defer)
-			elif self.match.ruleset.ban_ruleset == "bansave" and not self.match.bans.filter(player=self.match.picking_player, saved=True).exists():
-				self.add_item(self.save)
+			if self.match.ruleset.seed_inversions and self.match.bans.count() == 0:
+				self.add_item(self.seed_flip)
+			if self.match.ruleset.ban_ruleset == "bansave" and not self.match.bans.filter(player=self.match.picking_player, saved=True).exists():
+				if self.match.bans.count() == 1 or self.match.bans.count() == 3:
+					self.add_item(self.save)
 
 			sel = BanSelect(self.match)
 			await sel.init()
@@ -356,7 +353,7 @@ class DiscordMatchView(discord.ui.View):
 				await self.setup_round_player_sels()
 			elif not self.match.finished and self.match.tiebreaker:
 				if self.match.ruleset.bannable_tb:
-					if len(self.match.bans) == self.match.ruleset.total_bans:
+					if len(self.match.bans) == self.match.ruleset.total_bans and (not self.match.ruleset.tb_ruleset == "bansave" or self.match.setlist_remaining.count() > 1):
 						sel = BanSelect(self.match)
 						await sel.init()
 						self.add_item(sel)
@@ -418,7 +415,8 @@ class DiscordMatchView(discord.ui.View):
 				else:
 					self.current_round = self.match.remove_round()
 					if self.match.ruleset.bannable_tb:
-						self.match.remove_ban()
+						if self.match.ruleset.tb_ruleset != "bansave" or self.match.ruleset.total_bans > self.match.bans.count():
+							self.match.remove_ban()
 					else:
 						self.current_round.winner = None
 			elif self.current_round.winner:
@@ -455,8 +453,14 @@ class DiscordMatchView(discord.ui.View):
 		self.match.matchDb.defer = not self.match.defer
 		await self.match.showTool(interaction)
 
+	async def seedFlipBtn(self, interaction: discord.Interaction):
+		seeds = self.match.seeding.reverse()
+		print(f"SEEDS FLIPPING TO: {seeds}")
+		self.match.matchDb.rev_seeds = not self.match.matchDb.rev_seeds
+		await self.match.showTool(interaction)
+
 	async def saveBtn(self, interaction: discord.Interaction):
-		self.match.save_used = not self.match.save_used
+		self.match.add_save(self.match.picking_player, self.match.bans.last().chart)
 		await self.match.showTool(interaction)
 
 	async def searchBtn(self, interaction: discord.Interaction):

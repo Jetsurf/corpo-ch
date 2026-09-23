@@ -336,19 +336,36 @@ class GSheets():
 		return ws
 
 	def setup_completed_sheet(self) -> bool:
-		print(f"Creating Match Air Table {self._submission.tournament} worksheet in sheet {self._url}")
+		print(f"Creating Match Air Table {self._submission.tournament} match data worksheet in sheet {self._url}")
 		ws = self._sheet.add_worksheet(title=f"{self._submission.tournament.short_name} - Match Data", rows=1, cols=17)
-		ws.update([["Match ID", "Bracket", "Group", "Match", "PickSong", "Song", "Player", "Score", "W/L",  "Notes Missed", "Notes Hit", "Is FC", "Gamepad", "Overstrums", "Ghosts", "Phrases Hit", "Timestamp", "Screenshot"]], "A1:P1")
-		ws.format("A1:Q1", self._format_header)
-		#ws.freeze("A1:P1")
+		ws.update([["Match ID", "Bracket", "Group", "Match", "PickSong", "Song", "Player", "Score", "W/L",  "Notes Missed", "Notes Hit", "Is FC", "Gamepad", "Overstrums", "Ghosts", "Phrases Hit", "Timestamp", "Screenshot"]], "A1:R1")
+		ws.format("A1:R1", self._format_header)
+		#ws.freeze("A1:R1")
 		#TODO - Add "the live table formatting/formulas for the viewable worksheets
 		return ws
 
 	def setup_bans_sheet(self) -> bool:
-		print(f"Creating Match Air Table {self._submission.tournament} worksheet in sheet {self._url}")
+		print(f"Creating Match Air Table {self._submission.tournament} bans worksheet in sheet {self._url}")
 		ws = self._sheet.add_worksheet(title=f"{self._submission.tournament.short_name} - Bans Data", rows=1, cols=6)
-		ws.update([["Match ID", "Bracket", "Group", "Match", "Player", "Ban"]], "A1:F1")
-		ws.format("A1:F1", self._format_header)
+		if self._submission.bracket.ruleset.ban_ruleset == "bansave":
+			ws.update([["Match ID", "Bracket", "Group", "Match", "Player", "Ban", "Saved"]], "A1:G1")
+			ws.format("A1:G1", self._format_header)
+		else:
+			ws.update([["Match ID", "Bracket", "Group", "Match", "Player", "Ban"]], "A1:F1")
+			ws.format("A1:F1", self._format_header)
+		#ws.freeze("A1:P1")
+		#TODO - Add "the live table formatting/formulas for the viewable worksheets
+		return ws
+
+	def setup_players_sheet(self):
+		print(f"Creating Match Air Table {self._submission.tournament} player list worksheet in sheet {self._url}")
+		ws = self._sheet.add_worksheet(title=f"{self._submission.tournament.short_name} - Bans Data", rows=1, cols=6)
+		if self._submission.bracket.ruleset.ban_ruleset == "bansave":
+			ws.update([["Match ID", "Bracket", "Group", "Match", "Player", "Ban", "Saved"]], "A1:G1")
+			ws.format("A1:G1", self._format_header)
+		else:
+			ws.update([["Match ID", "Bracket", "Group", "Match", "Player", "Ban"]], "A1:F1")
+			ws.format("A1:F1", self._format_header)
 		#ws.freeze("A1:P1")
 		#TODO - Add "the live table formatting/formulas for the viewable worksheets
 		return ws
@@ -383,11 +400,11 @@ class GSheets():
 	def update_match(self):
 		cell = self._ws.find(self._submission.id)
 		for i, line in enumerate(self.completed_lines):
-			self._ws.update([line], f"A{(cell.row + i)}:Q{(cell.row + i)}", raw=False)
+			self._ws.update([line], f"A{(cell.row + i)}:R{(cell.row + i)}", raw=False)
 		self._switch_match_sheet()
 		cell = self._ws.find(self._submission.id)
 		for i, line in enumerate(self.ban_lines):
-			self._ws.update([line], f"A{(cell.row + i)}:F{(cell.row + i)}", raw=False)
+			self._ws.update([line], f"A{(cell.row + i)}:{"G" if self._submission.bracket.ruleset == "bansave" else "F"}{(cell.row + i)}", raw=False)
 
 	@property
 	def qualifier_line(self):
@@ -413,7 +430,7 @@ class GSheets():
 		matchId = self._submission.id
 		bracket = str(self._submission.bracket)
 		group = str(self._submission.group)
-		match = self._submission.short_name
+		match = self._submission.short_name_no_seeds
 		for rnd in self._submission.rounds:
 			for ply in rnd.steg.players:
 				picked = str(rnd.picked.ch_name) if rnd.picked else 'TieBreaker'
@@ -448,5 +465,9 @@ class GSheets():
 		for ban in self._submission.match_bans.all():
 			ply = ban.player.ch_name
 			chart = ban.chart.tournament_name
-			retLines.append([matchId, bracket, group, match, ply, chart])
+			saved = ban.saved
+			if self._submission.bracket.ruleset.ban_ruleset == "bansave":
+				retLines.append([matchId, bracket, group, match, ply, chart, saved])
+			else:
+				retLines.append([matchId, bracket, group, match, ply, chart])
 		return retLines

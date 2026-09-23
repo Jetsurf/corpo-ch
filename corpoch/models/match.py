@@ -31,6 +31,7 @@ class MatchAbstract(models.Model):
 	channel = models.ForeignKey("dbot.Channels", verbose_name="Ref-Tool Discord Channel", on_delete=models.SET_NULL, null=True, blank=True, help_text="Discord Channel the reftool was ran in for a match.")
 	message = models.BigIntegerField(verbose_name="Ref-Tool Discord Message ID", null=True, blank=True, help_text="Discord snowflake ID of the message for a match.")
 	exhibition = models.BooleanField(default=False, help_text="Is a match an exhibition match (not an official match).")
+	rev_seeds = models.BooleanField(default=False, help_text="Inverses the seed order. Meant to be used where rules may not have high seed first.") #ONLY tested for 2 players
 
 	class Meta:
 		app_label = 'corpoch'
@@ -43,14 +44,20 @@ class MatchAbstract(models.Model):
 
 	@property
 	def high_seed(self):
-		return self.players.first()
+		if self.rev_seeds:
+			return self.players.last()
+		else:
+			return self.players.first()
 
 	@property
 	def low_seed(self):
 		players = self.players.all()
 
 		if players.count() > 1:
-			return players[1]
+			if self.rev_seeds:
+				return players.first()
+			else:
+				return players.last()
 		return None
 
 	#Bans/Rounds are shorthands for all Ban/Match objects
@@ -163,22 +170,24 @@ class MatchAbstract(models.Model):
 
 	@property
 	def full_name(self):
-		outStr = f"{self.tournament.short_name} - {self.bracket.name}"
-		for i, ply in enumerate(self.players.iterator()):
-			if i == 0:
-				outStr += f" - {ply.player_ch_name}({ply.seed})"
-			elif i == 1:
-				outStr += f" vs {ply.player_ch_name}({ply.seed})" 
-		return outStr
+		return f"{self.tournament.short_name} - {self.bracket.name} - {self.group.name} - {self.short_name}"
 
 	@property
 	def short_name(self):
 		outStr = ""
-		for i, ply in enumerate(self.players.iterator()):
-			if i == 0:
-				outStr += f"{ply.player_ch_name}({ply.seed})"
-			elif i == 1:
-				outStr += f" vs {ply.player_ch_name}({ply.seed})"
+		if self.players.count() >= 1:
+			outStr += f"{self.high_seed.player_ch_name}({self.high_seed.seed})"
+		if self.players.count() == 2:
+			outStr += f" vs {self.low_seed.player_ch_name}({self.low_seed.seed})"
+		return outStr
+
+	@property
+	def short_name_no_seeds(self):
+		outStr = ""
+		if self.players.count() >= 1:
+			outStr += f"{self.high_seed.player_ch_name})"
+		if self.players.count() == 2:
+			outStr += f" vs {self.low_seed.player_ch_name})"
 		return outStr
 
 	@property
@@ -213,7 +222,7 @@ class MatchAbstract(models.Model):
 			else:
 				picked = self.current_round.winner
 		elif self.tiebreaker and self.ruleset.tb_ruleset == 'bansave':
-			if length(self.setlist_remaining) > 1 and self.bans.count() > self.ruleset.total_bans:
+			if self.setlist_remaining.count() > 1 and self.bans.count() > self.ruleset.total_bans:
 				picked = self.previous_round.loser
 			else:
 				picked = self.current_round.winner
@@ -273,7 +282,6 @@ class MatchAbstract(models.Model):
 			if ban.saved:
 				bans = bans.exclude(chart=ban.chart)
 
-		print(f"SETLIST REMAINING DEBUG: Effective bans: {bans}")
 		return bans
 
 	@property
@@ -281,11 +289,11 @@ class MatchAbstract(models.Model):
 		"""
 		Returns the rest of the setlist that hasn't been played for the match
 		"""
-		if self.ruleset.ban_ruleset == "bansave":
+		#Ensure saves can't be "rebanned" in ban-phase of a match, otherwise keep "saved" songs available
+		if self.ruleset.ban_ruleset == "bansave" and not self.bans.count() < self.ruleset.total_bans and not self.tiebreaker:
 			bans = self.effective_bans.values_list("chart", flat=True)
 		else:
 			bans = self.bans.values_list('chart', flat=True)
-
 		rounds = self.rounds.values_list('chart', flat=True)
 		if self.tiebreaker:
 			if self.ruleset.tb_ruleset == 'refdecide':
@@ -340,6 +348,12 @@ class MatchAbstract(models.Model):
 				chart = Chart.objects.get(category=CHART_CATEGORIES[2][0], tiebreaker=True, brackets=self.bracket)
 			else:
 				chart = Chart.objects.get(category=CHART_CATEGORIES[1][0], tiebreaker=True, brackets=self.bracket)
+		elif self.tiebreaker and self.ruleset.tb_ruleset == "bansave":
+			if self.setlist_remaining.count() == 1:
+				picked = None
+				chart = self.setlist_remaining.get()
+			else:
+				picked = self.current_round.loser
 		elif self.tiebreaker and self.ruleset.tb_ruleset == 'banpick':
 			picked = self.current_round.loser
 		elif self.ruleset.pick_ruleset == "loserpicks":
@@ -368,11 +382,7 @@ class MatchAbstract(models.Model):
 			ban.delete()
 
 	def __str__(self):
-		outStr = f"{self.tournament.short_name} - {self.bracket.name} - Group {self.group.name}"
-		seeds = [seed for seed in self.players.all()]
-		if len(seeds) > 1:#Not going to work 3+ players
-			outStr += f" - {seeds[0].player.ch_name} ({seeds[0].seed}) vs {seeds[1].player.ch_name} ({seeds[1].seed})"
-		return outStr
+		return self.full_name
 
 	def complete_match(self):
 		pass

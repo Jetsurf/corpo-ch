@@ -72,15 +72,15 @@ class BracketRulesInline(admin.StackedInline):
 			return ()
 		except DiscordUser.DoesNotExist:
 			if obj == None or len(obj.setlist.all().filter(boss=True)) == 0:
-				return ('num_players', 'num_bans', 'num_rounds', 'ban_ruleset', 'pick_ruleset', 'tb_ruleset',)
+				return ('num_players', 'num_bans', 'num_rounds', 'ban_ruleset', 'pick_ruleset', 'tb_ruleset', 'seed_inversions')
 			else:
-				return ('num_players', 'num_bans', 'num_rounds', 'boss_active', 'boss_bannable', 'ban_ruleset', 'pick_ruleset', 'tb_ruleset',)
+				return ('num_players', 'num_bans', 'num_rounds', 'boss_active', 'boss_bannable', 'ban_ruleset', 'pick_ruleset', 'tb_ruleset', 'seed_inversions')
 
 	def get_fields(self, request, obj=None):
 		if obj == None or len(obj.setlist.all().filter(boss=True)) == 0:
-			return ('num_players', 'num_bans', 'num_rounds', 'ban_ruleset', 'pick_ruleset', 'tb_ruleset',)
+			return ('num_players', 'num_bans', 'num_rounds', 'ban_ruleset', 'pick_ruleset', 'tb_ruleset', 'seed_inversions',)
 		else:
-			return ('num_players', 'num_bans', 'num_rounds', 'boss_active', 'boss_bannable', 'ban_ruleset', 'pick_ruleset', 'tb_ruleset',)
+			return ('num_players', 'num_bans', 'num_rounds', 'boss_active', 'boss_bannable', 'ban_ruleset', 'pick_ruleset', 'tb_ruleset', 'seed_inversions',)
 
 @admin.register(Bracket)
 class BracketAdmin(admin.ModelAdmin):

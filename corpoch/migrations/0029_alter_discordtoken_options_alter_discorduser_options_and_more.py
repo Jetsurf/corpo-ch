@@ -180,4 +180,19 @@ class Migration(migrations.Migration):
             code=forwards_func,
             reverse_code=django.db.migrations.operations.special.RunPython,
         ),
+        migrations.AddField(
+            model_name='exhibitionmatch',
+            name='rev_seeds',
+            field=models.BooleanField(default=False, help_text='Inverses the seed order. Meant to be used where rules may not have high seed first.'),
+        ),
+        migrations.AddField(
+            model_name='match',
+            name='rev_seeds',
+            field=models.BooleanField(default=False, help_text='Inverses the seed order. Meant to be used where rules may not have high seed first.'),
+        ),
+        migrations.AddField(
+            model_name='bracketrules',
+            name='seed_inversions',
+            field=models.BooleanField(default=False, help_text='Allow seeding inversions for certain rulesets.', verbose_name='Match Seed Inversions'),
+        ),
     ]
