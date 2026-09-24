@@ -9,6 +9,8 @@ from corpoch.forms import TournamentPlayerForm
 from corpoch.models import Tournament, TournamentConfig, BracketRules, Bracket, Qualifier, QualifierSubmission, TournamentPlayer, Group, GroupSeed
 from corpoch.dbot.models import Channels, Guilds, Roles
 
+import corpoch.tasks
+
 class TournamentConfigInline(admin.StackedInline):
 	model = TournamentConfig
 	extra = 0
@@ -26,7 +28,7 @@ class TournamentConfigInline(admin.StackedInline):
 class TournamentAdmin(admin.ModelAdmin):
 	list_display = ('name', 'guild', 'active')
 	inlines = [TournamentConfigInline]
-	actions = ['set_tournament_role', 'set_players_active']
+	actions = ['set_tournament_role', 'set_players_active', 'regen_player_list_gsheet']
 
 	def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
 		if db_field.name == "role":
@@ -59,6 +61,12 @@ class TournamentAdmin(admin.ModelAdmin):
 					for seed in group.seeding.all():
 						seed.player.is_active = True
 						seed.player.save()
+
+	@admin.action(description="Regenerate Player List GSheet")
+	def regen_player_list_gsheet(modeladmin, request, queryset):
+		for tournament in queryset:
+			corpoch.tasks.update_gsheet.apply_async(args=[tournament.id])
+
 
 class BracketRulesInline(admin.StackedInline):
 	model = BracketRules

@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from corpoch.dbot import tasks
 from corpoch.dbot.models import Guilds
-from corpoch.models import TournamentPlayer, Qualifier, QualifierSubmission, Match, DiscordUser, Chart, CHIcon, DiscordToken
+from corpoch.models import Tournament, TournamentPlayer, Qualifier, QualifierSubmission, Match, DiscordUser, Chart, CHIcon, DiscordToken
 from corpoch.providers import GSheets, EncoreClient
 from corpoch.utils.snghandler import SNGHandler
 
@@ -75,7 +75,12 @@ def update_gsheet(submission_id, *args, **kwargs):
 		if not sub:
 			sub = QualifierSubmission.objects.get(id=submission_id)
 	except QualifierSubmission.DoesNotExist:
-		print(f"Did not find qualifier submission or match ID for {submission_id}")
+		sub = None
+	try:
+		if not sub:
+			sub = Tournament.objects.get(id=submission_id)
+	except Tournament.DoesNotExist:
+		print(f"Did not find qualifier submission, match, our tournament ID for {submission_id}")
 		return #Probably want to throw exception?
 
 	sheet = GSheets()
@@ -85,6 +90,8 @@ def update_gsheet(submission_id, *args, **kwargs):
 		sheet.update_match()
 	elif isinstance(sub, QualifierSubmission):
 		sheet.update_qualifier()
+	elif isinstance(sub, Tournament):
+		sheet.submit_players()
 	close_old_connections()
 
 @app.task

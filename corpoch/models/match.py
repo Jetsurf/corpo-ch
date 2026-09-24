@@ -185,9 +185,9 @@ class MatchAbstract(models.Model):
 	def short_name_no_seeds(self):
 		outStr = ""
 		if self.players.count() >= 1:
-			outStr += f"{self.high_seed.player_ch_name})"
+			outStr += f"{self.high_seed.player_ch_name}"
 		if self.players.count() == 2:
-			outStr += f" vs {self.low_seed.player_ch_name})"
+			outStr += f" vs {self.low_seed.player_ch_name}"
 		return outStr
 
 	@property
