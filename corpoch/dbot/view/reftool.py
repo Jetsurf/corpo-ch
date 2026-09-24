@@ -267,8 +267,8 @@ class DiscordMatchView(discord.ui.View):
 		self.defer = discord.ui.Button(label="Defer", style=discord.ButtonStyle.secondary, custom_id="deferBtn")
 		self.defer.callback = self.deferBtn
 
-		self.seed_flip = discord.ui.Button(label="Flip Seeding", style=discord.ButtonStyle.secondary, custom_id="seedFlipBtn")
-		self.seed_flip.callback = self.seedFlipBtn
+		self.seed_swap = discord.ui.Button(label="Swap Seeding", style=discord.ButtonStyle.secondary, custom_id="seedSwapBtn")
+		self.seed_swap.callback = self.seedSwapBtn
 
 		if self.match.matchDb and self.match.ruleset.ban_ruleset == "bansave" and self.match.bans.count() > 0:
 			label = f"Save {self.match.bans.last().chart}"[:75]				
@@ -337,7 +337,7 @@ class DiscordMatchView(discord.ui.View):
 			if 'defer' in self.match.ruleset.ban_ruleset and len(self.match.bans) == 0:
 				self.add_item(self.defer)
 			if self.match.ruleset.seed_inversions and self.match.bans.count() == 0:
-				self.add_item(self.seed_flip)
+				self.add_item(self.seed_swap)
 			if self.match.ruleset.ban_ruleset == "bansave" and not self.match.bans.filter(player=self.match.picking_player, saved=True).exists():
 				if self.match.bans.count() == 1 or self.match.bans.count() == 3:
 					self.add_item(self.save)
@@ -415,7 +415,7 @@ class DiscordMatchView(discord.ui.View):
 				else:
 					self.current_round = self.match.remove_round()
 					if self.match.ruleset.bannable_tb:
-						if self.match.ruleset.tb_ruleset != "bansave" or self.match.ruleset.total_bans > self.match.bans.count():
+						if self.match.ruleset.tb_ruleset != "bansave" or self.match.ruleset.total_bans < self.match.bans.count():
 							self.match.remove_ban()
 					else:
 						self.current_round.winner = None
@@ -453,9 +453,7 @@ class DiscordMatchView(discord.ui.View):
 		self.match.matchDb.defer = not self.match.defer
 		await self.match.showTool(interaction)
 
-	async def seedFlipBtn(self, interaction: discord.Interaction):
-		seeds = self.match.seeding.reverse()
-		print(f"SEEDS FLIPPING TO: {seeds}")
+	async def seedSwapBtn(self, interaction: discord.Interaction):
 		self.match.matchDb.rev_seeds = not self.match.matchDb.rev_seeds
 		await self.match.showTool(interaction)
 

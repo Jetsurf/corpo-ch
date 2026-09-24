@@ -290,7 +290,7 @@ class MatchAbstract(models.Model):
 		Returns the rest of the setlist that hasn't been played for the match
 		"""
 		#Ensure saves can't be "rebanned" in ban-phase of a match, otherwise keep "saved" songs available
-		if self.ruleset.ban_ruleset == "bansave" and not self.bans.count() < self.ruleset.total_bans and not self.tiebreaker:
+		if self.ruleset.ban_ruleset == "bansave" and (not self.tiebreaker or self.bans.count() > self.ruleset.total_bans):
 			bans = self.effective_bans.values_list("chart", flat=True)
 		else:
 			bans = self.bans.values_list('chart', flat=True)
