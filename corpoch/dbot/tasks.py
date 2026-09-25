@@ -23,7 +23,7 @@ def reload_cog(cog):
 @app.task
 def send_qualifier_discord_dms(player, quali, req_subs, quali_end, guild, num_subs):
 	print(f"Sending task to send DM to {player} for qualifier {quali} ({num_subs}/{req_subs})")
-	send_qualifier_discord_dms.apply_async(args=[player.user, quali, req_subs, quali_end, guild, num_subs])
+	send_qualifier_discord_dms.apply_async(args=[player.user.id, quali, req_subs, quali_end, guild.id, num_subs])
 
 @app.task
 def refresh_match_message(match_id):

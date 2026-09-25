@@ -41,13 +41,18 @@ def upload_completed_match_gsheet():
 	close_old_connections()
 
 @app.task
-def send_qualifier_discord_dms():
+def send_qualifier_discord_dms(qualifier_id, *args, **kwargs):
 	close_old_connections()
-	for qualifier in Qualifier.objects.all().filter(required_submissions__gt=1, end_time__gt=timezone.now()):
-		for ply in TournamentPlayer.objects.all().filter(tournament=qualifier.tournament):
+	qualifier = Qualifier.objects.get(id=qualifier_id)
+	for ply in TournamentPlayer.objects.all().filter(tournament=qualifier.tournament):
+		try:
 			submissions = QualifierSubmission.objects.all().filter(player=ply)
-			if len(submissions) < qualifier.required_submissions:
-				tasks.send_qualifier_discord_dms(ply, str(qualifier), qualifier.required_submissions, qualifier.end_time, qualifier.tournament.guild, len(submissions))
+		except QualifierSubmission.DoesNotExist:
+			print("No qualifiers... continuing")
+			continue
+		if len(submissions) < qualifier.required_submissions and submissions.count() != 0:
+			print(f"Sending Qualifier submission reminder to {ply}")
+			tasks.send_qualifier_discord_dms(ply, str(qualifier), qualifier.required_submissions, qualifier.end_time, qualifier.tournament.guild, len(submissions))
 	close_old_connections()
 
 @app.task

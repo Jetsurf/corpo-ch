@@ -202,7 +202,7 @@ class TournamentPlayerAdmin(admin.ModelAdmin):
 class QualifierAdmin(admin.ModelAdmin):
 	list_display = ('id', 'tournament', '_players', '_submissions')
 	list_filter = ['tournament']
-	actions = ['submit_final_scores']
+	actions = ['submit_final_scores', "send_discord_reminders"]
 	filter_horizontal = ['charts']
 
 	def _players(self, obj):
@@ -230,6 +230,11 @@ class QualifierAdmin(admin.ModelAdmin):
 	def submit_final_scores(modeladmin, request, queryset):
 		for quali in queryset:
 			corpoch.tasks.submit_final_sheet.apply_async(args=[quali.id])
+
+	@admin.action(description="Send discord reminders submissions")
+	def send_discord_reminders(modeladmin, request, queryset):
+		for quali in queryset:
+			corpoch.tasks.send_qualifier_discord_dms.apply_async(args=[quali.id])
 
 class SeedingInline(SortableStackedInline):
 	model = GroupSeed

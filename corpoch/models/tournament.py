@@ -9,7 +9,7 @@ from django.utils import timezone
 from corpoch.types import CH_VERSIONS, TB_RULESETS, PICK_RULESETS, BAN_RULESETS, StegScreenshot, PlayerConfig, CH_Name
 
 def quali_upload_dir(self, filename):
-	return f"qualifiers/{str(self.qualifier).replace(' ', '').replace(':', '')}/{self.match.id}/{uuid.uuid1()}.{filename.split('.')[-1]}"
+	return f"qualifiers/{str(self.qualifier).replace(' ', '').replace(':', '')}/{self.id}/{uuid.uuid1()}.{filename.split('.')[-1]}"
 
 class Tournament(models.Model):
 	"""
