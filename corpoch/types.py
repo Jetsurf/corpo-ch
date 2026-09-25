@@ -57,6 +57,7 @@ TB_RULESETS = (
 	("csc", "CSC TB Rules"),
 	("banpick", "'NPDO' Ban/Pick"),
 	('refdecide', "Ref picks from unplayed"),
+	('bansave', "Ban-Save")
 )
 
 PICK_RULESETS = (
@@ -68,6 +69,7 @@ BAN_RULESETS = (
 	("default", "No Defer/High Seed first"),
 	("deferban", "High Seed can defer ban/picks first"),
 	("deferboth", "High Seed can defer both ban/pick"),
+	("bansave", "Ban Save alternating")
 )
 
 class CH_Name(pydantic.BaseModel):

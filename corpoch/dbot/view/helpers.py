@@ -55,7 +55,7 @@ def build_stats_embed(steg, title: str) -> discord.Embed:
 					plyStr += f"Avg Multiplier: {player.avg_multiplier:.3f}x\n"
 					plyStr += f"Squeeze Hit/Missed/Score: +{player.squeezed_notes}/-{player.squeezed_notes_missed}/{player.squeeze_score}\n"
 			embed.add_field(name=f"Player: `{player.profile_name}`", value=plyStr, inline=False)
-		embed.set_footer(text=f"Chart MD5: `{steg.checksum}`")#Get steg info to have chart icon key in output for footer.icon_url?
+		embed.set_footer(text=f"Chart MD5: {steg.checksum}")#Get steg info to have chart icon key in output for footer.icon_url?
 		return embed
 
 def build_full_stats_embed(steg, title: str) -> discord.Embed:
@@ -83,5 +83,5 @@ def build_full_stats_embed(steg, title: str) -> discord.Embed:
 				else:
 					outStr += f"{outAttr}: {getattr(player, attr)}\n"
 			embed.add_field(name=f"Player {player.profile_name} Raw Steg Info {j}", value=outStr, inline=False)
-		embed.set_footer(text=f"Chart md5 `{steg.checksum}`")
+		embed.set_footer(text=f"Chart md5 {steg.checksum}")
 		return embed

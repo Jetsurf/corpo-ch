@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from corpoch.dbot import tasks
 from corpoch.dbot.models import Guilds
-from corpoch.models import TournamentPlayer, Qualifier, QualifierSubmission, Match, DiscordUser, Chart, CHIcon, DiscordToken
+from corpoch.models import Tournament, TournamentPlayer, Qualifier, QualifierSubmission, Match, DiscordUser, Chart, CHIcon, DiscordToken
 from corpoch.providers import GSheets, EncoreClient
 from corpoch.utils.snghandler import SNGHandler
 
@@ -41,13 +41,18 @@ def upload_completed_match_gsheet():
 	close_old_connections()
 
 @app.task
-def send_qualifier_discord_dms():
+def send_qualifier_discord_dms(qualifier_id, *args, **kwargs):
 	close_old_connections()
-	for qualifier in Qualifier.objects.all().filter(required_submissions__gt=1, end_time__gt=timezone.now()):
-		for ply in TournamentPlayer.objects.all().filter(tournament=qualifier.tournament):
+	qualifier = Qualifier.objects.get(id=qualifier_id)
+	for ply in TournamentPlayer.objects.all().filter(tournament=qualifier.tournament):
+		try:
 			submissions = QualifierSubmission.objects.all().filter(player=ply)
-			if len(submissions) < qualifier.required_submissions:
-				tasks.send_qualifier_discord_dms(ply, str(qualifier), qualifier.required_submissions, qualifier.end_time, qualifier.tournament.guild, len(submissions))
+		except QualifierSubmission.DoesNotExist:
+			print("No qualifiers... continuing")
+			continue
+		if len(submissions) < qualifier.required_submissions and submissions.count() != 0:
+			print(f"Sending Qualifier submission reminder to {ply}")
+			tasks.send_qualifier_discord_dms(ply, str(qualifier), qualifier.required_submissions, qualifier.end_time, qualifier.tournament.guild, len(submissions))
 	close_old_connections()
 
 @app.task
@@ -75,7 +80,12 @@ def update_gsheet(submission_id, *args, **kwargs):
 		if not sub:
 			sub = QualifierSubmission.objects.get(id=submission_id)
 	except QualifierSubmission.DoesNotExist:
-		print(f"Did not find qualifier submission or match ID for {submission_id}")
+		sub = None
+	try:
+		if not sub:
+			sub = Tournament.objects.get(id=submission_id)
+	except Tournament.DoesNotExist:
+		print(f"Did not find qualifier submission, match, our tournament ID for {submission_id}")
 		return #Probably want to throw exception?
 
 	sheet = GSheets()
@@ -85,6 +95,8 @@ def update_gsheet(submission_id, *args, **kwargs):
 		sheet.update_match()
 	elif isinstance(sub, QualifierSubmission):
 		sheet.update_qualifier()
+	elif isinstance(sub, Tournament):
+		sheet.submit_players()
 	close_old_connections()
 
 @app.task

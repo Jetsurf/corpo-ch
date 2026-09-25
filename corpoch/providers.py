@@ -9,7 +9,7 @@ from typing import Optional, Union, Literal
 
 from corpoch import __user_agent__
 from corpoch import settings
-from corpoch.models import GSheetAPI, Chart, Tournament, Match, Qualifier, QualifierSubmission
+from corpoch.models import GSheetAPI, Chart, Tournament, Match, Qualifier, QualifierSubmission, TournamentPlayer
 from corpoch.types import StegScreenshot, SearchResponse, CH_DIFFICULTIES, CH_INSTRUMENTS, CH_VERSIONS
 from corpoch.utils.hydra.hydra.hyutil import analyze_chart_bytes_chart, analyze_chart_bytes_mid
 from corpoch.utils.snghandler import SNGHandler
@@ -295,6 +295,8 @@ class GSheets():
 			self._tourney = self._submission.group.bracket.tournament
 			self._bracket = self._submission.group.bracket
 			self._url = self._tourney.config.gsheet
+		elif isinstance(self._submission, Tournament):
+			self._url = self._submission.config.gsheet
 
 		try:
 			self._sheet = self._gc.open_by_url(self._url)
@@ -319,38 +321,56 @@ class GSheets():
 				ws = self._sheet.worksheet((f"{self._submission.tournament.short_name} - Match Data"))
 			except gspread.exceptions.WorksheetNotFound:
 				ws = self.setup_completed_sheet()
+		elif isinstance(self._submission, Tournament) or isinstance(self._submission, TournamentPlayer):
+			try:
+				ws = self._sheet.worksheet((f"{self._submission.short_name} - Player Data"))
+			except gspread.exceptions.WorksheetNotFound:
+				ws = self.setup_players_sheet()
 
 		self._ws = ws
 
 	def setup_qualifier_sheet(self) -> gspread.Worksheet:
 		print(f"Creating qualifier {self._submission.qualifier} worksheet in sheet {self._url}")
 		if not self._final:
-			ws = self._sheet.add_worksheet(title=f"{self._submission.qualifier} - Data", rows=1, cols=13)
+			ws = self._sheet.add_worksheet(title=f"{self._submission.qualifier} - Data", rows=2, cols=13)
 		else:
 			ws = self._sheet.add_worksheet(title=f"{self._submission.qualifier} - Final Top Scores", rows=1, cols=13)
-		ws.update([["Qualifier ID", "Discord Name", "Clone Hero Name", "Score", "Notes Missed", "Notes Hit", "Is FC", "Overstrums", "Ghosts", "Phrases Hit", "Submission Timestamp", "Screenshot Timestamp", "Screenshot", "Game Version" ]], "A1:N1")
+		ws.update([["Qualifier ID", "Discord Name", "Clone Hero Name", "Score", "Notes Missed", "Notes Hit", "Is FC", "Gamepad", "Overstrums", "Ghosts", "Phrases Hit", "Submission Timestamp", "Screenshot Timestamp", "Screenshot", "Game Version" ]], "A1:O1")
 		
 		ws.format("A1:N1", self._format_header)
-		#ws.freeze("A1:M1")
-		#TODO - Add any graphs/viewables that'd be nice to add
+		ws.freeze(1)
 		return ws
 
 	def setup_completed_sheet(self) -> bool:
-		print(f"Creating Match Air Table {self._submission.tournament} worksheet in sheet {self._url}")
-		ws = self._sheet.add_worksheet(title=f"{self._submission.tournament.short_name} - Match Data", rows=1, cols=17)
-		ws.update([["Match ID", "Bracket", "Group", "Match", "PickSong", "Song", "Player", "Score", "W/L",  "Notes Missed", "Notes Hit", "Is FC", "Overstrums", "Ghosts", "Phrases Hit", "Timestamp", "Screenshot"]], "A1:Q1")
-		ws.format("A1:Q1", self._format_header)
-		#ws.freeze("A1:P1")
-		#TODO - Add "the live table formatting/formulas for the viewable worksheets
+		print(f"Creating Match Air Table {self._submission.tournament} match data worksheet in sheet {self._url}")
+		ws = self._sheet.add_worksheet(title=f"{self._submission.tournament.short_name} - Match Data", rows=2, cols=18)
+		ws.update([["Match ID", "Bracket", "Group", "Match", "PickSong", "Song", "Player", "Score", "W/L",  "Notes Missed", "Notes Hit", "Is FC", "Gamepad", "Overstrums", "Ghosts", "Phrases Hit", "Timestamp", "Screenshot"]], "A1:R1")
+		ws.format("A1:R1", self._format_header)
+		ws.freeze(1, 17)
 		return ws
 
 	def setup_bans_sheet(self) -> bool:
-		print(f"Creating Match Air Table {self._submission.tournament} worksheet in sheet {self._url}")
-		ws = self._sheet.add_worksheet(title=f"{self._submission.tournament.short_name} - Bans Data", rows=1, cols=6)
-		ws.update([["Match ID", "Bracket", "Group", "Match", "Player", "Ban"]], "A1:F1")
-		ws.format("A1:F1", self._format_header)
-		#ws.freeze("A1:P1")
-		#TODO - Add "the live table formatting/formulas for the viewable worksheets
+		if self._submission.bracket.ruleset.ban_ruleset == "bansave":
+			columns = 7
+		else:
+			columns = 6
+		print(f"Creating Match Air Table {self._submission.tournament} bans worksheet in sheet {self._url}")
+		ws = self._sheet.add_worksheet(title=f"{self._submission.tournament.short_name} - Bans Data", rows=2, cols=columns)
+		if self._submission.bracket.ruleset.ban_ruleset == "bansave":
+			ws.update([["Match ID", "Bracket", "Group", "Match", "Player", "Ban", "Saved"]], "A1:G1")
+			ws.format("A1:G1", self._format_header)
+		else:
+			ws.update([["Match ID", "Bracket", "Group", "Match", "Player", "Ban"]], "A1:F1")
+			ws.format("A1:F1", self._format_header)
+		ws.freeze(1)
+		return ws
+
+	def setup_players_sheet(self):
+		print(f"Creating Match Air Table {self._submission} player list worksheet in sheet {self._url}")
+		ws = self._sheet.add_worksheet(title=f"{self._submission.short_name} - Player Data", rows=2, cols=4)
+		ws.update([["Bracket/Group", "Player CH Name", "Player Discord Name", "Player Discord ID"]], "A1:D1")
+		ws.format("A1:D1", self._format_header)
+		ws.freeze(1)
 		return ws
 
 	def _switch_match_sheet(self):
@@ -376,6 +396,11 @@ class GSheets():
 		self._switch_match_sheet()
 		self._ws.append_rows(self.ban_lines)
 
+	def submit_players(self) -> bool:
+		rows = self._ws.row_count
+		self._ws.append_rows(self.player_lines, value_input_option="USER_ENTERED")
+		self._ws.delete_rows(2, rows)
+
 	def update_qualifier(self):
 		cell = self._ws.find(self._submission.id)
 		self._ws.update([self.qualifier_line], f"A{cell.row}:N{cell.row}", raw=False)
@@ -383,11 +408,18 @@ class GSheets():
 	def update_match(self):
 		cell = self._ws.find(self._submission.id)
 		for i, line in enumerate(self.completed_lines):
-			self._ws.update([line], f"A{(cell.row + i)}:Q{(cell.row + i)}", raw=False)
+			self._ws.update([line], f"A{(cell.row + i)}:R{(cell.row + i)}", raw=False)
 		self._switch_match_sheet()
 		cell = self._ws.find(self._submission.id)
 		for i, line in enumerate(self.ban_lines):
-			self._ws.update([line], f"A{(cell.row + i)}:F{(cell.row + i)}", raw=False)
+			column = "F"
+			if self._submission.bracket.ruleset == "bansave":
+				column = "G"
+			self._ws.update([line], f"A{(cell.row + i)}:{column}{(cell.row + i)}", raw=False)
+
+	#def update_player(self): - NOT READY
+	#	cell = self._ws.find(self._submission.user.id)
+	#	self._ws.update([self.player_lines], f"A{cell.row}:E{cell.row}", raw=False)
 
 	@property
 	def qualifier_line(self):
@@ -397,6 +429,7 @@ class GSheets():
 		missed = self._submission.steg.players[0].notes_missed
 		hit = self._submission.steg.players[0].notes_hit
 		fc = self._submission.steg.players[0].is_fc
+		gp = self._submission.steg.players[0].gamepad_mode
 		excess = self._submission.steg.players[0].excess_hits
 		ghosts = self._submission.steg.players[0].frets_ghosted
 		phrases = self._submission.steg.players[0].sp_phrases_earned
@@ -404,7 +437,7 @@ class GSheets():
 		screenshotTimestamp = f"{self._submission.steg.score_timestamp.strftime('%Y-%m-%d %H:%M:%S')}-UTC"
 		link = f'=HYPERLINK("https://{settings.BASE_URL}{self._submission.screenshot.url}", "Screenshot Link")'
 		gameVer = self._submission.qualifier.tournament.config.version
-		return [qid, self._submission.player.name, chName, score, missed, hit, fc, excess, ghosts, phrases, submissionTimestamp, screenshotTimestamp, link, gameVer]
+		return [qid, self._submission.player.name, chName, score, missed, hit, fc, gp, excess, ghosts, phrases, submissionTimestamp, screenshotTimestamp, link, gameVer]
 
 	@property
 	def completed_lines(self):
@@ -412,7 +445,7 @@ class GSheets():
 		matchId = self._submission.id
 		bracket = str(self._submission.bracket)
 		group = str(self._submission.group)
-		match = self._submission.short_name
+		match = self._submission.short_name_no_seeds
 		for rnd in self._submission.rounds:
 			for ply in rnd.steg.players:
 				picked = str(rnd.picked.ch_name) if rnd.picked else 'TieBreaker'
@@ -428,12 +461,13 @@ class GSheets():
 				missed = ply.notes_missed
 				hit = ply.notes_hit
 				fc = ply.is_fc
+				gp = ply.gamepad_mode
 				excess = ply.excess_hits
 				ghosts = ply.frets_ghosted
 				phrases = ply.sp_phrases_earned
 				ts = f"{rnd.created.strftime('%Y-%m-%d %H:%M:%S')}-UTC"
 				link = f'=HYPERLINK("https://{settings.BASE_URL}{rnd.screenshot.url}", "Screenshot Link")'
-				retLines.append([matchId, bracket, group, match, picked, song, ch_Name, score, wl, missed, hit, fc, excess, ghosts, phrases, ts, link])
+				retLines.append([matchId, bracket, group, match, picked, song, ch_Name, score, wl, missed, hit, fc, gp, excess, ghosts, phrases, ts, link])
 		return retLines
 
 	@property
@@ -442,9 +476,27 @@ class GSheets():
 		matchId = self._submission.id
 		bracket = str(self._submission.bracket)
 		group = str(self._submission.group)
-		match = self._submission.short_name
+		match = self._submission.short_name_no_seeds
 		for ban in self._submission.match_bans.all():
 			ply = ban.player.ch_name
 			chart = ban.chart.tournament_name
-			retLines.append([matchId, bracket, group, match, ply, chart])
+			saved = ban.saved
+			if self._submission.bracket.ruleset.ban_ruleset == "bansave":
+				retLines.append([matchId, bracket, group, match, ply, chart, saved])
+			else:
+				retLines.append([matchId, bracket, group, match, ply, chart])
+		return retLines
+
+	@property
+	def player_lines(self):
+		retLines = []
+
+		if isinstance(self._submission, Tournament):
+			for bracket in self._submission.brackets.all():
+				for group in bracket.groups.all():
+					for seed in group.seeding.all():
+						retLines.append([str(group), seed.player_ch_name, seed.player.name, f"'{seed.player.user.id}"])
+		if isinstance(self._submission, TournamentPlayer):
+			pass #Not implemented
+
 		return retLines

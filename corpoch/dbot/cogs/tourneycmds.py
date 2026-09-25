@@ -140,6 +140,9 @@ class DiscordMatch():
 	def add_round(self):
 		self.matchDb.add_round()
 
+	def add_save(self, player, chart):
+		self.matchDb.add_save(player, chart)
+
 	def remove_round(self):
 		if self.current_round.id:
 			self.current_round.delete()
@@ -178,6 +181,10 @@ class DiscordMatch():
 			return False
 
 	@property
+	def effective_bans(self):
+		return self.matchDb.effective_bans
+
+	@property
 	def finished(self) -> bool:
 		if not self.matchDb:
 			return False
@@ -204,10 +211,10 @@ class DiscordMatch():
 		return outStr
 
 	def format_bans_player(self, seed, bans):
-		outStr = f"**{seed.player_ch_name} Bans**\n"
+		outStr = f"**{seed.player_ch_name} Bans{"/Saves" if self.ruleset.tb_ruleset == "bansave" else ""}**\n"
 		for i in range(0, self.ruleset.num_bans):
 			try:
-				outStr += f"{bans[i].chart.tournament_name}\n"
+				outStr += f"{bans[i].num + 1} - {bans[i].chart.tournament_name}{" - SAVED" if bans[i].saved else ""}\n"
 			except IndexError:
 				outStr += "--\n"
 		return outStr
@@ -239,6 +246,10 @@ class DiscordMatch():
 		return self.matchDb.picking_player
 
 	@property
+	def rev_seeds(self):
+		return self.matchDb.rev_seeds
+
+	@property
 	def rounds(self):
 		if self.matchDb:
 			return self.matchDb.rounds.all()
@@ -263,7 +274,10 @@ class DiscordMatch():
 	@property
 	def seeding(self):
 		if self.matchDb:
-			return self.matchDb.players.all()
+			if self.matchDb.rev_seeds:
+				return self.matchDb.players.all().reverse()
+			else:
+				return self.matchDb.players.all()
 		else:
 			return []
 
@@ -324,8 +338,8 @@ class DiscordMatch():
 			else:
 				embed.add_field(name="Player Select", value=f"Select which players the match is for", inline=False)
 		else:
-			embed.title = f"{self.group}\n{self.seeding[0]} vs {self.seeding[1]}"
-			embed.add_field(name="Match VS", value=f"{self.seeding[0].mention} vs {self.seeding[1].mention}")
+			embed.title = f"{self.group}\n{self.matchDb.short_name}"
+			embed.add_field(name="Match VS", value=f"{self.matchDb.high_seed.mention} vs {self.matchDb.low_seed.mention}")
 			embed.add_field(name="Score", value=self.score_str, inline=False)
 			if self.defer:
 				embed.add_field(name="Deferral", value=f"{self.matchDb.high_seed.player.ch_name} has deferred.")

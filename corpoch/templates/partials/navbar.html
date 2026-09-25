@@ -1,0 +1,97 @@
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Varela';
+}
+
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: left;
+    background-color: #1a1a1a;
+    padding: 0rem 2rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.pfp {
+	width: 5vh;
+    transition: filter 0.3s ease;
+}
+
+.pfp:hover {
+	filter: brightness(0.6); 
+}
+
+.nav-links {
+    list-style: none;
+    display: flex;
+    gap: 2rem;
+}
+
+.nav-link {
+    color: #a0a0a0;
+    text-decoration: none;
+    margin-top: 0.5rem;
+    font-size: 1.5rem;
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.nav-link:hover {
+    color: #ffffff;
+}
+
+.dropdown {
+    position: relative;
+}
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: #1a1a1a;
+    min-width: 200px;
+    padding: 1rem;
+    right: 0rem;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+}
+
+.dropdown-content p, h4 {
+    color: white;
+    cursor: default;
+}
+
+.dropdown-content a:hover {
+    background-color: #f1f1f1
+}
+
+.dropdown:hover .dropdown-content {
+    display: block;
+}
+
+.dropdown-content:hover {
+    display: block;
+}
+</style>
+
+<nav class="navbar">
+	<ul class="nav-links">
+		<li><a class="nav-link" href="/auth/user", rel="noopener noreferer">Home</a></li>
+		<li><a class="nav-link" href="/livematches", rel="noopener noreferer">Live Matches</a></li>
+		{% if internal_user.is_staff %}
+		<li><a class="nav-link" href="{% url 'admin:index' %}", target="_blank" rel="noopener noreferer">Admin</a></li>
+		{% endif %}
+	</ul>
+	<div class="dropdown">
+		<img class="pfp rounded-circle" src="{{user.avatar}}">
+		<div class="dropdown-content">
+			<h4><b>{{user.username}}</b></h4>
+			<p>Full Username: {{user.username}}#{{user.discriminator}}</p>
+			<p>ID: {{user.id}}</p>
+			<form class="form-inline" action="/home" method="post"> {% csrf_token %}
+				<button id="Logout" type="submit" class="btn btn-dark">Logout</button>
+			</form>
+		</div>
+	</div>
+</nav>

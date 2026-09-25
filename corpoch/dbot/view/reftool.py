@@ -57,12 +57,15 @@ class BanSelect(discord.ui.Select):
 
 	async def init(self):
 		opts = []
-		async for chart in self.match.setlist_remaining:
-			emoji = await get_chart_emoji(self.match.bot, chart)
-			self.retOpts[chart.md5] = chart
-			opts.append(discord.SelectOption(label=str(chart.tournament_name), description=f"{chart.artist} - {chart.charter}", emoji=emoji, value=chart.md5))
+		charts = self.match.setlist_remaining
 
-		super().__init__(placeholder=f"{self.match.picking_player.ch_name} Ban", max_values=1, options=opts, custom_id="ban_sel")
+		for chart in charts:
+			emoji = await get_chart_emoji(self.match.bot, chart)
+			opts.append(discord.SelectOption(label=str(chart.tournament_name), description=chart.description, emoji=emoji, value=chart.md5))
+			self.retOpts[chart.md5] = chart
+		else:
+			placeholder = f"{self.match.picking_player.ch_name} Bans"
+		super().__init__(placeholder=placeholder, max_values=1, options=opts, custom_id="ban_sel")
 
 	async def callback(self, interaction: discord.Interaction):
 		chart = self.retOpts[self.values[0]]
@@ -87,10 +90,16 @@ class SongRoundSelect(discord.ui.Select):
 			selStr += f" - {self.round.chart.tournament_name}"
 
 		opts = []
-		async for chart in self.match.setlist_remaining:
-			self.retOpts[chart.md5] = chart
+		if self.match.setlist_remaining.count() == 0:
+			#If tiebreaker is pre-determined, force that into the options ensuring opts isn't 0 long
+			chart = self.match.current_round.chart
 			emoji = await get_chart_emoji(self.match.bot, chart)
-			opts.append(discord.SelectOption(label=chart.tournament_name, value=chart.md5, description=f"{chart.artist} - {chart.charter}", emoji=emoji))
+			opts.append(discord.SelectOption(label=chart.tournament_name, value=chart.md5, description=chart.description, emoji=emoji))
+		else:
+			async for chart in self.match.setlist_remaining:
+				self.retOpts[chart.md5] = chart
+				emoji = await get_chart_emoji(self.match.bot, chart)
+				opts.append(discord.SelectOption(label=chart.tournament_name, value=chart.md5, description=chart.description, emoji=emoji))
 		super().__init__(placeholder=selStr, max_values=1, options=opts, custom_id="roundsong_sel", disabled=self.dis)
 
 	async def callback(self, interaction: discord.Integration):
@@ -123,6 +132,8 @@ class PlayerRoundSelect(discord.ui.Select):
 		await self.round.asave()
 		if not self.match.finished and (not self.match.tiebreaker or not self.match.ruleset.bannable_tb):
 			self.match.add_round()
+		elif self.match.ruleset.tb_ruleset == "bansave" and self.match.setlist_remaining.count() == 1:
+			self.match.add_round() #Separate check for possible bansave ruleset ban-phase
 		await self.match.showTool(interaction)
 
 class BracketSelect(discord.ui.Select):
@@ -256,6 +267,14 @@ class DiscordMatchView(discord.ui.View):
 		self.defer = discord.ui.Button(label="Defer", style=discord.ButtonStyle.secondary, custom_id="deferBtn")
 		self.defer.callback = self.deferBtn
 
+		self.seed_swap = discord.ui.Button(label="Swap Seeding", style=discord.ButtonStyle.secondary, custom_id="seedSwapBtn")
+		self.seed_swap.callback = self.seedSwapBtn
+
+		if self.match.matchDb and self.match.ruleset.ban_ruleset == "bansave" and self.match.bans.count() > 0:
+			label = f"Save {self.match.bans.last().chart}"[:75]				
+			self.save = discord.ui.Button(label=label, style=discord.ButtonStyle.secondary, custom_id="saveBtn")
+			self.save.callback = self.saveBtn
+
 		self.search = discord.ui.Button(label="Player Select", style=discord.ButtonStyle.secondary, custom_id="searchBtn")
 		self.search.callback = self.searchBtn
 
@@ -264,7 +283,7 @@ class DiscordMatchView(discord.ui.View):
 		else:
 			label = "Player input ❌"
 		self.plyin = discord.ui.Button(label=label, style=discord.ButtonStyle.secondary, custom_id="plyinBtn")
-		self.plyin.callback = self.plyinBtn # Future idea
+		self.plyin.callback = self.plyinBtn
 
 		self.upload = discord.ui.Button(label="Upload Screenshots", style=discord.ButtonStyle.secondary, custom_id="uploadBtn")
 		self.upload.callback = self.uploadBtn
@@ -314,8 +333,15 @@ class DiscordMatchView(discord.ui.View):
 		elif len(self.match.bans) < self.match.ruleset.total_bans:
 			self.add_item(self.back)
 			self.add_item(self.plyin)
+
 			if 'defer' in self.match.ruleset.ban_ruleset and len(self.match.bans) == 0:
 				self.add_item(self.defer)
+			if self.match.ruleset.seed_inversions and self.match.bans.count() == 0:
+				self.add_item(self.seed_swap)
+			if self.match.ruleset.ban_ruleset == "bansave" and not self.match.bans.filter(player=self.match.picking_player, saved=True).exists():
+				if self.match.bans.count() == 1 or self.match.bans.count() == 3:
+					self.add_item(self.save)
+
 			sel = BanSelect(self.match)
 			await sel.init()
 			self.add_item(sel)
@@ -327,7 +353,7 @@ class DiscordMatchView(discord.ui.View):
 				await self.setup_round_player_sels()
 			elif not self.match.finished and self.match.tiebreaker:
 				if self.match.ruleset.bannable_tb:
-					if len(self.match.bans) == self.match.ruleset.total_bans:
+					if len(self.match.bans) == self.match.ruleset.total_bans and (not self.match.ruleset.tb_ruleset == "bansave" or self.match.setlist_remaining.count() > 1):
 						sel = BanSelect(self.match)
 						await sel.init()
 						self.add_item(sel)
@@ -361,7 +387,7 @@ class DiscordMatchView(discord.ui.View):
 				return False
 			else:
 				return True
-		if self.match.player_input and (caller == "roundsong_sel" or caller == "ban_sel"):
+		if self.match.player_input and (caller == "roundsong_sel" or caller == "ban_sel" or caller == "saveBtn"):
 			if self.match.picking_player and self.match.picking_player.user.id == interaction.user.id:
 				return True
 			else:
@@ -389,7 +415,8 @@ class DiscordMatchView(discord.ui.View):
 				else:
 					self.current_round = self.match.remove_round()
 					if self.match.ruleset.bannable_tb:
-						self.match.remove_ban()
+						if self.match.ruleset.tb_ruleset != "bansave" or self.match.ruleset.total_bans < self.match.bans.count():
+							self.match.remove_ban()
 					else:
 						self.current_round.winner = None
 			elif self.current_round.winner:
@@ -426,6 +453,14 @@ class DiscordMatchView(discord.ui.View):
 		self.match.matchDb.defer = not self.match.defer
 		await self.match.showTool(interaction)
 
+	async def seedSwapBtn(self, interaction: discord.Interaction):
+		self.match.matchDb.rev_seeds = not self.match.matchDb.rev_seeds
+		await self.match.showTool(interaction)
+
+	async def saveBtn(self, interaction: discord.Interaction):
+		self.match.add_save(self.match.picking_player, self.match.bans.last().chart)
+		await self.match.showTool(interaction)
+
 	async def searchBtn(self, interaction: discord.Interaction):
 		modal = SeedSearchModal(self.match)
 		await interaction.response.send_modal(modal)
@@ -438,7 +473,7 @@ class DiscordMatchView(discord.ui.View):
 		await modal.wait()
 
 		while self.is_uploading:
-			time.sleep(1)				
+			time.sleep(1)
 
 		if self.match.rounds.filter(screenshot='').count() == 0:
 			await interaction.followup.send("All screenshot's already uploaded", ephemeral=True, delete_after=10)
@@ -508,6 +543,29 @@ class DiscordMatchView(discord.ui.View):
 					self.match.screen_review.append(review)
 				continue
 
+			#Check modifiers
+			for player in steg.players:
+				if set(player.modifiers) != set(playedChart.modifiers_steg):
+					await interaction.followup.send(f"Screenshot {screen.filename} player {player.profile_name} has incorrect modifiers {player.modifiers} for chart {playedChart.modifiers_steg}", ephemeral=True, delete_after=10)
+					print(f"MATCH SCREEENSHOT: Screenshot {screen.filename} player {player.profile_name} has incorrect modifiers {player.modifiers} for chart {playedChart.modifiers_steg}")
+					stop = True
+					break
+
+			#Check Player Cound
+			if len(steg.players) < self.match.ruleset.num_players and not stop:
+				print(f"MATCH SCREENSHOT: Screenshot {screen.filename} has missing players. Adding to review.")
+				msg	= await interaction.followup.send(f"Screenshot {screen.filename} has missing players but is otherwise correct. If this due to a disconnect/issues, please have the ref verify this or reach out to staff!")
+				review = RoundReview(self.match.matchDb, msg, screen, steg)
+				stop = True
+			elif len(steg.players) > self.match.ruleset.num_players and not stop:
+				print(f"MATCH SCREENSHOT: Screenshot {screen.filename} has too many players.")
+				await interaction.followup.send(f"Screenshot {screen.filename} has too many players.", ephemeral=True, delete_after=10)
+				stop = True
+
+			if stop:
+				if review:
+					self.match.screen_review.append(review)
+				continue
 			try:
 				rnd = await self.match.matchDb.rounds.aget(chart=playedChart)
 			except MatchRound.DoesNotExist:
@@ -519,7 +577,7 @@ class DiscordMatchView(discord.ui.View):
 				await rnd.asave()
 			else:
 				print(f"MATCH SCREENSHOT: {interaction.user.global_name} screenshot {screen.filename} already submitted")
-		
+
 		self.is_uploading = False
 		if self.match.rounds.filter(screenshot='').count() == 0:
 			await self.match.finishMatch(interaction)

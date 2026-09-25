@@ -2,6 +2,7 @@ from django.contrib import admin
 from corpoch.dbot.models import Guilds, Channels, Roles
 from django.utils.html import mark_safe
 
+from corpoch.models import DiscordUser
 import corpoch.dbot.tasks
 
 @admin.register(Guilds)
