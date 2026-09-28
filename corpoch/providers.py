@@ -336,9 +336,9 @@ class GSheets():
 		else:
 			ws = self._sheet.add_worksheet(title=f"{self._submission.qualifier} - Final Top Scores", rows=1, cols=13)
 		ws.update([["Qualifier ID", "Discord Name", "Clone Hero Name", "Score", "Notes Missed", "Notes Hit", "Is FC", "Gamepad", "Overstrums", "Ghosts", "Phrases Hit", "Submission Timestamp", "Screenshot Timestamp", "Screenshot", "Game Version" ]], "A1:O1")
-		
+
 		ws.format("A1:N1", self._format_header)
-		ws.freeze(1)
+		#ws.freeze(1)
 		return ws
 
 	def setup_completed_sheet(self) -> bool:
@@ -346,7 +346,7 @@ class GSheets():
 		ws = self._sheet.add_worksheet(title=f"{self._submission.tournament.short_name} - Match Data", rows=2, cols=18)
 		ws.update([["Match ID", "Bracket", "Group", "Match", "PickSong", "Song", "Player", "Score", "W/L",  "Notes Missed", "Notes Hit", "Is FC", "Gamepad", "Overstrums", "Ghosts", "Phrases Hit", "Timestamp", "Screenshot"]], "A1:R1")
 		ws.format("A1:R1", self._format_header)
-		ws.freeze(1, 17)
+		#ws.freeze(1, 17)
 		return ws
 
 	def setup_bans_sheet(self) -> bool:
@@ -398,12 +398,12 @@ class GSheets():
 
 	def submit_players(self) -> bool:
 		rows = self._ws.row_count
-		self._ws.append_rows(self.player_lines, value_input_option="USER_ENTERED")
-		self._ws.delete_rows(2, rows)
+		self._ws.append_rows(self.player_lines, value_input_option="USER_ENTERED", insert_data_option="OVERWRITE")
+		#self._ws.delete_rows(2, rows)
 
 	def update_qualifier(self):
 		cell = self._ws.find(self._submission.id)
-		self._ws.update([self.qualifier_line], f"A{cell.row}:N{cell.row}", raw=False)
+		self._ws.update([self.qualifier_line], f"A{cell.row}:O{cell.row}", raw=False)
 
 	def update_match(self):
 		cell = self._ws.find(self._submission.id)
@@ -466,7 +466,7 @@ class GSheets():
 				ghosts = ply.frets_ghosted
 				phrases = ply.sp_phrases_earned
 				ts = f"{rnd.created.strftime('%Y-%m-%d %H:%M:%S')}-UTC"
-				link = f'=HYPERLINK("https://{settings.BASE_URL}{rnd.screenshot.url}", "Screenshot Link")'
+				link = f'=HYPERLINK("https://{settings.BASE_URL}{rnd.screenshot.url}"; "Screenshot Link")'
 				retLines.append([matchId, bracket, group, match, picked, song, ch_Name, score, wl, missed, hit, fc, gp, excess, ghosts, phrases, ts, link])
 		return retLines
 

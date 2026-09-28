@@ -410,7 +410,7 @@ class DiscordMatchView(discord.ui.View):
 				if self.current_round.winner:
 					self.current_round.winner = None
 					self.current_round.loser = None
-				elif self.match.ruleset.pickable_tb and self.current_round.chart:
+				elif self.match.ruleset.pickable_tb and self.current_round.chart and (not self.match.ruleset.tb_ruleset != "bansave" or self.match.bans.count() > self.match.ruleset.total_bans):
 					self.current_round.chart = None
 				else:
 					self.current_round = self.match.remove_round()
