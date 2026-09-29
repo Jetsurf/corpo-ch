@@ -412,10 +412,7 @@ class GSheets():
 		self._switch_match_sheet()
 		cell = self._ws.find(self._submission.id)
 		for i, line in enumerate(self.ban_lines):
-			column = "F"
-			if self._submission.bracket.ruleset == "bansave":
-				column = "G"
-			self._ws.update([line], f"A{(cell.row + i)}:{column}{(cell.row + i)}", raw=False)
+			self._ws.update([line], f"A{(cell.row + i)}:{chr(ord('@')+len(line))}{(cell.row + i)}", raw=False)
 
 	#def update_player(self): - NOT READY
 	#	cell = self._ws.find(self._submission.user.id)
