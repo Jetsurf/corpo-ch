@@ -230,7 +230,7 @@ class DiscordMatch():
 			if rnd.winner:
 				outStr += f" - `{rnd.winner}` wins!"
 			outStr+= "\n"
-		if (self.matchDb and self.matchDb.finished):
+		if (self.matchDb and self.finished):
 			outStr += f"\n**`{self.matchDb.winner}` WINS!**"
 		return outStr
 

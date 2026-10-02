@@ -137,6 +137,10 @@ class StegScreenshotManual6(pydantic.BaseModel):
 	def frets_ghosted(self):
 		return -1
 
+	@property
+	def gamepad_mode(self):
+		return False
+
 #For problem rounds
 class StegScreenshotPlayerDummy(pydantic.BaseModel):
 	profile_name : str = "Unknown Player"

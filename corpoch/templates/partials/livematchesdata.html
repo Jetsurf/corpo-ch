@@ -36,7 +36,7 @@
 					<tr>
 						<td>
 							{% for ban in match.high_seed_bans %}
-								{{ban}}
+								{{ban}}{% if ban.saved %} - SAVE{% endif %}
 								<br>
 							{% empty %}
 								No Bans
@@ -44,7 +44,7 @@
 						</td>
 						<td>
 							{% for ban in match.low_seed_bans %}
-								{{ban}}
+								{{ban}}{% if ban.saved %} - SAVE{% endif %}
 								<br>
 							{% empty %}
 								No Bans
