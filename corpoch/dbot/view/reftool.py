@@ -130,10 +130,11 @@ class PlayerRoundSelect(discord.ui.Select):
 			self.round.loser = self.match.seeding[0].player
 		self.round.winner = winner.player
 		await self.round.asave()
-		if not self.match.finished and (not self.match.tiebreaker or not self.match.ruleset.bannable_tb):
-			self.match.add_round()
-		elif self.match.ruleset.tb_ruleset == "bansave" and self.match.setlist_remaining.count() == 1:
-			self.match.add_round() #Separate check for possible bansave ruleset ban-phase
+		if not self.match.finished:
+			if not self.match.tiebreaker or not self.match.ruleset.bannable_tb:
+				self.match.add_round()
+			elif self.match.ruleset.tb_ruleset == "bansave" and self.match.setlist_remaining.count() == 1:
+				self.match.add_round() #Separate check for possible bansave ruleset ban-phase
 		await self.match.showTool(interaction)
 
 class BracketSelect(discord.ui.Select):
