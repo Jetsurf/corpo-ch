@@ -13,12 +13,15 @@ def null(request: HttpRequest):
   return redirect("home")
 
 def home(request: HttpRequest):
+	from corpoch.models import DiscordUser
+	if request.session.get('user_id'):
+		internal_user = DiscordUser.objects.get(id=request.session.get('user_id'))
 	if request.method == "POST":
 		try:
 			del request.session["access_token"]
 		except KeyError:
 			pass
-	return render(request, "home.html", context={"auth_url" : settings.AUTH_URL_DISCORD})
+	return render(request, "home.html", context={"auth_url" : settings.AUTH_URL_DISCORD, 'internal_user' : internal_user})
 
 def auth(request: HttpRequest):
 	from corpoch.models import DiscordUser, DiscordToken
@@ -69,17 +72,18 @@ def user(request: HttpRequest):
 		discord_user = discord_user[0]
 	login(request, discord_user, backend="corpoch.auth.DiscordBackend")
 	context['internal_user'] = discord_user
-
+	request.session['user_id'] = discord_user.id
 	return render(request, "user.html", context=context)
 
 def livematches(request: HttpRequest):
-	from corpoch.models import Match
+	from corpoch.models import Match, DiscordUser
+	internal_user = DiscordUser.objects.get(id=request.session['user_id'])
 	matches = list(filter(lambda match: match.ongoing, Match.objects.all()))
 	current_match_ids = ",".join([str(m.id) for m in matches])
-
 	return render(request, "livematches.html", {
 		'matches': matches,
-		'current_match_ids': current_match_ids
+		'current_match_ids': current_match_ids,
+		'internal_user' : internal_user
 	})
 
 def update_livematches(request: HttpRequest):
@@ -104,7 +108,11 @@ def update_livematches(request: HttpRequest):
 	})
 
 def privterms(request: HttpRequest):
-	return render(request, 'privterms.html')
+	from corpoch.models import DiscordUser
+	if request.session.get('user_id'):
+		internal_user = DiscordUser.objects.get(id=request.session.get('user_id'))
+
+	return render(request, 'privterms.html', context={'internal_user' : internal_user})
 
 class OAuthUser:
 	__default_avatar = "https://cdn.discordapp.com/embed/avatars/0.png"
@@ -203,7 +211,6 @@ class Guild:
 	def match_stats(self):
 		if self.__player:
 			from corpoch.models import Match
-			print(f"Sanity: {self.__tournament} - {self.__player}")
 			wins = Match.objects.filter(group__bracket__tournament=self.__tournament, winner=self.__player).count()
 			losses = Match.objects.filter(group__bracket__tournament=self.__tournament, loser=self.__player).count()
 			return f"{wins}W - {losses}L"

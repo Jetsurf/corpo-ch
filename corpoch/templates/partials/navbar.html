@@ -33,7 +33,7 @@
 .nav-link {
     color: #a0a0a0;
     text-decoration: none;
-    margin-top: 0.5rem;
+    margin-top: 0.1rem;
     font-size: 1.5rem;
     font-weight: 500;
     transition: color 0.3s ease;
@@ -87,7 +87,6 @@
 		<img class="pfp rounded-circle" src="{{user.avatar}}">
 		<div class="dropdown-content">
 			<h4><b>{{user.username}}</b></h4>
-			<p>Full Username: {{user.username}}#{{user.discriminator}}</p>
 			<p>ID: {{user.id}}</p>
 			<form class="form-inline" action="/home" method="post"> {% csrf_token %}
 				<button id="Logout" type="submit" class="btn btn-dark">Logout</button>

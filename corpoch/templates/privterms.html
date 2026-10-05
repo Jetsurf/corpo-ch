@@ -5,20 +5,10 @@
 {{ block.super }}
 <link rel="stylesheet" type="text/css" href="{% static 'mainapp/css/home.css' %}">
 {% endblock %}
-{% block body %}class="dark" data-spy="scroll" data-target=".navbar" data-offset="50"class="dark" data-spy="scroll" data-target=".navbar" data-offset="50"{% endblock %}
+{% block body %}data-spy="scroll" data-target=".navbar" data-offset="50"{% endblock %}
 {% block content %}
+{% include 'partials/navbar.html' %}
 	<br><br>
-	<div class="container">
-		<nav class="navbar navbar-expand-sm  navbar-dark ">
-			<a class="navbar-brand mx-auto" href="#CorpoCH"><img class="rounded-circle" src="{% static 'mainapp/images/corpo.png' %}"><span> Corpo Clone Hero Bot</span></a>
-			<button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#navbarCollapse">
-				<span class="navbar-toggler-icon"></span>
-			</button>
-			<li class="nav-item">
-				<a class="nav-link" href="/livematches", target="_blank" rel="noopener noreferer">Live Matches</a>
-			</li>
-		</nav> 
-	</div>
 	<div class="container" style="padding-top: 3vh;">
 		<div class="jumbotron">
 			<h1><strong id="Corpo">Corpo</strong></h1>
@@ -45,15 +35,7 @@
 {% block js %}
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
 <script src="{% static 'mainapp/bootstrap/js/bootstrap.min.js' %}"></script>
-<script>
-	$(document).ready(() =>{
-		$(".navbar-brand").click(function(){
-			$('html, body').animate({
-				scrollTop: $($(this).attr("href")).offset().top
-			}, 1000);
-		});
-	});
-</script>
+
 {% endblock %}
 </body>
 </html>

@@ -413,6 +413,10 @@ class Match(MatchAbstract):
 	def bracket(self):
 		return self.group.bracket
 
+	@property
+	def tournament(self):
+		return self.group.bracket.tournament
+
 class ExhibitionMatch(MatchAbstract):
 	tournament = models.ForeignKey("Tournament", related_name="exhibition_matches", verbose_name="Tournament", on_delete=models.CASCADE, help_text="Tournament")
 	players = models.ManyToManyField("DiscordUser", related_name="exhibition_players", verbose_name="Players", blank=True, help_text="Players that participated in an exhibition match.")
