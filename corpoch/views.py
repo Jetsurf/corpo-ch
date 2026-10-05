@@ -56,10 +56,10 @@ def auth(request: HttpRequest):
 def user(request: HttpRequest):
 	from corpoch.models import DiscordToken, DiscordUser
 	if request.session.get("access_token"):
+		user = DiscordUser.objects.get(id=request.session.get('user_id'))
 		oauth = DiscordToken.objects.get(user__id=request.session.get('user_id'))
 		try:
 			oauth.login()
-			user = OAuthUser(oauth.identity())
 			context = { "user" : user, "guilds" : TournamentGuilds(user) }
 			oauth.save()
 		except DiscordToken.AuthError:
@@ -116,46 +116,15 @@ def privterms(request: HttpRequest):
 	from corpoch.models import DiscordUser
 	if request.session.get('user_id'):
 		internal_user = DiscordUser.objects.get(id=request.session.get('user_id'))
+	else:
+		inteneral_user = None
 
 	return render(request, 'privterms.html', context={'internal_user' : internal_user})
 
-class OAuthUser:
-	__default_avatar = "https://cdn.discordapp.com/embed/avatars/0.png"
-
-	def __init__(self, user : dict) -> None:
-		self.__user = user
-		for k , v in self.__user.items():
-			try:
-				setattr(self, k, v)
-			except AttributeError:
-				continue
-
-	@property
-	def id(self):
-		return self.__user['id']
-
-	@property
-	def avatar(self):
-		return f"https://cdn.discordapp.com/avatars/{self.__user['id']}/{self.__user['avatar']}" if self.__user['avatar'] else self.__default_avatar
-
-class Role:
-	def __init__(self, role: dict) -> None:
-		self.__role = role
-		for k, v in self.__role.items():
-			try:
-				setattr(self, k , v)
-			except AttributeError:
-				continue
-
-	def __repr__(self) -> str:
-		return repr(self.__role)
-
-	def __str__(self):
-		return self.name
 
 class TournamentGuilds:
 
-	def __init__(self, user : OAuthUser) -> None:
+	def __init__(self, user) -> None:
 		self.__guilds = []
 		self.__user = user
 		from corpoch.models import Tournament
@@ -177,7 +146,7 @@ class TournamentGuilds:
 class Guild:
 	__default_avatar = "https://cdn.discordapp.com/embed/avatars/0.png"
 
-	def __init__(self, user : OAuthUser, tournament : Tournament) -> None:
+	def __init__(self, user, tournament) -> None:
 		self.__player = None
 		self.__guild = tournament.guild
 		self.__tournament = tournament
