@@ -16,6 +16,8 @@ def home(request: HttpRequest):
 	from corpoch.models import DiscordUser
 	if request.session.get('user_id'):
 		internal_user = DiscordUser.objects.get(id=request.session.get('user_id'))
+	else:
+		internal_user = None
 	if request.method == "POST":
 		try:
 			del request.session["access_token"]
@@ -77,7 +79,10 @@ def user(request: HttpRequest):
 
 def livematches(request: HttpRequest):
 	from corpoch.models import Match, DiscordUser
-	internal_user = DiscordUser.objects.get(id=request.session['user_id'])
+	try:
+		internal_user = DiscordUser.objects.get(id=request.session['user_id'])
+	except DiscordUser.DoesNotExist:
+		internal_user = None
 	matches = list(filter(lambda match: match.ongoing, Match.objects.all()))
 	current_match_ids = ",".join([str(m.id) for m in matches])
 	return render(request, "livematches.html", {
