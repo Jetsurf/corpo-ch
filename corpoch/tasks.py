@@ -173,3 +173,4 @@ def update_oauth_tokens():
 		except DiscordToken.AuthError as e:
 			print(f"OAUTH TOKENS: Deleting token for user {token.user.global_name} - {e}")
 			token.delete()
+	close_old_connections()

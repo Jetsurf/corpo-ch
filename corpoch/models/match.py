@@ -287,7 +287,7 @@ class MatchAbstract(models.Model):
 	@property
 	def setlist_remaining(self):
 		"""
-		Returns the rest of the setlist that hasn't been played for the match
+		Returns the  of the setlist that hasn't been played for the match
 		"""
 		#Ensure saves can't be "rebanned" in ban-phase of a match, otherwise keep "saved" songs available
 		if self.ruleset.ban_ruleset == "bansave" and (not self.tiebreaker or self.bans.count() > self.ruleset.total_bans):
@@ -412,10 +412,6 @@ class Match(MatchAbstract):
 	@property
 	def bracket(self):
 		return self.group.bracket
-
-	@property
-	def tournament(self):
-		return self.group.bracket.tournament
 
 class ExhibitionMatch(MatchAbstract):
 	tournament = models.ForeignKey("Tournament", related_name="exhibition_matches", verbose_name="Tournament", on_delete=models.CASCADE, help_text="Tournament")

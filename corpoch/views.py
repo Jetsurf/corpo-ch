@@ -4,6 +4,7 @@ from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest
 from django.shortcuts import redirect, render
+from django.utils import timezone
 
 from corpoch import settings
 from corpoch.dbot.tasks import update_user
@@ -53,7 +54,8 @@ def user(request: HttpRequest):
 		oauth = DiscordToken.objects.get(user__id=request.session.get('user_id'))
 		try:
 			oauth.login()
-			context = { "user" : OAuthUser(oauth.identity()), "guilds" : OAuthGuilds(oauth.guilds()) }
+			user = OAuthUser(oauth.identity())
+			context = { "user" : user, "guilds" : TournamentGuilds(user) }
 			oauth.save()
 		except DiscordToken.AuthError:
 			return redirect(auth_url_discord)
@@ -138,49 +140,96 @@ class Role:
 	def __str__(self):
 		return self.name
 
-class OAuthGuilds:
-	def __init__(self, guilds : list) -> None:
+class TournamentGuilds:
+
+	def __init__(self, user : OAuthUser) -> None:
 		self.__guilds = []
+		self.__user = user
 		from corpoch.models import Tournament
-		self.__tournaments = []
-		for guild in guilds:
-			for tourney in Tournament.objects.all().filter(guild__id=guild['id']):
-				self.__guilds.append(guild)
-				self.__tournaments.append(tourney)
+		for tournament in Tournament.objects.all():
+			tmp = Guild(user, tournament)
+			if tmp not in self.__guilds:
+				self.__guilds.append(tmp)
 				
 	def __iter__(self):
-		return iter([Guild(guild) for guild in self.__guilds])
+		return iter([guild for guild in self.__guilds])
 
 	def __repr__(self) -> str:
 			return repr(self.__guilds)
 
+	@property
+	def user_id(self):
+		return self.__user.id
+
 class Guild:
 	__default_avatar = "https://cdn.discordapp.com/embed/avatars/0.png"
 
-	def __init__(self, guild : dict) -> None:
-		self.__guild = guild
-		for k, v in self.__guild.items():
-			try:
-				setattr(self, k , v)
-			except AttributeError:
-				continue
+	def __init__(self, user : OAuthUser, tournament : Tournament) -> None:
+		self.__player = None
+		self.__guild = tournament.guild
+		self.__tournament = tournament
+		from corpoch.models import TournamentPlayer
+		try:
+			self.__player = TournamentPlayer.objects.get(user__id=user.id, tournament=tournament)
+		except TournamentPlayer.DoesNotExist:
+			pass
 
 	def __repr__(self) -> str:
 		return repr(self.__guild)
 
-	@property
-	def user_is_administrator(self):
-		#Move this to be checking role grants admin from DB
-		return self.__guild["permissions"] == '1099511627775'
-	
-	@property
-	def roles(self) -> list:
-		return list(Role(role) for role in self.__guild['roles'])
+	def __str__(self):
+		return f"{self.__tournament.name}"
 
 	@property
-	def id(self):
-		return self.__guild['id']
+	def active(self):
+		if self.__player:
+			return self.__player.active
+		else:
+			return False
 
 	@property
 	def icon(self):
-		return f"https://cdn.discordapp.com/icons/{self.__guild['id']}/{self.__guild['icon']}.png" if self.__guild['icon'] else self.__default_avatar
+		return f"{self.__guild.icon}" if self.__guild.icon else self.__default_avatar
+
+	@property
+	def id(self):
+		return self.__guild.id
+
+	@property
+	def player(self):
+		return self.__player
+
+	@property
+	def match_stats(self):
+		if self.__player:
+			from corpoch.models import Match
+			print(f"Sanity: {self.__tournament} - {self.__player}")
+			wins = Match.objects.filter(group__bracket__tournament=self.__tournament, winner=self.__player).count()
+			losses = Match.objects.filter(group__bracket__tournament=self.__tournament, loser=self.__player).count()
+			return f"{wins}W - {losses}L"
+		else:
+			return f"N/A"
+
+	@property
+	def round_stats(self):
+		if self.player:
+			from corpoch.models import MatchRound
+			wins = MatchRound.objects.all().filter(match__group__bracket__tournament=self.__tournament, winner=self.player).count()
+			losses = MatchRound.objects.all().filter(match__group__bracket__tournament=self.__tournament, loser=self.player).count()
+			return f"{wins}W - {losses}L"
+		else:
+			return f"N/A"		
+
+	@property
+	def tournament(self):
+		return self.__tournament
+
+	@property
+	def qualifier_active(self):
+		from corpoch.models import Qualifier
+		qualis = Qualifier.objects.select_related().all().filter(tournament=self.tournament, end_time__gte=timezone.now()).count()
+
+		if qualis > 0:
+			return True
+		else:
+			return False
