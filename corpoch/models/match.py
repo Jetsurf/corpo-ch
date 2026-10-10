@@ -486,6 +486,10 @@ class MatchRoundAbstract(models.Model):
 		embed.set_footer(text=embed.footer.text, icon_url = f"https://{settings.BASE_URL}{self.chart.icon.img.url}")
 		return embed
 
+	@property
+	def screenshot_full_url(self):
+		return f"{settings.BASE_URL}{self.screenshot.url}"
+
 class MatchRound(MatchRoundAbstract):
 	match = models.ForeignKey(Match, related_name="match_rounds", verbose_name="Match ID", on_delete=models.CASCADE, null=True, blank=True, help_text="Match the round was played for.")
 	picked = models.ForeignKey("TournamentPlayer", related_name="picks", verbose_name="Picker", on_delete=models.CASCADE, blank=True, null=True, help_text="Player that picked the chart played.")

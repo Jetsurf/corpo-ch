@@ -19,7 +19,7 @@ body {
 }
 
 .status {
-    padding-top: 20vh;
+    padding-top: 4vh;
 }
 
 footer {
@@ -31,8 +31,22 @@ hr {
     box-shadow: 0.5px 0.5px 0.5px 0.5px white;
 }
 
+#main {
+    display: flex;
+    justify-content: center;
+    overflow: visible;
+}
+
+#user {
+    width: 25%;
+}
+
+#tournaments {
+    width: 80%;
+
+}
+
 .card {
-    width: 40vh;
     background-color: #23272A;
     top: 3vh;
 }
@@ -53,20 +67,20 @@ hr {
 .card .mx-auto {
     opacity: 0.0;
     position: absolute;
-    width: 40%;
+    width: 50%;
     margin: auto;
     left: 0;
     right: 0;
     text-align: center;
     z-index: 1;
-    margin-top: 31vh;
+    margin-top: 12vh;
     border-style: solid;
     border-width: thick;
     border-color: var(--profile_color);
 }
 
 .card-title {
-    padding-top: 5vh;
+    padding-top: 16vh;
     background-color: var(--profile_color);
     color: white;
 }
@@ -91,7 +105,7 @@ td, th {
 }
 
 tbody tr td span, td i {
-    top: 25px;
+    top: 8px;
 }
 
 td img {

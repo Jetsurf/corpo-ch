@@ -3,7 +3,7 @@ from requests import Session
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest
-from django.shortcuts import redirect, render
+from django.shortcuts import redirect, render, get_object_or_404
 from django.utils import timezone
 
 from corpoch import settings
@@ -14,16 +14,12 @@ def null(request: HttpRequest):
 
 def home(request: HttpRequest):
 	from corpoch.models import DiscordUser
-	if request.session.get('user_id'):
-		internal_user = DiscordUser.objects.get(id=request.session.get('user_id'))
-	else:
-		internal_user = None
 	if request.method == "POST":
 		try:
 			del request.session["access_token"]
 		except KeyError:
 			pass
-	return render(request, "home.html", context={"auth_url" : settings.AUTH_URL_DISCORD, 'internal_user' : internal_user})
+	return render(request, "home.html", context={"auth_url" : settings.AUTH_URL_DISCORD, 'logged_in_user' : logged_in_user(request)})
 
 def auth(request: HttpRequest):
 	from corpoch.models import DiscordUser, DiscordToken
@@ -31,22 +27,19 @@ def auth(request: HttpRequest):
 	if code:# if code is valid
 		oauth = DiscordToken()
 		oauth.login(code=code)
-
+		identity = oauth.identity()
 		request.session["access_token"] = oauth.access_token
-		user = OAuthUser(oauth.identity())
-		request.session['user_id'] = user.id
-		try:
-			token = DiscordToken.objects.get(user__id=user.id)
-			token.access_token = oauth.access_token
-			token.refresh_token = oauth.refresh_token
-			token.expires = oauth.expires
-			token.save()
-			oauth = token
-		except DiscordToken.DoesNotExist:
-			oauth.user, created = DiscordUser.objects.get_or_create(pk=user.id)
-			if created:
-				update_user(user.id)
-			oauth.save()
+		request.session['user_id'] = identity['id']
+
+		token, created = DiscordToken.objects.get_or_create(user__id=identity['id'])
+		if created:
+			update_user(user.id)
+		token.access_token = oauth.access_token
+		token.refresh_token = oauth.refresh_token
+		token.expires = oauth.expires
+		token.save()
+		oauth = token
+		oauth.save()
 	else:
 		access_token = request.session.get("access_token")
 	if not oauth.access_token:
@@ -57,11 +50,11 @@ def user(request: HttpRequest):
 	from corpoch.models import DiscordToken, DiscordUser
 	if request.session.get("access_token"):
 		user = DiscordUser.objects.get(id=request.session.get('user_id'))
-		oauth = DiscordToken.objects.get(user__id=request.session.get('user_id'))
+		token = DiscordToken.objects.get(user__id=request.session.get('user_id'))
 		try:
-			oauth.login()
+			token.login()
 			context = { "user" : user, "guilds" : TournamentGuilds(user) }
-			oauth.save()
+			token.save()
 		except DiscordToken.AuthError:
 			return redirect(auth_url_discord)
 	else:
@@ -73,22 +66,26 @@ def user(request: HttpRequest):
 	if not isinstance(discord_user, DiscordUser):
 		discord_user = discord_user[0]
 	login(request, discord_user, backend="corpoch.auth.DiscordBackend")
-	context['internal_user'] = discord_user
-	request.session['user_id'] = discord_user.id
+	context['logged_in_user'] = discord_user
 	return render(request, "user.html", context=context)
+
+def profile(request: HttpRequest, user_pk):
+	from corpoch.models import DiscordUser, Match, MatchRound
+	user = get_object_or_404(DiscordUser, pk=user_pk)
+	matches = Match.objects.all().filter(players__player__user=user).reverse()
+	rounds = MatchRound.objects.all().filter(match__in=matches)
+	context = { "user" : user, "guilds": TournamentGuilds(user), "rounds" : rounds, "logged_in_user" : logged_in_user(request) }
+	return render(request, "profile.html", context=context)
 
 def livematches(request: HttpRequest):
 	from corpoch.models import Match, DiscordUser
-	try:
-		internal_user = DiscordUser.objects.get(id=request.session['user_id'])
-	except DiscordUser.DoesNotExist:
-		internal_user = None
+
 	matches = list(filter(lambda match: match.ongoing, Match.objects.all()))
 	current_match_ids = ",".join([str(m.id) for m in matches])
 	return render(request, "livematches.html", {
 		'matches': matches,
 		'current_match_ids': current_match_ids,
-		'internal_user' : internal_user
+		'logged_in_user' : logged_in_user(request)
 	})
 
 def update_livematches(request: HttpRequest):
@@ -113,22 +110,28 @@ def update_livematches(request: HttpRequest):
 	})
 
 def privterms(request: HttpRequest):
+	return render(request, 'privterms.html', context={'logged_in_user' : logged_in_user(request)})
+
+def logged_in_user(request: HttpRequest):
+	'''
+	Meant to not be a direct view, rather a function to return the currently logged in user
+	'''
 	from corpoch.models import DiscordUser
-	if request.session.get('user_id'):
-		internal_user = DiscordUser.objects.get(id=request.session.get('user_id'))
-	else:
-		inteneral_user = None
-
-	return render(request, 'privterms.html', context={'internal_user' : internal_user})
-
+	try:
+		return DiscordUser.objects.get(id=request.session['user_id'])
+	except:
+		return None
 
 class TournamentGuilds:
 
 	def __init__(self, user) -> None:
 		self.__guilds = []
 		self.__user = user
+
 		from corpoch.models import Tournament
-		for tournament in Tournament.objects.all():
+		for tournament in Tournament.objects.all().reverse():
+
+			#Change me to not be wrapped, was a workaround having class vars static
 			tmp = Guild(user, tournament)
 			if tmp not in self.__guilds:
 				self.__guilds.append(tmp)
@@ -141,15 +144,19 @@ class TournamentGuilds:
 
 	@property
 	def user_id(self):
-		return self.__user.id
+		if self.__user:
+			return self.__user.id
+		else:
+			return None
 
 class Guild:
-	__default_avatar = "https://cdn.discordapp.com/embed/avatars/0.png"
-
-	def __init__(self, user, tournament) -> None:
+	def __init__(self, user, tournament, oauth_guild=None) -> None:
+		self.__user = None
 		self.__player = None
 		self.__guild = tournament.guild
 		self.__tournament = tournament
+
+		self.__user = user
 		from corpoch.models import TournamentPlayer
 		try:
 			self.__player = TournamentPlayer.objects.get(user__id=user.id, tournament=tournament)
@@ -171,7 +178,10 @@ class Guild:
 
 	@property
 	def icon(self):
-		return f"{self.__guild.icon}" if self.__guild.icon else self.__default_avatar
+		if self.__guild.icon:
+			return self.__guild.icon
+		else:
+			return "https://cdn.discordapp.com/embed/avatars/0.png"
 
 	@property
 	def id(self):

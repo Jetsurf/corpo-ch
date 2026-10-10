@@ -15,6 +15,7 @@ urlpatterns = [
     path('api/', include('corpoch.api.urls')),
     path('livematches/', views.livematches, name="livematches"),
     path('privterms/', views.privterms, name="privterms"),
+    path('profile/<user_pk>', views.profile, name="profile"),
     path('update-live-matches/', views.update_livematches, name='update_livematches'),
     path('admin/login/', views.auth, name='login')
 ]

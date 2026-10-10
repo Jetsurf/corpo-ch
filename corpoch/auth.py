@@ -12,6 +12,7 @@ class DiscordBackend(ModelBackend):
 		else:
 			check_user.global_name = user.global_name if user.global_name else user.display_name
 			check_user.avatar = user.avatar
+			check_user.banner = user.banner
 			check_user.public_flags = user.public_flags
 			check_user.flags = user.flags
 			check_user.locale = user.locale

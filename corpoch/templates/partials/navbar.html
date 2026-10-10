@@ -79,15 +79,15 @@
 	<ul class="nav-links">
 		<li><a class="nav-link" href="/auth/user", rel="noopener noreferer">Home</a></li>
 		<li><a class="nav-link" href="/livematches", rel="noopener noreferer">Live Matches</a></li>
-		{% if internal_user.is_staff %}
+		{% if logged_in_user.is_staff %}
 		<li><a class="nav-link" href="{% url 'admin:index' %}", target="_blank" rel="noopener noreferer">Admin</a></li>
 		{% endif %}
 	</ul>
 	<div class="dropdown">
-		<img class="pfp rounded-circle" src="{{user.avatar}}">
+		<img class="pfp rounded-circle" src="{{logged_in_user.avatar}}">
 		<div class="dropdown-content">
-			<h4><b>{{user.username}}</b></h4>
-			<p>ID: {{user.id}}</p>
+			<h4><b>{{logged_in_user.username}}</b></h4>
+			<p>ID: {{logged_in_user.id}}</p>
 			<form class="form-inline" action="/home" method="post"> {% csrf_token %}
 				<button id="Logout" type="submit" class="btn btn-dark">Logout</button>
 			</form>

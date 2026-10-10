@@ -41,6 +41,7 @@ class DiscordUser(AbstractUser):
 	public_flags = models.IntegerField(null=True, blank=True, help_text="Discord account badge/flag's.")
 	flags = models.IntegerField(null=True, blank=True)
 	avatar = models.CharField(max_length=255, null=True, blank=True, help_text="URL of users discord avatar.")
+	banner = models.CharField(max_length=255, null=True, blank=True, help_text="URL of users discord banner.")
 	locale = models.CharField(max_length=255, null=True, blank=True, help_text="Users's Discord locale")
 	mfa_enabled = models.BooleanField(default=False, help_text="Does user have MFA enabled for their Discord account.")
 	last_login = models.DateTimeField(null=True, blank=True, help_text="User's last login time.")
