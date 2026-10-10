@@ -38,7 +38,7 @@
 				<p>For now, this is just a basic landing page. More to come. Questions, please reach out to @jetsurf on Discord.</p>
 			</div>	
 		</div>	
-		{% if not internal_user %}
+		{% if not logged_in_user %}
 		<div id="Auth"><span><br></span>
 			<a href="{{auth_url}}" class="btn btn-lg shadow-none">Discord Login</button>
 		</div>

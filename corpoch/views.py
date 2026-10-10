@@ -2,6 +2,7 @@ from requests import Session
 
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
+from django.db.models import Q
 from django.http import HttpRequest
 from django.shortcuts import redirect, render, get_object_or_404
 from django.utils import timezone
@@ -72,8 +73,7 @@ def user(request: HttpRequest):
 def profile(request: HttpRequest, user_pk):
 	from corpoch.models import DiscordUser, Match, MatchRound
 	user = get_object_or_404(DiscordUser, pk=user_pk)
-	matches = Match.objects.all().filter(players__player__user=user).reverse()
-	rounds = MatchRound.objects.all().filter(match__in=matches)
+	rounds = MatchRound.objects.filter(Q(winner__user=user) | Q(loser__user=user)).order_by('-created')
 	context = { "user" : user, "guilds": TournamentGuilds(user), "rounds" : rounds, "logged_in_user" : logged_in_user(request) }
 	return render(request, "profile.html", context=context)
 

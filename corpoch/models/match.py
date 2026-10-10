@@ -488,7 +488,10 @@ class MatchRoundAbstract(models.Model):
 
 	@property
 	def screenshot_full_url(self):
-		return f"{settings.BASE_URL}{self.screenshot.url}"
+		if self.screenshot:
+			return f"{settings.BASE_URL}{self.screenshot.url}"
+		else:
+			return None
 
 class MatchRound(MatchRoundAbstract):
 	match = models.ForeignKey(Match, related_name="match_rounds", verbose_name="Match ID", on_delete=models.CASCADE, null=True, blank=True, help_text="Match the round was played for.")
