@@ -3,7 +3,7 @@ from requests import Session
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
-from django.http import HttpRequest
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render, get_object_or_404
 from django.utils import timezone
 
@@ -14,12 +14,13 @@ def null(request: HttpRequest):
   return redirect("home")
 
 def home(request: HttpRequest):
-	from corpoch.models import DiscordUser
 	if request.method == "POST":
 		try:
 			del request.session["access_token"]
 		except KeyError:
+			print("KEY ERR")
 			pass
+	print(f"TEST: {logged_in_user(request)}")
 	return render(request, "home.html", context={"auth_url" : settings.AUTH_URL_DISCORD, 'logged_in_user' : logged_in_user(request)})
 
 def auth(request: HttpRequest):
@@ -42,8 +43,13 @@ def auth(request: HttpRequest):
 		oauth = token
 		oauth.save()
 	else:
-		access_token = request.session.get("access_token")
-	if not oauth.access_token:
+		#access_token = request.session.get("access_token")
+		if logged_in_user(request):
+			oauth = DiscordUser.objects.get(id=logged_in_user(request).id).token
+		else:
+			oauth = None
+
+	if not oauth:
 		return redirect(settings.AUTH_URL_DISCORD)
 	return redirect("user")
 
@@ -57,11 +63,12 @@ def user(request: HttpRequest):
 			context = { "user" : user, "guilds" : TournamentGuilds(user) }
 			token.save()
 		except DiscordToken.AuthError:
-			return redirect(auth_url_discord)
+			return redirect(settings.AUTH_URL_DISCORD)
 	else:
 		url = request.build_absolute_uri().split("/")
 		url.pop()
-		return redirect("/".join([i for i in url]))
+		#return redirect("/".join([i for i in url]))
+		return redirect(settings.AUTH_URL_DISCORD)
 
 	discord_user = authenticate(request, user=context['user'])
 	if not isinstance(discord_user, DiscordUser):
@@ -72,6 +79,8 @@ def user(request: HttpRequest):
 
 def profile(request: HttpRequest, user_pk):
 	from corpoch.models import DiscordUser, Match, MatchRound
+	if not user_pk:
+		return HttpResponse(f"Can't find a user if you don't provide one!", status=404)
 	user = get_object_or_404(DiscordUser, pk=user_pk)
 	rounds = MatchRound.objects.filter(Q(winner__user=user) | Q(loser__user=user)).order_by('-created')
 	context = { "user" : user, "guilds": TournamentGuilds(user), "rounds" : rounds, "logged_in_user" : logged_in_user(request) }
@@ -117,6 +126,8 @@ def logged_in_user(request: HttpRequest):
 	Meant to not be a direct view, rather a function to return the currently logged in user
 	'''
 	from corpoch.models import DiscordUser
+	if 'access_token' not in request.session:
+		return None
 	try:
 		return DiscordUser.objects.get(id=request.session['user_id'])
 	except:
