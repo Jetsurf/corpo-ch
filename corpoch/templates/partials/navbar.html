@@ -11,15 +11,15 @@
     justify-content: space-between;
     align-items: left;
     background-color: #1a1a1a;
-    padding: 0rem 1rem;
+    padding: 0.5rem 1rem;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
 .pfp {
     position: absolute;
 	width: 5vh;
-    top: -1.5vh;
-    right: 0vw;
+    top: -2rem;
+    right: 1rem;
     transition: filter 0.3s ease;
 }
 
@@ -36,7 +36,7 @@
 .nav-link {
     color: #a0a0a0;
     text-decoration: none;
-    margin-top: 0.25rem;
+    margin-top: 1rem;
     font-size: 1.25rem;
     font-weight: 500;
     transition: color 0.3s ease;
@@ -48,6 +48,8 @@
 
 .dropdown {
     position: relative;
+    display: flex;
+    align-items: center;
 }
 
 .dropdown-content {
@@ -57,7 +59,9 @@
     min-width: 200px;
     padding: 1rem;
     right: 0rem;
+    top: 100%;
     box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    z-index: 1000;
 }
 
 .dropdown-content p, h4 {
@@ -69,18 +73,15 @@
     background-color: #f1f1f1
 }
 
-.dropdown:hover .dropdown-content {
-    display: block;
-}
-
-.dropdown-content:hover {
+.dropdown:hover .dropdown-content,
+.dropdown:focus-within .dropdown-content {
     display: block;
 }
 
 input {
     position: absolute;
-    right: 4vw;
-    top: 0vh;
+    right: 6rem;
+    top: -1rem;
 }
 </style>
 
@@ -94,30 +95,29 @@ input {
 		{% endif %}
 	</ul>
     <div class="row">
-        <div class="col-5">
-        <i id="search-icon" class="fas fa-search"></i>
-        <input id="user-input" name="user-search" placeholder="Search Users">
-    </div>
-    <div id="user-searchr">
-        {% include 'partials/search-partial.html' %}
-    </div>
-	<div class="dropdown">
-		<img class="pfp rounded-circle" src="{{logged_in_user.avatar}}">
-		<div class="dropdown-content">
-			<h4><b>{{logged_in_user.global_name}}</b></h4>
-			<p>ID: {{logged_in_user.id}}</p>
-			<form class="form-inline" action="/home" method="post"> {% csrf_token %}
-				<button id="Logout" type="submit" class="btn btn-dark">Logout</button>
-			</form>
-		</div>
-	</div>
-    <div id="results" class="dropdown"
-        hx-get="{% url 'update-search' %}"
-        hx-trigger="change from:#user-input delay:500ms"
-        hx-include="#user-input"
-        hx-target="this"
-        hx-swap="innerHTML">
-        {% include 'partials/search-partial.html' %}
+        <div class="dropdown">
+            <!--<i id="search-icon" class="fas fa-search"></i>-->
+            <input id="user-input" name="user-search" placeholder="Search Users"
+                hx-get="{% url 'update-search' %}"
+                hx-trigger="input changed delay:500ms"
+                hx-target="#search-results"
+                hx-swap="innerHTML">
+            
+            <div id="search-results" class="dropdown-content">
+                {% include 'partials/search-partial.html' %}
+            </div>
+        </div>
+    
+        <div class="dropdown">
+            <img class="pfp rounded-circle" src="{{logged_in_user.avatar}}">
+            <div class="dropdown-content">
+                <h4><b>{{logged_in_user.global_name}}</b></h4>
+                <p>ID: {{logged_in_user.id}}</p>
+                <form class="form-inline" action="/home" method="post"> {% csrf_token %}
+                    <button id="Logout" type="submit" class="btn btn-dark">Logout</button>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 </nav>

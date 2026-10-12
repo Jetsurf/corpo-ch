@@ -1,34 +1,13 @@
-<style>
-.dropdown-content p, h4 {
-    color: white;
-    cursor: default;
-}
-
-.dropdown-content a:hover {
-    background-color: #f1f1f1
-}
-
-.dropdown:hover .dropdown-content {
-    display: block;
-}
-
-.dropdown-content:hover {
-    display: block;
-}
-</style>
-
-{% if count == 0 %}
-<div id="results" class="dropdown-content">
- 	<ul>
-	{% for user in users %}
-		<li class='result-item'>
-			<a href="{% url 'profile' user.id %}" ><p>{{ user.global_name }}</p></a>
-		</li>
-	{% endfor %}
-	</ul>
-</div>
+{% if users %}
+<ul>
+    {% for user in users %}
+        <li class='result-item'>
+            <a href="{% url 'profile' user.id %}"><p>{{ user.global_name }}</p></a>
+        </li>
+    {% endfor %}
+</ul>
 {% else %}
-<div id="results" class="dropdown-content">
-	<li><p>No users found.</p></li>
-</div>
+<ul>
+    <li><p>No users found.</p></li>
+</ul>
 {% endif %}
