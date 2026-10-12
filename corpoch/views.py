@@ -209,7 +209,7 @@ class TournamentGuilds:
 		self.__user = user
 
 		from corpoch.models import Tournament
-		for tournament in Tournament.objects.all().reverse():
+		for tournament in Tournament.objects.all().order_by("-id"):
 
 			#Change me to not be wrapped, was a workaround having class vars static
 			tmp = Guild(user, tournament)

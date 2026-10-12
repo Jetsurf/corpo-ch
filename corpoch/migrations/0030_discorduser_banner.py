@@ -15,4 +15,9 @@ class Migration(migrations.Migration):
             name='banner',
             field=models.CharField(blank=True, help_text='URL of users discord banner.', max_length=255, null=True),
         ),
+        migrations.AddField(
+            model_name='discorduser',
+            name='accent_color',
+            field=models.PositiveIntegerField(blank=True, help_text='Users banner accent color', null=True),
+        ),
     ]
