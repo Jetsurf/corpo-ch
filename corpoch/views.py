@@ -143,10 +143,13 @@ def profile(request: HttpRequest, user_pk):
 	stats['notes_percent'] = f"{(stats['notes_hit'] / stats['notes_total'] * 100):.2f}%"
 	stats['phrases_percent'] = f"{stats['phrases_hit'] / stats['phrases_total'] * 100:.2f}%"
 
-	stats['notes_hit'] = f"{stats['notes_hit']:,}"
-	stats['notes_total'] = f"{stats['notes_total']:,}"
 	stats['phrases_hit'] = f"{stats['phrases_hit']:,}"
 	stats['phrases_total'] = f"{stats['phrases_total']:,}"
+	stats['songs_total'] = stats['song_wins'] + stats['song_loss']
+	stats['miss_average'] = f"{(stats['notes_total'] - stats['notes_hit']) / stats['songs_total']:.1f}"
+	stats['notes_hit'] = f"{stats['notes_hit']:,}"
+	stats['notes_total'] = f"{stats['notes_total']:,}"
+	stats['ghosts_average'] = f"{stats['ghosts'] / stats['songs_total']:.1f}"
 	stats['streak']['notes'] = f"{stats['streak']['notes']:,}"
 
 	context = { "user" : user, "guilds": TournamentGuilds(user), "rounds" : rounds, "logged_in_user" : logged_in_user(request), "stats" : stats, "users" : [] }
@@ -186,8 +189,10 @@ def update_livematches(request: HttpRequest):
 
 def update_search(request: HttpRequest):
 	search = request.GET.get('user-search', '')
+	if len(search) < 3:
+		return render(request, 'partials/search-partial.html', { 'users' : DiscordUser.objects.none(), "count" : 0 })
 	from corpoch.models import DiscordUser
-	users = DiscordUser.objects.filter(global_name=search)
+	users = DiscordUser.objects.filter(global_name__icontains=search)
 	search_count = users.count()
 	print(search_count)
 	return render(request, 'partials/search-partial.html', { 'users' : users, "count" : search_count })
