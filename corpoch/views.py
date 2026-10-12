@@ -18,9 +18,8 @@ def home(request: HttpRequest):
 		try:
 			del request.session["access_token"]
 		except KeyError:
-			print("KEY ERR")
 			pass
-	print(f"TEST: {logged_in_user(request)}")
+
 	return render(request, "home.html", context={"auth_url" : settings.AUTH_URL_DISCORD, 'logged_in_user' : logged_in_user(request)})
 
 def auth(request: HttpRequest):
@@ -147,7 +146,7 @@ def profile(request: HttpRequest, user_pk):
 	stats['phrases_total'] = f"{stats['phrases_total']:,}"
 	stats['streak']['notes'] = f"{stats['streak']['notes']:,}"
 
-	context = { "user" : user, "guilds": TournamentGuilds(user), "rounds" : rounds, "logged_in_user" : logged_in_user(request), "stats" : stats }
+	context = { "user" : user, "guilds": TournamentGuilds(user), "rounds" : rounds, "logged_in_user" : logged_in_user(request), "stats" : stats, "users" : [] }
 	return render(request, "profile.html", context=context)
 
 def livematches(request: HttpRequest):
@@ -186,7 +185,7 @@ def update_search(request: HttpRequest):
 	search = request.GET.get('user-search', '')
 	from corpoch.models import DiscordUser
 	users = DiscordUser.objects.filter(global_name=search)
-	return render(request, 'partials/search-partial.html', { 'user-search' : users })
+	return render(request, 'partials/search-partial.html', { 'users' : users })
 
 def privterms(request: HttpRequest):
 	return render(request, 'privterms.html', context={'logged_in_user' : logged_in_user(request)})

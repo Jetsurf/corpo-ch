@@ -16,9 +16,11 @@
 }
 
 .pfp {
+    position: absolute;
 	width: 5vh;
+    top: -1.5vh;
+    right: 0vw;
     transition: filter 0.3s ease;
-
 }
 
 .pfp:hover {
@@ -74,8 +76,13 @@
 .dropdown-content:hover {
     display: block;
 }
-</style>
 
+input {
+    position: absolute;
+    right: 4vw;
+    top: 0vh;
+}
+</style>
 
 <nav class="navbar">
 	<ul class="nav-links">
@@ -91,7 +98,7 @@
         <i id="search-icon" class="fas fa-search"></i>
         <input id="user-input" name="user-search" placeholder="Search Users">
     </div>
-    <div id="user-search-bar">
+    <div id="user-searchr">
         {% include 'partials/search-partial.html' %}
     </div>
 	<div class="dropdown">
@@ -104,9 +111,9 @@
 			</form>
 		</div>
 	</div>
-    <div id="user-search"
+    <div id="user-search" class="dropdown"
         hx-get="{% url 'update-search' %}"
-        hx-trigger="load, input changed delay:500ms,keyword"
+        hx-trigger="submit, input changed delay:500ms"
         hx-include="#user-input"
         hx-target="this"
         hx-swap="innerHTML">
