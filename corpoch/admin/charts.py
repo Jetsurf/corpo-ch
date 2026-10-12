@@ -36,7 +36,7 @@ class ChartAdmin(admin.ModelAdmin):
 	@mark_safe
 	def _icon(self, obj):
 		if obj.icon:
-			return f'<img src="{obj.icon.img.url}" width="24" height="24"'
+			return f'<img src="{obj.icon.img.url}" width="24" height="24"/>'
 		else:
 			return "None"
 

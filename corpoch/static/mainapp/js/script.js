@@ -56,25 +56,5 @@ $(document).ready(() =>{
         $(this)
             .text("")
             .html('<span class="spinner-border"></span>');
-    });
-
-    $("td img").on({
-        mouseenter : function(){
-            $(this).stop(true, true).css({
-                width: "9vh",
-                "-webkit-animation" : "rotate_l 0.6s ease-in-out",
-                "-moz-animation" : "rotate_l 0.6s ease-in-out",
-                animation : "rotate_l 0.6s ease-in-out",
-            });
-        },
-
-        mouseleave : function(){
-            $(this).stop(true, true).css({
-                "-webkit-animation" : "rotate_r 0.6s ease-in-out",
-                "-moz-animation" : "rotate_r 0.6s ease-in-out",
-                animation : "rotate_r 0.6s ease-in-out",
-                width: "8vh"
-            });
-        }
-    });      
+    });  
 });  

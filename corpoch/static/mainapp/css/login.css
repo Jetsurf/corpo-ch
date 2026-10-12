@@ -42,8 +42,11 @@ hr {
 }
 
 #tournaments {
-    width: 80%;
+    width: 40%;
+}
 
+#user-stats {
+    width: 40%;
 }
 
 .card {
@@ -111,35 +114,10 @@ tbody tr td span, td i {
 td img {
     border-style: solid;
     border-color: white;
-    width: 8vh;
 }
 
 .footer {
     background-color: rgba(0, 0, 0, 0.2);
-}
-
-@-moz-keyframes rotate_l {
-    100% { -webkit-transform: rotate(360deg); transform:rotate(360deg); }
-}
-
-@-webkit-keyframes rotate_l {
-    100% { -webkit-transform: rotate(360deg); transform:rotate(360deg); }
-}
-
-@keyframes rotate_l { 
-    100% { -webkit-transform: rotate(360deg); transform:rotate(360deg); } 
-}
-
-@-moz-keyframes rotate_r {
-    100% { -webkit-transform: rotate(-360deg); transform:rotate(-360deg); }
-}
-
-@-webkit-keyframes rotate_r {
-    100% { -webkit-transform: rotate(-360deg); transform:rotate(-360deg); }
-}
-
-@keyframes rotate_r { 
-    100% { -webkit-transform: rotate(-360deg); transform:rotate(-360deg); } 
 }
 
 .btn:focus, .btn:active {

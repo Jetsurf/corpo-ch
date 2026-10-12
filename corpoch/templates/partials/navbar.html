@@ -11,13 +11,14 @@
     justify-content: space-between;
     align-items: left;
     background-color: #1a1a1a;
-    padding: 0rem 2rem;
+    padding: 0rem 1rem;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
 .pfp {
 	width: 5vh;
     transition: filter 0.3s ease;
+
 }
 
 .pfp:hover {
@@ -27,14 +28,14 @@
 .nav-links {
     list-style: none;
     display: flex;
-    gap: 2rem;
+    gap: 1.5rem;
 }
 
 .nav-link {
     color: #a0a0a0;
     text-decoration: none;
-    margin-top: 0.5rem;
-    font-size: 1.5rem;
+    margin-top: 0.25rem;
+    font-size: 1.25rem;
     font-weight: 500;
     transition: color 0.3s ease;
 }
@@ -75,14 +76,24 @@
 }
 </style>
 
+
 <nav class="navbar">
 	<ul class="nav-links">
 		<li><a class="nav-link" href="/auth/user", rel="noopener noreferer">Home</a></li>
 		<li><a class="nav-link" href="/livematches", rel="noopener noreferer">Live Matches</a></li>
+		<li><a class="nav-link" href="/api/swagger", rel="noopener noreferer">API</a></li>
 		{% if logged_in_user.is_staff %}
 		<li><a class="nav-link" href="{% url 'admin:index' %}", target="_blank" rel="noopener noreferer">Admin</a></li>
 		{% endif %}
 	</ul>
+    <div class="row">
+        <div class="col-5">
+        <i id="search-icon" class="fas fa-search"></i>
+        <input id="user-input" name="user-search" placeholder="Search Users">
+    </div>
+    <div id="user-search-bar">
+        {% include 'partials/search-partial.html' %}
+    </div>
 	<div class="dropdown">
 		<img class="pfp rounded-circle" src="{{logged_in_user.avatar}}">
 		<div class="dropdown-content">
@@ -93,4 +104,17 @@
 			</form>
 		</div>
 	</div>
+    <div id="user-search"
+        hx-get="{% url 'update-search' %}"
+        hx-trigger="load, input changed delay:500ms,keyword"
+        hx-include="#user-input"
+        hx-target="this"
+        hx-swap="innerHTML">
+        {% include 'partials/search-partial.html' %}
+    </div>
+</div>
 </nav>
+
+{% block js %}
+<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+{% endblock %}

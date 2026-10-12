@@ -17,6 +17,7 @@ urlpatterns = [
     path('privterms/', views.privterms, name="privterms"),
     path('profile/<user_pk>', views.profile, name="profile"),
     path('update-live-matches/', views.update_livematches, name='update_livematches'),
+    path('update-search/', views.update_search, name="update-search"),
     path('admin/login/', views.auth, name='login')
 ]
 

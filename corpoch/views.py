@@ -79,11 +79,75 @@ def user(request: HttpRequest):
 
 def profile(request: HttpRequest, user_pk):
 	from corpoch.models import DiscordUser, Match, MatchRound
-	if not user_pk:
+	if not user_pk or user_pk == "None":
 		return HttpResponse(f"Can't find a user if you don't provide one!", status=404)
-	user = get_object_or_404(DiscordUser, pk=user_pk)
-	rounds = MatchRound.objects.filter(Q(winner__user=user) | Q(loser__user=user)).order_by('-created')
-	context = { "user" : user, "guilds": TournamentGuilds(user), "rounds" : rounds, "logged_in_user" : logged_in_user(request) }
+	else:
+		user = get_object_or_404(DiscordUser, pk=user_pk)
+
+	matches =  Match.objects.filter(players__player__user=user).order_by('-started_on')
+	rounds = []
+	stats = {}
+	stats['match_wins'] = 0
+	stats['match_loss'] = 0
+	stats['song_wins'] = 0
+	stats['song_loss'] = 0
+	stats['notes_hit'] = 0
+	stats['notes_total'] = 0
+	stats['ghosts'] = 0
+	stats['phrases_hit'] = 0
+	stats['phrases_total'] = 0
+	stats['score'] = 0
+	stats['fcs'] = 0
+	stats['streak'] = { 'song' : "temp", "notes" : 0, "screenshot" : "temp" }
+	for match in matches:
+		if match.winner.user == user:
+			stats['match_wins'] += 1
+		else:
+			stats['match_loss'] += 1
+
+		if match.high_seed.player.user == user:
+			player = match.high_seed.player
+		else:
+			player = match.low_seed.player
+
+		for round in match.rounds:
+			if player == round.winner:
+				stats['song_wins'] += 1
+			else:
+				stats['song_loss'] += 1
+
+			if player.check_ch_name(round.steg.players[0].profile_name):
+				ply_steg = round.steg.players[0]
+			else:
+				ply_steg = round.steg.players[1]
+
+			stats['notes_total'] += ply_steg.total_notes
+			stats['notes_hit'] += ply_steg.notes_hit
+			stats['ghosts'] += ply_steg.frets_ghosted
+			stats['phrases_hit'] += ply_steg.sp_phrases_earned
+			stats['phrases_total'] += ply_steg.sp_phrases_total
+			stats['score'] += ply_steg.score
+			if ply_steg.is_fc:
+				stats['fcs'] += 1
+			if stats['streak']['notes'] < ply_steg.max_streak:
+				stats['streak']['song'] = round.chart.tournament_name
+				stats['streak']['notes'] = ply_steg.max_streak
+				stats['streak']['screenshot'] = round.screenshot_full_url
+			rounds.append(round)
+
+	stats['score'] = f"{stats['score']:,}"
+	stats['match_percent'] = f"{(stats['match_wins'] / (stats['match_wins'] + stats['match_loss']) * 100):.2f}%"
+	stats['song_percent'] = f"{(stats['song_wins'] / (stats['song_wins'] + stats['song_loss']) * 100):.2f}%"
+	stats['notes_percent'] = f"{(stats['notes_hit'] / stats['notes_total'] * 100):.2f}%"
+	stats['phrases_percent'] = f"{stats['phrases_hit'] / stats['phrases_total'] * 100:.2f}%"
+
+	stats['notes_hit'] = f"{stats['notes_hit']:,}"
+	stats['notes_total'] = f"{stats['notes_total']:,}"
+	stats['phrases_hit'] = f"{stats['phrases_hit']:,}"
+	stats['phrases_total'] = f"{stats['phrases_total']:,}"
+	stats['streak']['notes'] = f"{stats['streak']['notes']:,}"
+
+	context = { "user" : user, "guilds": TournamentGuilds(user), "rounds" : rounds, "logged_in_user" : logged_in_user(request), "stats" : stats }
 	return render(request, "profile.html", context=context)
 
 def livematches(request: HttpRequest):
@@ -117,6 +181,12 @@ def update_livematches(request: HttpRequest):
 		'matches_changed': matches_changed,
 		'current_match_ids': current_match_ids
 	})
+
+def update_search(request: HttpRequest):
+	search = request.GET.get('user-search', '')
+	from corpoch.models import DiscordUser
+	users = DiscordUser.objects.filter(global_name=search)
+	return render(request, 'partials/search-partial.html', { 'user-search' : users })
 
 def privterms(request: HttpRequest):
 	return render(request, 'privterms.html', context={'logged_in_user' : logged_in_user(request)})

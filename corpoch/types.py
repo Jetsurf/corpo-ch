@@ -111,6 +111,8 @@ class StegScreenshotPlayer(pydantic.BaseModel):
 	excess_hits : int = 0
 	notes_missed : int = 0
 
+	#May need is_pfc property for future use - check conflict with StegScreensshotV10
+
 #For manual non-ingame submissions w/ v6 steg
 class StegScreenshotManual6(pydantic.BaseModel):
 	profile_name : str = "Manual Player Entry"
@@ -136,6 +138,10 @@ class StegScreenshotManual6(pydantic.BaseModel):
 	@property
 	def frets_ghosted(self):
 		return -1
+
+	@property
+	def is_pfc(self):
+		return False
 
 	@property
 	def gamepad_mode(self):
@@ -178,6 +184,10 @@ class StegScreenshotPlayerDummy(pydantic.BaseModel):
 
 	@property
 	def is_fc(self):
+		return False
+
+	@property
+	def is_pfc(self):
 		return False
 
 	@property

@@ -21,6 +21,24 @@
 			</div>
 		</div>
 	</div>
+	<div class="w3-cell w3-container", id="user-stats">
+		<section id="stats" class="status">
+			<h2>Career Stats</h2>
+			<hr>
+			<table class="table table-striped table-hover table-bordered">
+				<tbody>
+					<tr><td>Match Wins/Losses</td><td>{{stats.match_wins}}/{{stats.match_loss}} ({{stats.match_percent}})</td></tr>
+					<tr><td>Song Wins/Losses</td><td>{{stats.song_wins}}/{{stats.song_loss}} ({{stats.song_percent}})</td></tr>
+					<tr><td>Notes Hit/Total</td><td>{{stats.notes_hit}}/{{stats.notes_total}} ({{stats.notes_percent}})</td></tr>
+					<tr><td>Ghosts</td><td>{{stats.ghosts}}</td></tr>
+					<tr><td>SP Earned/Total</td><td>{{stats.phrases_hit}}/{{stats.phrases_total}} ({{stats.phrases_percent}})</td></tr>
+					<tr><td>Longest Streak</td><td><a href="https://{{stats.streak.screenshot}}">{{stats.streak.song}}</a> - {{stats.streak.notes}}</td></tr>
+					<tr><td>Total Score</td><td>{{stats.score}}</td></tr>
+					<tr><td><!---<img src="{% static  'fc.png' %}" width="24" height="24"/>--->FC's</td><td>{{stats.fcs}}</td></tr>
+				</tbody>
+			</table>
+		</section>
+	</div>
 	<div class="w3-cell w3-container" id="tournaments">
 		<section id="Tournaments" class="status">
 			<h2>Tournaments</h2>
