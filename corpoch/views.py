@@ -32,15 +32,18 @@ def auth(request: HttpRequest):
 		request.session["access_token"] = oauth.access_token
 		request.session['user_id'] = identity['id']
 
-		token, created = DiscordToken.objects.get_or_create(user__id=identity['id'])
-		if created:
-			update_user(user.id)
-		token.access_token = oauth.access_token
-		token.refresh_token = oauth.refresh_token
-		token.expires = oauth.expires
-		token.save()
-		oauth = token
-		oauth.save()
+		try:
+			token = DiscordToken.objects.get(user__id=identity['id'])
+			token.access_token = oauth.access_token
+			token.refresh_token = oauth.refresh_token
+			token.expires = oauth.expires
+			token.save()
+			oauth = token
+		except DiscordToken.DoesNotExist:
+			oauth.user, created = DiscordUser.objects.get_or_create(pk=identity['id'])
+			if created:
+				update_user(identity.id)
+			oauth.save()
 	else:
 		#access_token = request.session.get("access_token")
 		if logged_in_user(request):
