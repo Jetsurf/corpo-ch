@@ -305,3 +305,19 @@ class Guild:
 			return True
 		else:
 			return False
+
+	@property
+	def is_staff(self):
+		try:
+			admin = self.__guild.admins.get(id=self.__user.id)
+			return True
+		except:
+			return False
+
+	@property
+	def is_referee(self):
+		try:
+			ref = self.__guild.referees.get(id=self.__user.id)
+			return True
+		except:
+			return False
