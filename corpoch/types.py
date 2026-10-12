@@ -194,6 +194,10 @@ class StegScreenshotPlayerDummy(pydantic.BaseModel):
 	def excess_hits(self):
 		return 0
 
+	@property
+	def max_streak(self):
+		return 0
+
 #v10 6085-final
 class StegSectionV10(pydantic.BaseModel):
 	model_config = pydantic.ConfigDict(title=f'Steg v10 (6085)')

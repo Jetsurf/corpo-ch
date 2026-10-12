@@ -17,8 +17,8 @@
 }
 </style>
 
-{% if users %}
-<div class="dropdown-content">
+{% if count == 0 %}
+<div id="results" class="dropdown-content">
  	<ul>
 	{% for user in users %}
 		<li class='result-item'>
@@ -28,7 +28,7 @@
 	</ul>
 </div>
 {% else %}
-<div class="dropdown-content">
+<div id="results" class="dropdown-content">
 	<li><p>No users found.</p></li>
 </div>
 {% endif %}

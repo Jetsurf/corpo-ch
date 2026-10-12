@@ -111,9 +111,9 @@ input {
 			</form>
 		</div>
 	</div>
-    <div id="user-search" class="dropdown"
+    <div id="results" class="dropdown"
         hx-get="{% url 'update-search' %}"
-        hx-trigger="submit, input changed delay:500ms"
+        hx-trigger="change from:#user-input delay:500ms"
         hx-include="#user-input"
         hx-target="this"
         hx-swap="innerHTML">

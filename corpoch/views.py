@@ -109,7 +109,7 @@ def profile(request: HttpRequest, user_pk):
 		else:
 			player = match.low_seed.player
 
-		for round in match.rounds:
+		for round in match.rounds.reverse():
 			if player == round.winner:
 				stats['song_wins'] += 1
 			else:
@@ -185,7 +185,8 @@ def update_search(request: HttpRequest):
 	search = request.GET.get('user-search', '')
 	from corpoch.models import DiscordUser
 	users = DiscordUser.objects.filter(global_name=search)
-	return render(request, 'partials/search-partial.html', { 'users' : users })
+	search_count = users.count()
+	return render(request, 'partials/search-partial.html', { 'users' : users, "count" : search_count })
 
 def privterms(request: HttpRequest):
 	return render(request, 'privterms.html', context={'logged_in_user' : logged_in_user(request)})
