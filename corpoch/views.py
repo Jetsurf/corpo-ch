@@ -16,7 +16,7 @@ def null(request: HttpRequest):
 def home(request: HttpRequest):
 	if request.method == "POST":
 		try:
-			del request.session["access_token"]
+			request.session.clear()
 		except KeyError:
 			pass
 
@@ -41,11 +41,9 @@ def auth(request: HttpRequest):
 			oauth = token
 		except DiscordToken.DoesNotExist:
 			oauth.user, created = DiscordUser.objects.get_or_create(pk=identity['id'])
-			if created:
-				update_user(identity.id)
+			update_user(identity.id)
 			oauth.save()
 	else:
-		#access_token = request.session.get("access_token")
 		if logged_in_user(request):
 			oauth = DiscordUser.objects.get(id=logged_in_user(request).id).token
 		else:
@@ -57,13 +55,23 @@ def auth(request: HttpRequest):
 
 def user(request: HttpRequest):
 	from corpoch.models import DiscordToken, DiscordUser
+	from corpoch.dbot.models import Guilds
 	if request.session.get("access_token"):
 		user = DiscordUser.objects.get(id=request.session.get('user_id'))
 		token = DiscordToken.objects.get(user__id=request.session.get('user_id'))
-		try:
+		#If post w/ guild_id as param, do guild join
+		if request.method == "POST":
+			guild_id = request.GET.get("guild_id")
+			try:
+				guild = Guilds.objects.get(id=guild_id)
+				token.invite_to_guild(guild) #Do the invite
+			except Guilds.DoesNotExist:
+				pass
+		else:
 			token.login()
+
+		try:
 			context = { "user" : user, "guilds" : TournamentGuilds(user) }
-			token.save()
 		except DiscordToken.AuthError:
 			return redirect(settings.AUTH_URL_DISCORD)
 	else:
@@ -120,23 +128,24 @@ def profile(request: HttpRequest, user_pk):
 			elif round.loser and player == round.loser:
 				stats['song_loss'] += 1
 
-			if player.check_ch_name(round.steg.players[0].profile_name):
-				ply_steg = round.steg.players[0]
-			else:
-				ply_steg = round.steg.players[1]
+			if len(round.steg.players) > 0:
+				if player.check_ch_name(round.steg.players[0].profile_name):
+					ply_steg = round.steg.players[0]
+				else:
+					ply_steg = round.steg.players[1]
 
-			stats['notes_total'] += ply_steg.total_notes
-			stats['notes_hit'] += ply_steg.notes_hit
-			stats['ghosts'] += ply_steg.frets_ghosted
-			stats['phrases_hit'] += ply_steg.sp_phrases_earned
-			stats['phrases_total'] += ply_steg.sp_phrases_total
-			stats['score'] += ply_steg.score
-			if ply_steg.is_fc:
-				stats['fcs'] += 1
-			if stats['streak']['notes'] < ply_steg.max_streak:
-				stats['streak']['song'] = round.chart.tournament_name
-				stats['streak']['notes'] = ply_steg.max_streak
-				stats['streak']['screenshot'] = round.screenshot_full_url
+				stats['notes_total'] += ply_steg.total_notes
+				stats['notes_hit'] += ply_steg.notes_hit
+				stats['ghosts'] += ply_steg.frets_ghosted
+				stats['phrases_hit'] += ply_steg.sp_phrases_earned
+				stats['phrases_total'] += ply_steg.sp_phrases_total
+				stats['score'] += ply_steg.score
+				if ply_steg.is_fc:
+					stats['fcs'] += 1
+				if stats['streak']['notes'] < ply_steg.max_streak:
+					stats['streak']['song'] = round.chart.tournament_name
+					stats['streak']['notes'] = ply_steg.max_streak
+					stats['streak']['screenshot'] = round.screenshot_full_url
 			rounds.append(round)
 
 	stats['score'] = f"{stats['score']:,}"
@@ -218,12 +227,15 @@ class TournamentGuilds:
 	def __init__(self, user) -> None:
 		self.__guilds = []
 		self.__user = user
-
+		oauth_guilds = self.__user.token.guilds() #Trigger refresh of OAUTH guilds in Token Model
 		from corpoch.models import Tournament
 		for tournament in Tournament.objects.all().order_by("-id"):
-
-			#Change me to not be wrapped, was a workaround having class vars static
-			tmp = Guild(user, tournament)
+			oauth = None
+			for guild in oauth_guilds:
+				if int(guild['id']) == tournament.guild.id:
+					oauth = guild
+					break
+			tmp = Guild(user, tournament, oauth_guild=oauth)
 			if tmp not in self.__guilds:
 				self.__guilds.append(tmp)
 				
@@ -245,6 +257,7 @@ class Guild:
 		self.__user = None
 		self.__player = None
 		self.__guild = tournament.guild
+		self.__oauth_guild = oauth_guild
 		self.__tournament = tournament
 
 		self.__user = user
@@ -330,4 +343,11 @@ class Guild:
 			ref = self.__guild.referees.get(id=self.__user.id)
 			return True
 		except:
+			return False
+
+	@property
+	def is_member(self):
+		if self.__oauth_guild:
+			return True
+		else:
 			return False

@@ -109,7 +109,13 @@ input {
         </div>
     
         <div class="dropdown">
+            {% if logged_in_user %}
+                <a href="/profile/{{logged_in_user.id}}">
+            {% endif %}
             <img class="pfp rounded-circle" src="{{logged_in_user.avatar}}">
+            {% if logged_in_user %}
+                </a>
+            {% endif %}
             <div class="dropdown-content">
                 <h4><b>{{logged_in_user.global_name}}</b></h4>
                 <p>ID: {{logged_in_user.id}}</p>

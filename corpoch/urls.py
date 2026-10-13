@@ -7,6 +7,7 @@ from corpoch import views
 from corpoch.api import urls as apiurls
 
 urlpatterns = [
+    path('admin/login/', views.auth, name='login'),
     path('admin/', admin.site.urls),
     path('', views.null),
     path('auth',views.auth),
@@ -17,8 +18,7 @@ urlpatterns = [
     path('privterms/', views.privterms, name="privterms"),
     path('profile/<user_pk>', views.profile, name="profile"),
     path('update-live-matches/', views.update_livematches, name='update_livematches'),
-    path('update-search/', views.update_search, name="update-search"),
-    path('admin/login/', views.auth, name='login')
+    path('update-search/', views.update_search, name="update-search")
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

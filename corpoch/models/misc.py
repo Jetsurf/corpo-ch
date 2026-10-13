@@ -1,4 +1,4 @@
-import datetime
+import datetime, json
 from requests import Session
 
 from django.db import models
@@ -66,7 +66,7 @@ class DiscordToken(models.Model):
 	id = models.AutoField(primary_key=True, help_text="Internal ID of a token.")
 	access_token = EncryptedTextField(max_length=255)
 	refresh_token = EncryptedTextField(max_length=255)
-	scopes = EncryptedTextField(max_length=64, default='identify guilds')
+	scopes = EncryptedTextField(max_length=64, default='identify guilds guilds.join')
 	user = models.OneToOneField(DiscordUser, null=True, on_delete=models.CASCADE, related_name="token")
 	expires = models.DateTimeField(verbose_name="Expiry Time", default=timezone.now, help_text="Token expiry time.")
 	#This needs an expiry date field to trigger refreshes - refresh tokens need to be handled
@@ -85,6 +85,10 @@ class DiscordToken(models.Model):
 		return (settings.BOT_ID, settings.BOT_SECRET)
 
 	@property
+	def __bot_auth(self):
+		return { 'Content-Type' : 'application/json', 'Authorization' : f'Bot {settings.BOT_TOKEN}'}
+
+	@property
 	def __oauth_header(self):
 		return {'Authorization': f'Bearer {self.access_token}'}
 
@@ -93,6 +97,7 @@ class DiscordToken(models.Model):
 		self.__base_url = "https://discord.com/api/v10"
 		self.__content_header = {'Content-Type': 'application/x-www-form-urlencoded'}
 		self.__auth = { "client_id": settings.BOT_ID, "client_secret": settings.BOT_SECRET }
+		self.__guilds = None
 		if not code:
 			if not self.access_token or not self.refresh_token:
 				raise AuthError("Access/Refresh token not set and code is none!")
@@ -120,6 +125,8 @@ class DiscordToken(models.Model):
 		self.refresh_token = json["refresh_token"]
 		self.scopes = json['scope']
 		self.expires = timezone.now() + datetime.timedelta(seconds=json['expires_in'])
+		if self.user:
+			self.save()
 
 	def identity(self) -> dict:
 		if not self.access_token:
@@ -131,10 +138,30 @@ class DiscordToken(models.Model):
 		raise AuthError("Failed to connect to discord API")
 
 	def guilds(self) -> list:
+		if not hasattr(self, '__session'):
+			self.login()
 		if not self.access_token:
 			self.__exchange_code()
 
 		response = self.__session.get(f"{self.__base_url}/users/@me/guilds", headers=self.__oauth_header)
 		if response.status_code == 200:
+			self.__guilds = response.json()
 			return response.json()
 		raise AuthError("Failed to connect to discord API")
+
+	def invite_to_guild(self, guild):
+		if not hasattr(self, '__session'):
+			self.login()
+		if "guilds.join" in self.scopes:
+			response = self.__session.put(f"{self.__base_url}/guilds/{guild.id}/members/{self.user.id}", headers=self.__bot_auth, data=json.dumps({ "access_token" : str(self.access_token) }))
+
+			if response.status_code == 201:
+				return True
+			elif response.status_code == 204:
+				# User already a member
+				return False
+			else:
+				raise self.AuthError(f"OAuth guild join error {response.status_code} joining user {self.user.id} to guild {guild.id}\n{response.text}")
+		else:
+			print(f"User scopes incorrect {self.scopes}")
+			raise self.AuthError("User OAuth scopes do not include guilds.join")
