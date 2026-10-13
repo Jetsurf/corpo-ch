@@ -63,13 +63,15 @@ class DiscordUser(AbstractUser):
 			return str(self.id)
 
 class DiscordToken(models.Model):
+	"""
+	Set of Discord OAuth credentials for a user. Has helper functions to perform actions as the user
+	"""
 	id = models.AutoField(primary_key=True, help_text="Internal ID of a token.")
 	access_token = EncryptedTextField(max_length=255)
 	refresh_token = EncryptedTextField(max_length=255)
 	scopes = EncryptedTextField(max_length=64, default='identify guilds guilds.join')
 	user = models.OneToOneField(DiscordUser, null=True, on_delete=models.CASCADE, related_name="token")
 	expires = models.DateTimeField(verbose_name="Expiry Time", default=timezone.now, help_text="Token expiry time.")
-	#This needs an expiry date field to trigger refreshes - refresh tokens need to be handled
 
 	class Meta:
 		verbose_name = "Discord Token"
@@ -82,21 +84,29 @@ class DiscordToken(models.Model):
 
 	@property
 	def __auth_header(self):
+		"""
+		Used with Discord API calls to generate OAuth2 Credentials for the bot
+		"""
 		return (settings.BOT_ID, settings.BOT_SECRET)
 
 	@property
 	def __bot_auth(self):
+		"""
+		Used for Discord API calls as the bot on behalf of the user (ie with guild joins/invites)
+		"""
 		return { 'Content-Type' : 'application/json', 'Authorization' : f'Bot {settings.BOT_TOKEN}'}
 
 	@property
 	def __oauth_header(self):
+		"""
+		Used for Discord API calls to retreive information as used (IE identify, no bot perms needed)
+		"""
 		return {'Authorization': f'Bearer {self.access_token}'}
 
 	def login(self, code=None) -> None:
 		self.__session = Session()
 		self.__base_url = "https://discord.com/api/v10"
 		self.__content_header = {'Content-Type': 'application/x-www-form-urlencoded'}
-		self.__auth = { "client_id": settings.BOT_ID, "client_secret": settings.BOT_SECRET }
 		self.__guilds = None
 		if not code:
 			if not self.access_token or not self.refresh_token:
@@ -163,5 +173,4 @@ class DiscordToken(models.Model):
 			else:
 				raise self.AuthError(f"OAuth guild join error {response.status_code} joining user {self.user.id} to guild {guild.id}\n{response.text}")
 		else:
-			print(f"User scopes incorrect {self.scopes}")
 			raise self.AuthError("User OAuth scopes do not include guilds.join")
