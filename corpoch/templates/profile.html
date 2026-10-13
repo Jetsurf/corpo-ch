@@ -8,6 +8,15 @@
 {% block body %}data-spy="scroll" data-target=".navbar" data-offset="50"{% endblock %}
 {% block content %}
 {% include 'partials/navbar.html' %}
+<!--- Discord Embed for URL hotlinks --->
+<meta content="Corpo CH" property="og:site_name"/>
+<meta content="{{user.global_name}}&#10;Clone Hero Tournament Profile" property="og:title" />
+<meta content="Match W/L: {{stats.match_wins}}/{{stats.match_loss}}&#10;Song W/L: {{stats.song_wins}}/{{stats.song_loss}}" property="og:description"/>
+<meta content="https://{{request.get_host}}/profile/{{user.id}}" property="og:url"/>
+<meta content="{{user.avatar}}" property="og:image"/>
+<meta content="#27F598" property="theme-color"/>
+<meta content="rich" property="og_type"/>
+
 <div id="main">
 	<div class="w3-cell w3-container" id="user">
 		<div class="mx-auto card">

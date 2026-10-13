@@ -194,7 +194,6 @@ def update_search(request: HttpRequest):
 	from corpoch.models import DiscordUser
 	users = DiscordUser.objects.filter(global_name__icontains=search)
 	search_count = users.count()
-	print(search_count)
 	return render(request, 'partials/search-partial.html', { 'users' : users, "count" : search_count })
 
 def privterms(request: HttpRequest):
