@@ -88,23 +88,25 @@ def profile(request: HttpRequest, user_pk):
 
 	matches =  Match.objects.filter(players__player__user=user).order_by('-started_on')
 	rounds = []
-	stats = {}
-	stats['match_wins'] = 0
-	stats['match_loss'] = 0
-	stats['song_wins'] = 0
-	stats['song_loss'] = 0
-	stats['notes_hit'] = 0
-	stats['notes_total'] = 0
-	stats['ghosts'] = 0
-	stats['phrases_hit'] = 0
-	stats['phrases_total'] = 0
-	stats['score'] = 0
-	stats['fcs'] = 0
-	stats['streak'] = { 'song' : "temp", "notes" : 0, "screenshot" : "temp" }
+	stats = {
+		'match_wins' : 0,
+		'match_loss' : 0,
+		'song_wins' : 0,
+		'song_loss' : 0,
+		'notes_hit' : 0,
+		'notes_total' : 0,
+		'ghosts' : 0,
+		'phrases_hit' : 0,
+		'phrases_total' : 0,
+		'score' : 0,
+		'fcs' : 0,
+		'streak' : { 'song' : "temp", "notes" : 0, "screenshot" : "temp" },
+		'matches_reffed' : Match.objects.filter(referee=user).count()
+	}
 	for match in matches:
-		if match.winner.user == user:
+		if match.winner and match.winner.user == user:
 			stats['match_wins'] += 1
-		else:
+		elif match.loser and match.loser.user == user:
 			stats['match_loss'] += 1
 
 		if match.high_seed.player.user == user:
@@ -113,9 +115,9 @@ def profile(request: HttpRequest, user_pk):
 			player = match.low_seed.player
 
 		for round in match.rounds.reverse():
-			if player == round.winner:
+			if round.winner and player == round.winner:
 				stats['song_wins'] += 1
-			else:
+			elif round.loser and player == round.loser:
 				stats['song_loss'] += 1
 
 			if player.check_ch_name(round.steg.players[0].profile_name):
