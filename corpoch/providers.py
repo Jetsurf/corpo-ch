@@ -297,6 +297,8 @@ class GSheets():
 			self._url = self._tourney.config.gsheet
 		elif isinstance(self._submission, Tournament):
 			self._url = self._submission.config.gsheet
+		elif isinstance(self._submission, TournamentPlayer):
+			self._url = self._submission.tournament.config.gsheet
 
 		try:
 			self._sheet = self._gc.open_by_url(self._url)
@@ -323,7 +325,10 @@ class GSheets():
 				ws = self.setup_completed_sheet()
 		elif isinstance(self._submission, Tournament) or isinstance(self._submission, TournamentPlayer):
 			try:
-				ws = self._sheet.worksheet((f"{self._submission.short_name} - Player Data"))
+				if isinstance(self._submission, Tournament):
+					ws = self._sheet.worksheet((f"{self._submission.short_name} - Player Data"))
+				else:
+					ws = self._sheet.worksheet((f"{self._submission.tournament.short_name} - Player Data"))
 			except gspread.exceptions.WorksheetNotFound:
 				ws = self.setup_players_sheet()
 
@@ -414,9 +419,10 @@ class GSheets():
 		for i, line in enumerate(self.ban_lines):
 			self._ws.update([line], f"A{(cell.row + i)}:{chr(ord('@')+len(line))}{(cell.row + i)}", raw=False)
 
-	#def update_player(self): - NOT READY
-	#	cell = self._ws.find(self._submission.user.id)
-	#	self._ws.update([self.player_lines], f"A{cell.row}:E{cell.row}", raw=False)
+	def update_player(self): 
+		cells = self._ws.findall(str(self._submission.user.id))
+		for cell in cells:
+			self._ws.update_acell(f"B{cell.row}",self._submission.ch_name)
 
 	@property
 	def qualifier_line(self):
@@ -493,7 +499,5 @@ class GSheets():
 				for group in bracket.groups.all():
 					for seed in group.seeding.all():
 						retLines.append([str(group), seed.player_ch_name, seed.player.name, f"'{seed.player.user.id}"])
-		if isinstance(self._submission, TournamentPlayer):
-			pass #Not implemented
 
 		return retLines

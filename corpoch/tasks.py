@@ -70,23 +70,30 @@ def update_all_users():
 	close_old_connections()
 
 @app.task
-def update_gsheet(submission_id, *args, **kwargs):
+def update_gsheet(submission_id, is_player=False, *args, **kwargs):
 	close_old_connections()
-	try:
-		sub = Match.objects.get(id=submission_id)
-	except Match.DoesNotExist:
-		sub = None
-	try:
-		if not sub:
-			sub = QualifierSubmission.objects.get(id=submission_id)
-	except QualifierSubmission.DoesNotExist:
-		sub = None
-	try:
-		if not sub:
-			sub = Tournament.objects.get(id=submission_id)
-	except Tournament.DoesNotExist:
-		print(f"Did not find qualifier submission, match, our tournament ID for {submission_id}")
-		return #Probably want to throw exception?
+	if not is_player:
+		try:
+			sub = Match.objects.get(id=submission_id)
+		except Match.DoesNotExist:
+			sub = None
+		try:
+			if not sub:
+				sub = QualifierSubmission.objects.get(id=submission_id)
+		except QualifierSubmission.DoesNotExist:
+			sub = None
+		try:
+			if not sub:
+				sub = Tournament.objects.get(id=submission_id)
+		except Tournament.DoesNotExist:
+			print(f"Did not find qualifier submission, match, our tournament ID for {submission_id}")
+			return #Probably want to throw exception?
+	else:
+		try:
+			sub = TournamentPlayer.objects.get(id=submission_id)
+		except:
+			print(f"Did not find TournamentPlayer for {submission_id}")
+			return #Probably want to throw exception?
 
 	sheet = GSheets()
 	sheet.login()
@@ -97,6 +104,8 @@ def update_gsheet(submission_id, *args, **kwargs):
 		sheet.update_qualifier()
 	elif isinstance(sub, Tournament):
 		sheet.submit_players()
+	elif isinstance(sub,  TournamentPlayer):
+		sheet.update_player()
 	close_old_connections()
 
 @app.task
