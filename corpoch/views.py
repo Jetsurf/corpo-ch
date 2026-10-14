@@ -41,7 +41,7 @@ def auth(request: HttpRequest):
 			oauth = token
 		except DiscordToken.DoesNotExist:
 			oauth.user, created = DiscordUser.objects.get_or_create(pk=identity['id'])
-			update_user(identity.id)
+			update_user(identity['id'])
 			oauth.save()
 	else:
 		if logged_in_user(request):
@@ -149,18 +149,38 @@ def profile(request: HttpRequest, user_pk):
 			rounds.append(round)
 
 	stats['score'] = f"{stats['score']:,}"
-	stats['match_percent'] = f"{(stats['match_wins'] / (stats['match_wins'] + stats['match_loss']) * 100):.2f}%"
-	stats['song_percent'] = f"{(stats['song_wins'] / (stats['song_wins'] + stats['song_loss']) * 100):.2f}%"
-	stats['notes_percent'] = f"{(stats['notes_hit'] / stats['notes_total'] * 100):.2f}%"
-	stats['phrases_percent'] = f"{stats['phrases_hit'] / stats['phrases_total'] * 100:.2f}%"
+	if stats['match_wins'] + stats['match_loss'] > 0:
+		stats['match_percent'] = f"{(stats['match_wins'] / (stats['match_wins'] + stats['match_loss']) * 100):.2f}%"
+	else:
+		stats['match_percent'] = "0.0%"
+
+	if stats['song_wins'] + stats['song_loss'] > 0:
+		stats['song_percent'] = f"{(stats['song_wins'] / (stats['song_wins'] + stats['song_loss']) * 100):.2f}%"
+	else:
+		stats['song_percent'] = "0.0%"
+
+	if stats['notes_total'] > 0:
+		stats['notes_percent'] = f"{(stats['notes_hit'] / stats['notes_total'] * 100):.2f}%"
+	else:
+		stats['notes_percent'] = "0.0%"
+
+	if stats['phrases_total'] > 0:
+		stats['phrases_percent'] = f"{stats['phrases_hit'] / stats['phrases_total'] * 100:.2f}%"
+	else:
+		stats['phrases_percent'] = "0.0%"
 
 	stats['phrases_hit'] = f"{stats['phrases_hit']:,}"
 	stats['phrases_total'] = f"{stats['phrases_total']:,}"
 	stats['songs_total'] = stats['song_wins'] + stats['song_loss']
-	stats['miss_average'] = f"{(stats['notes_total'] - stats['notes_hit']) / stats['songs_total']:.1f}"
+	if stats['songs_total'] > 0:
+		stats['miss_average'] = f"{(stats['notes_total'] - stats['notes_hit']) / stats['songs_total']:.1f}"
+		stats['ghosts_average'] = f"{stats['ghosts'] / stats['songs_total']:.1f}"
+	else:
+		stats['miss_average'] = "0.0"
+		stats['ghost_average'] = "0.0"
+
 	stats['notes_hit'] = f"{stats['notes_hit']:,}"
-	stats['notes_total'] = f"{stats['notes_total']:,}"
-	stats['ghosts_average'] = f"{stats['ghosts'] / stats['songs_total']:.1f}"
+	stats['notes_total'] = f"{stats['notes_total']:,}"	
 	stats['streak']['notes'] = f"{stats['streak']['notes']:,}"
 
 	context = { "user" : user, "guilds": TournamentGuilds(user), "rounds" : rounds, "logged_in_user" : logged_in_user(request), "stats" : stats, "users" : [] }
@@ -227,7 +247,10 @@ class TournamentGuilds:
 	def __init__(self, user) -> None:
 		self.__guilds = []
 		self.__user = user
-		oauth_guilds = self.__user.token.guilds() #Trigger refresh of OAUTH guilds in Token Model
+		try:
+			oauth_guilds = self.__user.token.guilds() #Trigger refresh of OAUTH guilds in Token Model
+		except:
+			oauth_guilds = []
 		from corpoch.models import Tournament
 		for tournament in Tournament.objects.all().order_by("-id"):
 			oauth = None
