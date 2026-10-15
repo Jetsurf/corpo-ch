@@ -9,13 +9,10 @@
 {% block content %}
 {% include 'partials/navbar.html' %}
 <!--- Discord Embed for URL hotlinks --->
-<meta content="Corpo CH" property="og:site_name"/>
 <meta content="{{user.global_name}}&#10;Clone Hero Tournament Profile" property="og:title" />
 <meta content="Match W/L: {{stats.match_wins}}/{{stats.match_loss}}&#10;Song W/L: {{stats.song_wins}}/{{stats.song_loss}}" property="og:description"/>
 <meta content="https://{{request.get_host}}/profile/{{user.id}}" property="og:url"/>
 <meta content="{{user.avatar}}" property="og:image"/>
-<meta content="#27F598" property="theme-color"/>
-<meta content="website" property="og:type"/>
 
 <div id="main">
 	<div class="w3-cell w3-container" id="user">
@@ -25,7 +22,7 @@
 			<div class="card-body">
 				<div class="card-title">
 					<h4><b>{{user.global_name}}</b></h4>
-					<p>Discord ID: {{user.id}}</p>
+					<p>CH Aliases: {% for alias in stats.ch_names %}{{alias}}{% endfor %}</p>
 				</div>
 			</div>
 		</div>
@@ -94,9 +91,9 @@
 				<tbody>
 					{% for round in stats.rounds %}
 					<tr>
-						<td><span>{{round.data.match}}</span></td>
-						<td><span>{{round.data.chart.tournament_name}} - {{round.data.chart.category|title}}</span></td>
-						<td><span>{{round.score}} ({% if round.score_diff > 0 %}+{% endif %}{{round.score_diff}})</span></td>
+						<td><span><a href="https://{{request.get_host}}/match/{{round.data.match.id}}">{{round.data.match}}</a></span></td>
+						<td><span>{{round.data.chart.tournament_name}}{% if round.chart.category in "none" %} - {{round.data.chart.category|title}}{% endif %}</span></td>
+						<td><span>{{round.score}} ({{round.score_diff}})</span></td>
 						<td><i {% if round.data.winner.user.id == user.id %} class="text-success text-center fas fa-check" {% else %} class="text-danger text-center fas fa-times" {% endif %}></i></td>
 						<td><span>{% if round.data.screenshot %}<a href="https://{{round.screenshot_full_url}}">Screenshot Link</a>{% else %}Match in-process{% endif %}</span></td>
 					</tr>

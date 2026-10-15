@@ -11,7 +11,7 @@ from solo.models import SingletonModel
 from corpoch import settings
 from corpoch.managers import DiscordOAuth2Manager
 
-from .match import Match, MatchRound
+from .match import Match, TournamentPlayer
 
 class GSheetAPI(SingletonModel):
 	api_key = EncryptedJSONField(null=False, blank=True, default=dict)
@@ -66,6 +66,9 @@ class DiscordUser(AbstractUser):
 
 	@property
 	def career_stats(self):
+		"""
+		Used for Django View. Can likely be retooled for easier access/use
+		"""
 		user = self
 		matches =  Match.objects.filter(players__player__user=user).order_by('-started_on')
 		rounds = []
@@ -109,8 +112,14 @@ class DiscordUser(AbstractUser):
 						ply_steg = round.steg.players[1]
 						opponent_steg = round.steg.players[0]
 
-					#This feels hacky forcing class vars into rounds but :shrug: - Used for returning back to view for round stats
-					ret_round = { "data" : round, "score" : ply_steg.score, "score_diff" : ply_steg.score - opponent_steg.score}
+					# Used for returning back to view for round stats, extracts non-model-field round info
+					score_diff = ply_steg.score - opponent_steg.score
+					ret_round = {
+						"data" : round,
+						"score" : f"{ply_steg.score:,}",
+						"score_diff" : f"{"+" if score_diff > 0 else ""}{score_diff:,}"
+					}
+
 					stats['notes_total'] += ply_steg.total_notes
 					stats['notes_hit'] += ply_steg.notes_hit
 					stats['ghosts'] += ply_steg.frets_ghosted
@@ -160,6 +169,11 @@ class DiscordUser(AbstractUser):
 		stats['notes_total'] = f"{stats['notes_total']:,}"
 		stats['streak']['notes'] = f"{stats['streak']['notes']:,}"
 		stats['rounds'] = rounds
+
+		stats["ch_names"] = []
+		for player in TournamentPlayer.objects.filter(user=user):
+			for name in player.ch_aliases:
+				stats['ch_names'].append(name)
 
 		return stats
 

@@ -30,7 +30,6 @@ class MatchAbstract(models.Model):
 	submitted = models.BooleanField(verbose_name="GSheet", default=False, help_text="Match is uploaded to GSheet for Tournament.")
 	channel = models.ForeignKey("dbot.Channels", verbose_name="Ref-Tool Discord Channel", on_delete=models.SET_NULL, null=True, blank=True, help_text="Discord Channel the reftool was ran in for a match.")
 	message = models.BigIntegerField(verbose_name="Ref-Tool Discord Message ID", null=True, blank=True, help_text="Discord snowflake ID of the message for a match.")
-	exhibition = models.BooleanField(default=False, help_text="Is a match an exhibition match (not an official match).")
 	rev_seeds = models.BooleanField(default=False, help_text="Inverses the seed order. Meant to be used where rules may not have high seed first.") #ONLY tested for 2 players
 
 	class Meta:

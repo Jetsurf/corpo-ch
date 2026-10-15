@@ -85,16 +85,24 @@ def user(request: HttpRequest):
 	return render(request, "user.html", context=context)
 
 def profile(request: HttpRequest, user_pk):
-	from corpoch.models import DiscordUser, Match, MatchRound
+	from corpoch.models import DiscordUser
 	if not user_pk or user_pk == "None":
 		return HttpResponse(f"Can't find a user if you don't provide one!", status=404)
 	else:
 		user = get_object_or_404(DiscordUser, pk=user_pk)
 
-
-
 	context = { "user" : user, "guilds": TournamentGuilds(user), "logged_in_user" : logged_in_user(request), "stats" : user.career_stats, "users" : [] }
 	return render(request, "profile.html", context=context)
+
+def match(request: HttpRequest, match_pk):
+	from corpoch.models import Match
+	if not match_pk or match_pk == "None":
+		return HttpResponse(f"Can't find a match if you don't provide one!", status=404)
+	else:
+		match = get_object_or_404(Match, pk=match_pk)
+
+	context = { "logged_in_user" : logged_in_user(request), "match" : match, "rounds" : match.match_rounds.all() }
+	return render(request, "match.html", context=context)
 
 def livematches(request: HttpRequest):
 	from corpoch.models import Match, DiscordUser
