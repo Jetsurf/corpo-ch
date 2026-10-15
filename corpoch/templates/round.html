@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{match}} - Round {{round.num}}{% endblock %}
+{% block style %}
+{{ block.super }}
+<link rel="stylesheet" type="text/css" href="{% static 'mainapp/css/login.css' %}">
+<link rel="stylesheet" type="text/css" href="{% static 'mainapp/css/round.css' %}">
+{% endblock %}
+{% block body %}data-spy="scroll" data-target=".navbar" data-offset="50"{% endblock %}
+{% block content %}
+{% include 'partials/navbar.html' %}
+<!--- Discord OpenGraph Embed --->
+<meta content="{{match}} Round {{round.num}}" property="og:title" />
+<meta content="Chart: {{round.chart.tournament_name}}&#10;Winner: {{round.winner}}&#10;Loser: {{round.loser}}" property="og:description"/>
+<meta content="https://{{request.get_host}}/match/{{match.id}}/{{round.id}}" property="og:url"/>
+
+<div id="main">
+	<div class="w3-cell w3-container", id="round-img">
+		<dib id="rnd-img" class="container">
+			<img id="rnd-screen" class="image" src="{{round.screenshot.url}}">
+		</div>
+	</div>
+	<div class="w3-cell w3-container" id="round-stats">
+		<section id="round" class="status">
+			<h2>Round Stats</h2>
+			<hr>
+			<div class="table-responsive-sm">
+				<table class="table table-striped table-hover table-bordered">
+					<tbody>
+						<tr><td>Picking Player</td><td>{{round.picked}}</td></tr>
+						<tr><td>Chart Played</td><td>{{round.chart.tournament_name}}</td></tr>
+						<tr><td>Winner</td><td>{{round.winner}}</td></tr>
+						<tr><td>Loser</td><td>{{round.loser}}</td></tr>
+					</thead>
+				</table>
+			</div>
+		</section>
+	</div>
+	<div class="w3-cell w3-container" id="round-high-seed">
+		<section id="high-seed" class="status">
+			<h2>{{match.high_seed.player}} Stats</h2>
+			<hr>
+			<div class="table-responsive-sm">
+				<table class="table table-striped table-hover table-bordered">
+					<tbody>
+						<tr><td>Notes Hit/Total</td><td>{{round.high_seed_steg.notes_hit}}/{{round.high_seed_steg.total_notes}}</td></tr>
+						<tr><td>Ghosts</th><td>{{round.high_seed_steg.frets_ghosted}}</td></td>
+						<tr><td>SP Phrases Earned/Total</td><td>{{round.high_seed_steg.sp_phrases_earned}}/{{round.high_seed_steg.sp_phrases_total}}</td></tr>
+					</tbody>
+				</table>
+			</div>
+		</section>
+	</div>
+	<div class="w3-cell w3-container" id="round-low-seed">
+		<section id="low-seed" class="status">
+			<h2>{{match.low_seed.player}} Stats</h2>
+			<hr>
+			<div class="table-responsive-sm">
+				<table class="table table-striped table-hover table-bordered">
+					<tbody>
+						<tr><td>Notes Hit/Total</td><td>{{round.high_seed_steg.notes_hit}}/{{round.high_seed_steg.total_notes}}</td></tr>
+						<tr><td>Ghosts</th><td>{{round.high_seed_steg.frets_ghosted}}</td></td>
+						<tr><td>SP Phrases Earned/Total</td><td>{{round.high_seed_steg.sp_phrases_earned}}/{{round.high_seed_steg.sp_phrases_total}}</td></tr>
+					</tbody>
+				</table>
+			</div>
+		</section>
+	</div>
+</div>
+{% endblock %}
+{% block js%}
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+	<script src="{% static 'mainapp/bootstrap/js/bootstrap.min.js' %}"></script>
+	<script src="{% static 'mainapp/js/script.js'%}"></script>
+{% endblock %}
+</body>
+</html>

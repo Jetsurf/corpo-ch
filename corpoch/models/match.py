@@ -504,6 +504,26 @@ class MatchRound(MatchRoundAbstract):
 		ordering = ['num']
 		get_latest_by = 'num'
 
+	@property
+	def high_seed_steg(self):
+		if self.steg and len(self.steg.players) > 0:
+			if self.match.high_seed.player.check_ch_name(self.steg.players[0].profile_name):
+				return self.steg.players[0]
+			else:
+				return self.steg.players[1]
+		else:
+			return None
+
+	@property
+	def low_seed_steg(self):
+		if self.steg and len(self.steg.players) > 0:
+			if self.match.low_seed.player.check_ch_name(self.steg.players[0].profile_name):
+				return self.steg.players[0]
+			else:
+				return self.steg.players[1]
+		else:
+			return None
+
 class ExhibitionMatchRound(MatchRoundAbstract):
 	match = models.ForeignKey(ExhibitionMatch, related_name="exhibition_rounds", verbose_name="Match ID", on_delete=models.CASCADE, null=True, blank=True, help_text="Match the round was played for.")
 	picked = models.ForeignKey("DiscordUser", related_name="exhibition_picks", verbose_name="Picker", on_delete=models.CASCADE, blank=True, null=True, help_text="Player that picked the chart played.")

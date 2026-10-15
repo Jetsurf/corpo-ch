@@ -104,6 +104,21 @@ def match(request: HttpRequest, match_pk):
 	context = { "logged_in_user" : logged_in_user(request), "match" : match, "rounds" : match.match_rounds.all() }
 	return render(request, "match.html", context=context)
 
+def round(request: HttpRequest, match_pk, round_pk):
+	from corpoch.models import Match, MatchRound
+	if not match_pk or match_pk == "None":
+		return HttpResponse(f"Can't find a match if you don't provide one!", status=404)
+	else:
+		match = get_object_or_404(Match, pk=match_pk)
+
+	if not round_pk or round_pk == "None":
+		return HttpResponse(f"Can't find a round if you don't provide one!", status=404)
+	else:
+		round = get_object_or_404(MatchRound, pk=round_pk)
+
+	context = { "logged_in_user" : logged_in_user(request), "match" : match, "round" : round }
+	return render(request, "round.html", context=context)
+
 def livematches(request: HttpRequest):
 	from corpoch.models import Match, DiscordUser
 

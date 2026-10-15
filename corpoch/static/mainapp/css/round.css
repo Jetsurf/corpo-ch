@@ -1,0 +1,24 @@
+#main {
+    display: flex;
+    justify-content: center;
+    overflow: visible;
+    flex-direction: column;
+    padding-top: 3vh;
+}
+
+#round-img {
+    width: 95%;
+}
+
+.container {
+    width: 95%;
+    object-fit: cover;
+}
+
+#round-high-seed {
+    width: 95%;
+}
+
+#round-low-seed {
+    width: 95%;
+}

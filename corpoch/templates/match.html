@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}User{% endblock %}
+{% block title %}{{match}} - Match{% endblock %}
 {% block style %}
 {{ block.super }}
 <link rel="stylesheet" type="text/css" href="{% static 'mainapp/css/login.css' %}">
@@ -44,7 +44,6 @@
 							<th>Ban Num</th>
 							<th>Player</th>
 							<th>Chart</th>
-
 						</tr>
 					</thead>
 					<tbody>
@@ -79,7 +78,7 @@
 				<tbody>
 					{% for round in rounds %}
 					<tr>
-						<td><span>{{round.num}}</span></td>
+						<td><span><a href="https://{{request.get_host}}/match/{{match.id}}/{{round.id}}">{{round.num}}</a></span></td>
 						<td><span>{{round.chart.tournament_name}}{% if round.chart.category in "none" %} - {{round.data.chart.category|title}}{% endif %}</span></td>
 						<td><span>{{round.picked}}</span></td>
 						<td><span>{{round.winner}}</span></td>
