@@ -91,7 +91,7 @@
 				<tbody>
 					{% for round in stats.rounds %}
 					<tr>
-						<td><a href="https://{{request.get_host}}/match/{{round.data.match.id}}">{{round.data.match}}</a></td>
+						<td>{% if round.data.num == round.data.match.match_rounds|length %}<a href="https://{{request.get_host}}/match/{{round.data.match.id}}">{{round.data.match}}{% endif %}</a></td>
 						<td>{{round.data.chart.tournament_name}}{% if round.chart.category in "none" %} - {{round.data.chart.category|title}}{% endif %}</td>
 						<td>{{round.score}} ({{round.score_diff}})</td>
 						<td><i {% if round.data.winner.user.id == user.id %} class="text-success text-center fas fa-check" {% else %} class="text-danger text-center fas fa-times" {% endif %}></i></td>

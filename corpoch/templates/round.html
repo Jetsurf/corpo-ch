@@ -13,6 +13,7 @@
 <meta content="{{match}} Round {{round.num}}" property="og:title" />
 <meta content="Chart: {{round.chart.tournament_name}}&#10;Winner: {{round.winner}}&#10;Loser: {{round.loser}}" property="og:description"/>
 <meta content="https://{{request.get_host}}/match/{{match.id}}/{{round.id}}" property="og:url"/>
+<meta content="{{round.screenshot_full_url}}" property="og:image"/>
 
 <div id="main">
 	<img id="rnd-screen" class="w3-image" src="{{round.screenshot.url}}">

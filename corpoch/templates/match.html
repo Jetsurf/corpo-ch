@@ -10,8 +10,8 @@
 {% block content %}
 {% include 'partials/navbar.html' %}
 <!--- Discord OpenGraph Embed --->
-<meta content="{{match}}" property="og:title" />
-<meta content="Rounds: {{rounds|length}}&#10;Winner: {{match.winner}}&#10;Loser: {{match.loser}}" property="og:description"/>
+<meta content="{{match.high_seed}} vs {{match.low_seed}}&#10" property="og:title" />
+<meta content="Bracket - Group: {{match.group.bracket.short_name}} - {{match.group.name}}&#10;Rounds: {{rounds|length}}&#10;Winner: {{match.winner}}&#10;Loser: {{match.loser}}" property="og:description"/>
 <meta content="https://{{request.get_host}}/match/{{match.id}}" property="og:url"/>
 
 <div id="main">
@@ -77,7 +77,7 @@
 				<tbody>
 					{% for round in rounds %}
 					<tr>
-						<td><form class="form-inline" action="/match/{{match.id}}/{{round.id}}" method="get">{% csrf_token %}<button id="round" type="submit" class="btn btn-dark">{{round.num}}</button></form></td>
+						<td><a href="/match/{{match.id}}/{{round.id}}"><button onclick="window.location.href='/match/{{match.id}}/{{round.id}}'" class="btn btn-dark">{{round.num}}</button></a></td>
 						<td>{{round.chart.tournament_name}}{% if round.chart.category in "none" %} - {{round.data.chart.category|title}}{% endif %}</td>
 						<td>{{round.picked}}</td>
 						<td>{{round.winner}}</td>
