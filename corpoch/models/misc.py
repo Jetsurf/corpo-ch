@@ -11,6 +11,8 @@ from solo.models import SingletonModel
 from corpoch import settings
 from corpoch.managers import DiscordOAuth2Manager
 
+from .match import Match, MatchRound
+
 class GSheetAPI(SingletonModel):
 	api_key = EncryptedJSONField(null=False, blank=True, default=dict)
 	singleton_instance_id = 1
@@ -61,6 +63,105 @@ class DiscordUser(AbstractUser):
 			return self.global_name
 		else:
 			return str(self.id)
+
+	@property
+	def career_stats(self):
+		user = self
+		matches =  Match.objects.filter(players__player__user=user).order_by('-started_on')
+		rounds = []
+		stats = {
+			'match_wins' : 0,
+			'match_loss' : 0,
+			'song_wins' : 0,
+			'song_loss' : 0,
+			'notes_hit' : 0,
+			'notes_total' : 0,
+			'ghosts' : 0,
+			'phrases_hit' : 0,
+			'phrases_total' : 0,
+			'score' : 0,
+			'fcs' : 0,
+			'streak' : { 'song' : "temp", "notes" : 0, "screenshot" : "temp" },
+			'matches_reffed' : Match.objects.filter(referee=user).count()
+		}
+		for match in matches:
+			if match.winner and match.winner.user == user:
+				stats['match_wins'] += 1
+			elif match.loser and match.loser.user == user:
+				stats['match_loss'] += 1
+
+			if match.high_seed.player.user == user:
+				player = match.high_seed.player
+			else:
+				player = match.low_seed.player
+
+			for round in match.rounds.reverse():
+				if round.winner and player == round.winner:
+					stats['song_wins'] += 1
+				elif round.loser and player == round.loser:
+					stats['song_loss'] += 1
+
+				if len(round.steg.players) > 0:
+					if player.check_ch_name(round.steg.players[0].profile_name):
+						ply_steg = round.steg.players[0]
+						opponent_steg = round.steg.players[1]
+					else:
+						ply_steg = round.steg.players[1]
+						opponent_steg = round.steg.players[0]
+
+					#This feels hacky forcing class vars into rounds but :shrug: - Used for returning back to view for round stats
+					ret_round = { "data" : round, "score" : ply_steg.score, "score_diff" : ply_steg.score - opponent_steg.score}
+					stats['notes_total'] += ply_steg.total_notes
+					stats['notes_hit'] += ply_steg.notes_hit
+					stats['ghosts'] += ply_steg.frets_ghosted
+					stats['phrases_hit'] += ply_steg.sp_phrases_earned
+					stats['phrases_total'] += ply_steg.sp_phrases_total
+					stats['score'] += ply_steg.score
+					if ply_steg.is_fc:
+						stats['fcs'] += 1
+					if stats['streak']['notes'] < ply_steg.max_streak:
+						stats['streak']['song'] = round.chart.tournament_name
+						stats['streak']['notes'] = ply_steg.max_streak
+						stats['streak']['screenshot'] = round.screenshot_full_url
+				rounds.append(ret_round)
+
+		stats['score'] = f"{stats['score']:,}"
+		if stats['match_wins'] + stats['match_loss'] > 0:
+			stats['match_percent'] = f"{(stats['match_wins'] / (stats['match_wins'] + stats['match_loss']) * 100):.2f}%"
+		else:
+			stats['match_percent'] = "0.0%"
+
+		if stats['song_wins'] + stats['song_loss'] > 0:
+			stats['song_percent'] = f"{(stats['song_wins'] / (stats['song_wins'] + stats['song_loss']) * 100):.2f}%"
+		else:
+			stats['song_percent'] = "0.0%"
+
+		if stats['notes_total'] > 0:
+			stats['notes_percent'] = f"{(stats['notes_hit'] / stats['notes_total'] * 100):.2f}%"
+		else:
+			stats['notes_percent'] = "0.0%"
+
+		if stats['phrases_total'] > 0:
+			stats['phrases_percent'] = f"{stats['phrases_hit'] / stats['phrases_total'] * 100:.2f}%"
+		else:
+			stats['phrases_percent'] = "0.0%"
+
+		stats['phrases_hit'] = f"{stats['phrases_hit']:,}"
+		stats['phrases_total'] = f"{stats['phrases_total']:,}"
+		stats['songs_total'] = stats['song_wins'] + stats['song_loss']
+		if stats['songs_total'] > 0:
+			stats['miss_average'] = f"{(stats['notes_total'] - stats['notes_hit']) / stats['songs_total']:.1f}"
+			stats['ghosts_average'] = f"{stats['ghosts'] / stats['songs_total']:.1f}"
+		else:
+			stats['miss_average'] = "0.0"
+			stats['ghosts_average'] = "0.0"
+
+		stats['notes_hit'] = f"{stats['notes_hit']:,}"
+		stats['notes_total'] = f"{stats['notes_total']:,}"
+		stats['streak']['notes'] = f"{stats['streak']['notes']:,}"
+		stats['rounds'] = rounds
+
+		return stats
 
 class DiscordToken(models.Model):
 	"""

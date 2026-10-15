@@ -15,7 +15,7 @@
 <meta content="https://{{request.get_host}}/profile/{{user.id}}" property="og:url"/>
 <meta content="{{user.avatar}}" property="og:image"/>
 <meta content="#27F598" property="theme-color"/>
-<meta content="rich" property="og_type"/>
+<meta content="website" property="og:type"/>
 
 <div id="main">
 	<div class="w3-cell w3-container" id="user">
@@ -39,9 +39,9 @@
 					<tr><td>Match Wins/Losses</td><td>{{stats.match_wins}}/{{stats.match_loss}} ({{stats.match_percent}})</td></tr>
 					<tr><td>Song Wins/Losses - Total</td><td>{{stats.song_wins}}/{{stats.song_loss}} ({{stats.song_percent}}) - {{stats.songs_total}}</td></tr>
 					<tr><td>Notes Hit/Total - Miss Average</td><td>{{stats.notes_hit}}/{{stats.notes_total}} ({{stats.notes_percent}}) - {{stats.miss_average}}</td></tr>
-					<tr><td>Total Ghosts (Songs) - Average</td><td>{{stats.ghosts}} - {{stats.ghosts_average}}</td></tr>
+					<tr><td>Total Ghosts - Average</td><td>{{stats.ghosts}} - {{stats.ghosts_average}}</td></tr>
 					<tr><td>SP Earned/Total</td><td>{{stats.phrases_hit}}/{{stats.phrases_total}} ({{stats.phrases_percent}})</td></tr>
-					<tr><td>Longest Streak</td><td><a href="https://{{stats.streak.screenshot}}">{{stats.streak.song}}</a> - {{stats.streak.notes}}</td></tr>
+					<tr><td>Longest Streak</td><td>{% if stats.streak.notes != '0' %}<a href="https://{{stats.streak.screenshot}}">{{stats.streak.song}}</a>{% else %}N/A{% endif %} - {{stats.streak.notes}}</td></tr>
 					<tr><td>Total Score</td><td>{{stats.score}}</td></tr>
 					<tr><td><!---<img src="{% static  'fc.png' %}" width="24" height="24"/>--->FC's</td><td>{{stats.fcs}}</td></tr>
 					<tr><td>Matches as Referee</td><td>{{stats.matches_reffed}}</td>
@@ -86,17 +86,19 @@
 					<tr>
 						<th>Match</th>
 						<th>Chart - Chart Category</th>
+						<th>Score (Difference)</th>
 						<th>Won Round</th>
 						<th>Screenshot</th>
 					</tr>
 				</thead>
 				<tbody>
-					{% for round in rounds %}
+					{% for round in stats.rounds %}
 					<tr>
-						<td><span>{{round.match}}</span></td>
-						<td><span>{{round.chart.tournament_name}} - {{round.chart.category|title}}</span></td>
-						<td><i {% if round.winner.user.id == user.id %} class="text-success text-center fas fa-check" {% else %} class="text-danger text-center fas fa-times" {% endif %}></i></td>
-						<td><span>{% if round.screenshot %}<a href="https://{{round.screenshot_full_url}}">Screenshot Link</a>{% else %}Match in-process{% endif %}</span></td>
+						<td><span>{{round.data.match}}</span></td>
+						<td><span>{{round.data.chart.tournament_name}} - {{round.data.chart.category|title}}</span></td>
+						<td><span>{{round.score}} ({% if round.score_diff > 0 %}+{% endif %}{{round.score_diff}})</span></td>
+						<td><i {% if round.data.winner.user.id == user.id %} class="text-success text-center fas fa-check" {% else %} class="text-danger text-center fas fa-times" {% endif %}></i></td>
+						<td><span>{% if round.data.screenshot %}<a href="https://{{round.screenshot_full_url}}">Screenshot Link</a>{% else %}Match in-process{% endif %}</span></td>
 					</tr>
 					{% endfor %}
 				</tbody>
