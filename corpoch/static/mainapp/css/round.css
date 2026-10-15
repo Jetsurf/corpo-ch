@@ -2,7 +2,6 @@
     display: flex;
     justify-content: center;
     overflow: visible;
-    flex-direction: column;
     padding-top: 3vh;
 }
 
@@ -10,7 +9,7 @@
     width: 95%;
 }
 
-.container {
+.w3-image {
     width: 95%;
     object-fit: cover;
 }

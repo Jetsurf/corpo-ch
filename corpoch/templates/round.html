@@ -15,10 +15,7 @@
 <meta content="https://{{request.get_host}}/match/{{match.id}}/{{round.id}}" property="og:url"/>
 
 <div id="main">
-	<div class="w3-cell w3-container", id="round-img">
-		<dib id="rnd-img" class="container">
-			<img id="rnd-screen" class="image" src="{{round.screenshot.url}}">
-		</div>
+	<img id="rnd-screen" class="w3-image" src="{{round.screenshot.url}}">
 	</div>
 	<div class="w3-cell w3-container" id="round-stats">
 		<section id="round" class="status">
@@ -27,6 +24,8 @@
 			<div class="table-responsive-sm">
 				<table class="table table-striped table-hover table-bordered">
 					<tbody>
+						<tr><td>Match</td><td><a href="https://{{request.get_host}}/match/{{match.id}}">{{match}}</a></td></tr>
+						<tr><td>Round Num</td><td>{{round.num}}</td>
 						<tr><td>Picking Player</td><td>{{round.picked}}</td></tr>
 						<tr><td>Chart Played</td><td>{{round.chart.tournament_name}}</td></tr>
 						<tr><td>Winner</td><td>{{round.winner}}</td></tr>
@@ -58,9 +57,9 @@
 			<div class="table-responsive-sm">
 				<table class="table table-striped table-hover table-bordered">
 					<tbody>
-						<tr><td>Notes Hit/Total</td><td>{{round.high_seed_steg.notes_hit}}/{{round.high_seed_steg.total_notes}}</td></tr>
-						<tr><td>Ghosts</th><td>{{round.high_seed_steg.frets_ghosted}}</td></td>
-						<tr><td>SP Phrases Earned/Total</td><td>{{round.high_seed_steg.sp_phrases_earned}}/{{round.high_seed_steg.sp_phrases_total}}</td></tr>
+						<tr><td>Notes Hit/Total</td><td>{{round.low_seed_steg.notes_hit}}/{{round.low_seed_steg.total_notes}}</td></tr>
+						<tr><td>Ghosts</th><td>{{round.low_seed_steg.frets_ghosted}}</td></td>
+						<tr><td>SP Phrases Earned/Total</td><td>{{round.low_seed_steg.sp_phrases_earned}}/{{round.low_seed_steg.sp_phrases_total}}</td></tr>
 					</tbody>
 				</table>
 			</div>

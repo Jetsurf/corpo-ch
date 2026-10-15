@@ -22,7 +22,7 @@
 			<div class="card-body">
 				<div class="card-title">
 					<h4><b>{{user.global_name}}</b></h4>
-					<p>CH Aliases: {% for alias in stats.ch_names %}{{alias}}{% endfor %}</p>
+					<p>CH Aliases<br>{% for alias in stats.ch_names %} - {{alias}}<br>{% endfor %}</p>
 				</div>
 			</div>
 		</div>
@@ -62,9 +62,9 @@
 					<tbody>
 						{% for guild in guilds %}
 						<tr>
-							<td><span>{{guild}}</span></td>
+							<td>{{guild}}</td>
 							<td><i {% if guild.player %} class="text-success text-center fas fa-check" {% else %} class="text-danger text-center fas fa-times" {% endif %}></i>{% if guild.is_staff %}🇸{% elif guild.is_referee %}🇷{% endif %}</td>
-							<td><span>{{guild.match_stats}} / {{guild.round_stats}}</span></td>
+							<td>{{guild.match_stats}} / {{guild.round_stats}}</td>
 						</tr>
 						{% endfor %}
 					</tbody>
@@ -91,11 +91,11 @@
 				<tbody>
 					{% for round in stats.rounds %}
 					<tr>
-						<td><span><a href="https://{{request.get_host}}/match/{{round.data.match.id}}">{{round.data.match}}</a></span></td>
-						<td><span>{{round.data.chart.tournament_name}}{% if round.chart.category in "none" %} - {{round.data.chart.category|title}}{% endif %}</span></td>
-						<td><span>{{round.score}} ({{round.score_diff}})</span></td>
+						<td><a href="https://{{request.get_host}}/match/{{round.data.match.id}}">{{round.data.match}}</a></td>
+						<td>{{round.data.chart.tournament_name}}{% if round.chart.category in "none" %} - {{round.data.chart.category|title}}{% endif %}</td>
+						<td>{{round.score}} ({{round.score_diff}})</td>
 						<td><i {% if round.data.winner.user.id == user.id %} class="text-success text-center fas fa-check" {% else %} class="text-danger text-center fas fa-times" {% endif %}></i></td>
-						<td><span>{% if round.data.screenshot %}<a href="https://{{request.get_host}}/match/{{round.data.match.id}}/{{round.data.id}}">Round Link</a>{% else %}Match in-process{% endif %}</span></td>
+						<td>{% if round.data.screenshot %}<a href="https://{{request.get_host}}/match/{{round.data.match.id}}/{{round.data.id}}">Round Link</a>{% else %}Match in-process{% endif %}</td>
 					</tr>
 					{% endfor %}
 				</tbody>

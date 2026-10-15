@@ -171,9 +171,10 @@ class DiscordUser(AbstractUser):
 		stats['rounds'] = rounds
 
 		stats["ch_names"] = []
-		for player in TournamentPlayer.objects.filter(user=user):
+		for player in TournamentPlayer.objects.filter(user=user).order_by("-id"):
 			for name in player.ch_aliases:
-				stats['ch_names'].append(name)
+				if not name in stats['ch_names']:
+					stats['ch_names'].append(name)
 
 		return stats
 
