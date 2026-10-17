@@ -6,20 +6,29 @@
     font-family: 'Varela';
 }
 
+.row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    position: relative;
+    right: 1rem;
+}
+
 .navbar {
     display: flex;
     justify-content: space-between;
     align-items: left;
     background-color: #1a1a1a;
-    padding: 0.5rem 1rem;
+    padding: 0rem 1rem;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
 .pfp {
-    position: absolute;
-	width: 5vh;
-    top: -2rem;
-    right: 1rem;
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    border-radius: 50%;
+    cursor: pointer;
     transition: filter 0.3s ease;
 }
 
@@ -48,20 +57,20 @@
 
 .dropdown {
     position: relative;
-    display: flex;
-    align-items: center;
+    display: inline-block;
 }
 
 .dropdown-content {
     display: none;
     position: absolute;
+    top: 100%;
+    right: 0;
     background-color: #1a1a1a;
     min-width: 200px;
     padding: 1rem;
-    right: 0rem;
-    top: 100%;
     box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
     z-index: 1000;
+    margin-top: 0.5rem;
 }
 
 .dropdown-content p, h4 {
@@ -79,9 +88,16 @@
 }
 
 input {
-    position: absolute;
-    right: 6rem;
-    top: -1rem;
+    padding: 0.5rem;
+    background-color: #2a2a2a;
+    border: 1px solid #444;
+    color: white;
+    border-radius: 4px;
+    outline: none;
+}
+
+input:focus {
+    border-color: #666;
 }
 </style>
 
