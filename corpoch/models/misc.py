@@ -1,6 +1,8 @@
-import datetime, json
+import datetime, io, json, requests, traceback
+from PIL import Image
 from requests import Session
 
+from django.core.files import File
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
@@ -12,6 +14,26 @@ from corpoch import settings
 from corpoch.managers import DiscordOAuth2Manager
 
 from .match import Match, TournamentPlayer
+
+def avatar_upload_dir(self, filename):
+	#Discord prepended to file tells bot to update if changed from discord
+	if "discord" in filename:
+		new_name = self.discord_avatar.split("/")[5].split(".")[0]
+	else:
+		new_name = str(self.id)
+	return f"profile/avatars/{new_name}.{filename.split('.')[-1]}"
+
+def banner_upload_dir(self, filename):
+	if "discord" in filename:
+		new_name = self.discord_banner.split("/")[5].split(".")[0]
+	elif "accent" in filename:
+		new_name = str(self.accent_color)
+	else:
+		new_name = str(self.id)
+	return f"profile/banners/{new_name}.{filename.split('.')[-1]}"
+
+def tag_upload_dir(self, filename):
+	return f"profile/tags/{self.discord_tag.split("/")[5].split(".")[0]}.{filename.split('.')[-1]}"
 
 class GSheetAPI(SingletonModel):
 	api_key = EncryptedJSONField(null=False, blank=True, default=dict)
@@ -42,12 +64,17 @@ class DiscordUser(AbstractUser):
 	global_name = models.CharField(max_length=255, null=True, blank=True, help_text="Global or display name used on the account.")
 	public_flags = models.IntegerField(null=True, blank=True, help_text="Discord account badge/flag's.")
 	flags = models.IntegerField(null=True, blank=True)
-	avatar = models.CharField(max_length=255, null=True, blank=True, help_text="URL of users discord avatar.")
-	banner = models.CharField(max_length=255, null=True, blank=True, help_text="URL of users discord banner.")
+	discord_avatar = models.CharField(max_length=255, null=True, blank=True, help_text="Hash of users discord avatar.")
+	avatar = models.ImageField(upload_to=avatar_upload_dir, verbose_name="Avatar Image", null=True, blank=True, help_text="Avatar image for user.")
+	discord_banner = models.CharField(max_length=255, null=True, blank=True, help_text="Hash of users discord banner.")
+	banner = models.ImageField(upload_to=banner_upload_dir, verbose_name="Banner Image", null=True, blank=True, help_text="Banner image for user.")
+	discord_tag = models.CharField(max_length=255, null=True, blank=True, help_text="URL of users discord banner.")
+
 	accent_color = models.PositiveIntegerField(null=True, blank=True, help_text="Users banner accent color")
 	locale = models.CharField(max_length=255, null=True, blank=True, help_text="Users's Discord locale")
 	mfa_enabled = models.BooleanField(default=False, help_text="Does user have MFA enabled for their Discord account.")
 	last_login = models.DateTimeField(null=True, blank=True, help_text="User's last login time.")
+
 
 	username = None
 	USERNAME_FIELD = 'id'
@@ -177,6 +204,44 @@ class DiscordUser(AbstractUser):
 					stats['ch_names'].append(name)
 
 		return stats
+
+	def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
+		super().save() #Force new data in, so duplicate lookups function correctly
+		try:
+			if self.avatar == None or str(self.id) not in self.avatar.name:
+				if not self.discord_avatar.split("/")[5].split(".")[0] in self.avatar.name:
+					try:
+						print(f"Updating {self.id} avatar {self.discord_avatar}")
+						response = requests.get(self.discord_avatar, data=None, headers={'User-Agent': "corpoch"}, stream=True)
+						self.avatar = File(io.BytesIO(response.content), "discord.png")
+					except Exception:
+						print(traceback.format_exc())
+			if self.banner == None or str(self.id) not in self.banner.name:
+				if self.discord_banner:
+					if not self.discord_banner.split("/")[5].split(".")[0] in self.banner.name:
+						try:
+							print(f"Updating {self.id} banner {self.discord_banner}")
+							response = requests.get(self.discord_banner, data=None, headers={'User-Agent': "corpoch"}, stream=True)
+							self.banner = File(io.BytesIO(response.content), "discord.png")
+						except Exception:
+							print(traceback.format_exc())
+					else:
+						pass
+				elif self.banner == None or str(self.accent_color) not in self.banner.name:
+					generated = DiscordUser.objects.filter(banner__contains=self.accent_color)
+					if generated.count() > 0:
+						img = generated.first().banner
+					else:
+						print(f"Generating user {self.id} avatar from accent_color {self.accent_color} HEX: {hex(self.accent_color)}")
+						img = Image.new("RGB", (512, 180), f"#{hex(self.accent_color)[2:].ljust(6, "0")}")
+						buf = io.BytesIO()
+						img.save(buf, format="PNG")
+						img = File(buf, "accent.png")
+					self.banner = img
+		except Exception:
+			print(traceback.format_exc())
+
+		super().save()
 
 class DiscordToken(models.Model):
 	"""

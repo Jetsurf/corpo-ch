@@ -15,7 +15,7 @@ class GSheetAPIAdmin(SingletonModelAdmin):
 class DiscordUserAdmin(admin.ModelAdmin):
 	model = DiscordUser
 	list_display = ('_avatar', 'id', 'global_name')
-	readonly_fields = ['global_name', 'mfa_enabled', '_id', 'avatar', 'banner', 'accent_color', 'locale', 'flags', 'public_flags', 'last_login', 'date_joined']
+	readonly_fields = ['global_name', 'mfa_enabled', '_id', 'discord_avatar', 'discord_banner', 'discord_tag', 'accent_color', 'locale', 'flags', 'public_flags', 'last_login', 'date_joined']
 	exclude = ['password', 'first_name', 'last_name', 'email', 'username']
 	search_fields = ['id', "global_name"]
 	actions = ['update_discord_user']
@@ -25,7 +25,7 @@ class DiscordUserAdmin(admin.ModelAdmin):
 
 	@mark_safe
 	def _avatar(self, obj):
-		return f'<img src="{obj.avatar}" width="24" height="24"'
+		return f'<img src="{obj.avatar.url if obj.avatar else ""}" width="24" height="24"'
 
 	@admin.action(description="Update Discord Info")
 	def update_discord_user(modeladmin, request, queryset):
