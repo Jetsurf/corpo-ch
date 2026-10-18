@@ -12,7 +12,7 @@ class DiscordBackend(ModelBackend):
 		else:
 			check_user.global_name = user.global_name if user.global_name else user.display_name
 			check_user.discord_avatar = user.avatar
-			check_user.accent_color = user.accent_color if user.accent_color else 11250603 #ABABAB in Hex - Grey
+			check_user.accent_color = user.accent_color
 			check_user.discord_banner = user.banner
 			check_user.public_flags = user.public_flags
 			check_user.flags = user.flags

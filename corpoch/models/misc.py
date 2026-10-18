@@ -1,4 +1,5 @@
-import datetime, io, json, requests, traceback
+import binascii, datetime, io, json, numpy, requests, scipy, struct, traceback
+
 from PIL import Image
 from requests import Session
 
@@ -210,23 +211,31 @@ class DiscordUser(AbstractUser):
 		try:
 			if self.avatar == None or str(self.id) not in self.avatar.name:
 				if not self.discord_avatar.split("/")[5].split(".")[0] in self.avatar.name:
-					try:
-						print(f"Updating {self.id} avatar {self.discord_avatar}")
-						response = requests.get(self.discord_avatar, data=None, headers={'User-Agent': "corpoch"}, stream=True)
-						self.avatar = File(io.BytesIO(response.content), "discord.png")
-					except Exception:
-						print(traceback.format_exc())
+					print(f"Updating {self.id} avatar {self.discord_avatar}")
+					response = requests.get(self.discord_avatar, data=None, headers={'User-Agent': "corpoch"}, stream=True)
+					self.avatar = File(io.BytesIO(response.content), "discord.png")
+			if self.avatar:
+				image = Image.open(self.avatar)
+				#Find dominate color in avatar
+				array = numpy.asarray(image)
+				shape = array.shape
+				array = array.reshape(numpy.prod(shape[:2]), shape[2]).astype(float)
+				codes, dist = scipy.cluster.vq.kmeans(array, 5)
+				vectors, dist = scipy.cluster.vq.vq(array, codes)
+				counts, bins = numpy.histogram(vectors, len(codes))
+				index_max = numpy.argmax(counts)
+				peak = codes[index_max]
+				color = binascii.hexlify(bytearray(int(c) for c in peak)).decode('ascii')
+				self.accent_color = int(f"0x{color}", 16)
+
 			if self.banner == None or str(self.id) not in self.banner.name:
 				if self.discord_banner:
 					if not self.discord_banner.split("/")[5].split(".")[0] in self.banner.name:
-						try:
-							print(f"Updating {self.id} banner {self.discord_banner}")
-							response = requests.get(self.discord_banner, data=None, headers={'User-Agent': "corpoch"}, stream=True)
-							self.banner = File(io.BytesIO(response.content), "discord.png")
-						except Exception:
-							print(traceback.format_exc())
+						print(f"Updating {self.id} banner {self.discord_banner}")
+						response = requests.get(self.discord_banner, data=None, headers={'User-Agent': "corpoch"}, stream=True)
+						self.banner = File(io.BytesIO(response.content), "discord.png")
 					else:
-						pass
+						pass #Don't trigger below
 				elif self.banner == None or str(self.accent_color) not in self.banner.name:
 					generated = DiscordUser.objects.filter(banner__contains=self.accent_color)
 					if generated.count() > 0:

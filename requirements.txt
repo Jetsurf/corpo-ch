@@ -30,3 +30,5 @@ gspread
 mido
 pendulum
 pytz
+numpy
+scipy
