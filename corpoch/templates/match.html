@@ -77,8 +77,21 @@
 				<tbody>
 					{% for round in rounds %}
 					<tr>
-						<td>{% if round.screenshot %}<a href="/match/{{match.id}}/{{round.id}}"><button onclick="window.location.href='/match/{{match.id}}/{{round.id}}'" class="btn btn-dark">{{round.num}}</button></a>{% else %}In-Progress{% endif %}</td>
-						<td><a href="https://{{request.get_host}}/chart/{{round.chart.id}}">{{round.chart.tournament_name}}</a>{% if round.chart.icon %} <img class="rounded-circle mx-auto" src="https://{{request.get_host}}{{round.chart.icon.img.url}}" width="36" height="36" alt="Chart Icon">{% endif %}</td>{% if round.chart.category not in "none" %} - {{round.chart.category|title}}{% endif %}</td>
+						<td>
+							{% if round.screenshot %}
+								<a href="/match/{{match.id}}/{{round.id}}">
+								<button onclick="window.location.href='/match/{{match.id}}/{{round.id}}'" class="btn btn-dark">{{round.num}}</button></a>{% else %}In-Progress
+							{% endif %}
+						</td>
+						<td>
+							<a href="https://{{request.get_host}}/chart/{{round.chart.id}}">{{round.chart.tournament_name}}</a>
+							{% if round.chart.icon %}
+								<img class="rounded-circle mx-auto" src="https://{{request.get_host}}{{round.chart.icon.img.url}}" width="36" height="36" alt="Chart Icon">
+							{% endif %}
+							{% if round.chart.category not in "none" %}
+								 - {{round.chart.category|title}}
+							{% endif %}
+						</td>
 						<td>{{round.picked}}</td>
 						<td>{{round.winner}}</td>
 						<td>{{round.loser}}</td>

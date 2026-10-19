@@ -91,18 +91,26 @@ class Chart(PolymorphicModel):
 
 		for round in rounds:
 			steg = round.high_seed_steg
+			if steg.total_notes > 0:
+				 percent = f"{(steg.notes_hit / steg.total_notes * 100):.2f}%"
+			else:
+				percent = "0.0%"
 			play = {
 				"player" : round.match.high_seed.player,
-				"hit_percent" : f"{(steg.notes_hit / steg.total_notes * 100):.2f}%",
+				"hit_percent": percent,
 				"round" : round,
 				"steg" : steg,
 			}
 			stats['rounds_played'].append(play)
 			steg = round.low_seed_steg
+			if steg.total_notes > 0:
+				 percent = f"{(steg.notes_hit / steg.total_notes * 100):.2f}%"
+			else:
+				percent = "0.0%"
 			#Quick n dirty, seems silly to just loop this twice :shrug:
 			play = {
 				"player" : round.match.low_seed.player,
-				"hit_percent" : f"{(steg.notes_hit / steg.total_notes * 100):.2f}%",
+				"hit_percent" : percent,
 				"round": round,
 				"steg" : steg,
 			}

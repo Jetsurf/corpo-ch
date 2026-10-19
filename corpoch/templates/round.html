@@ -27,10 +27,18 @@
 					<tbody>
 						<tr><td>Match</td><td><a href="https://{{request.get_host}}/match/{{match.id}}">{{match}}</a></td></tr>
 						<tr><td>Round Num</td><td>{{round.num}}</td>
-						<tr><td>Picking Player</td><td>{{round.picked}}</td></tr>
-						<tr><td>Chart Played</td><td>{{round.chart.tournament_name}}</td></tr>
-						<tr><td>Winner</td><td>{{round.winner}}</td></tr>
-						<tr><td>Loser</td><td>{{round.loser}}</td></tr>
+						<tr><td>Picking Player</td><td><a href="https://{{request.get_host}}/profile/{{round.picked.user.id}}">{{round.picked.user}}</a></td></tr>
+						<tr><td>Chart Played</td>
+							<td>
+								<a href="https://{{request.get_host}}/chart/{{round.chart.id}}">{{round.chart.tournament_name}}</a>
+								{% if round.chart.icon %}
+									<img class="rounded-circle mx-auto" src="https://{{request.get_host}}{{round.chart.icon.img.url}}" width="32" height="32" alt="Chart Icon">
+								{% endif %}
+							{% if round.data.chart.category not in "none" %} - {{round.data.chart.category|title}}{% endif %}
+							</td>
+						</tr>
+						<tr><td>Winner</td><td><a href="https://{{request.get_host}}/profile/{{round.winner.user.id}}">{{round.winner.user}}</a></td></tr>
+						<tr><td>Loser</td><td><a href="https://{{request.get_host}}/profile/{{match.loser.user.id}}">{{round.loser.user}}</a></td></tr>
 					</thead>
 				</table>
 			</div>
@@ -43,6 +51,8 @@
 			<div class="table-responsive-sm">
 				<table class="table table-striped table-hover table-bordered">
 					<tbody>
+						<tr><td>Score</td><td>{{round.high_seed_steg.score}}</td></tr>
+						<tr><td>Streak</td><td>{{round.high_seed_steg.max_streak}}</td></tr>
 						<tr><td>Notes Hit/Total</td><td>{{round.high_seed_steg.notes_hit}}/{{round.high_seed_steg.total_notes}}</td></tr>
 						<tr><td>Ghosts</th><td>{{round.high_seed_steg.frets_ghosted}}</td></td>
 						<tr><td>SP Phrases Earned/Total</td><td>{{round.high_seed_steg.sp_phrases_earned}}/{{round.high_seed_steg.sp_phrases_total}}</td></tr>
@@ -58,6 +68,8 @@
 			<div class="table-responsive-sm">
 				<table class="table table-striped table-hover table-bordered">
 					<tbody>
+						<tr><td>Score</td><td>{{round.low_seed_steg.score}}</td></tr>
+						<tr><td>Streak</td><td>{{round.low_seed_steg.max_streak}}</td></tr>
 						<tr><td>Notes Hit/Total</td><td>{{round.low_seed_steg.notes_hit}}/{{round.low_seed_steg.total_notes}}</td></tr>
 						<tr><td>Ghosts</th><td>{{round.low_seed_steg.frets_ghosted}}</td></td>
 						<tr><td>SP Phrases Earned/Total</td><td>{{round.low_seed_steg.sp_phrases_earned}}/{{round.low_seed_steg.sp_phrases_total}}</td></tr>

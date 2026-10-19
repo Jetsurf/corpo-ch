@@ -76,7 +76,7 @@ hr {
     right: 0;
     text-align: center;
     z-index: 1;
-    margin-top: 12vh;
+    margin-top: 10vh;
     border-style: solid;
     border-width: thick;
     border-color: var(--profile_color);
