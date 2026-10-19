@@ -53,6 +53,7 @@ class Chart(PolymorphicModel):
 	icon = models.ForeignKey(CHIcon, related_name="charts", verbose_name="CH Icon", null=True, blank=True, on_delete=models.SET_NULL, help_text="The in-game setlist icon for the chart.")
 	sngfile = models.FileField(upload_to="sngfiles/", validators=[validate_chart_file], verbose_name="SNG File", null=True, blank=True, help_text="The chart file. Stored as .sng but available as old .chart format.")
 
+
 	class Meta:
 		verbose_name = "Chart"
 		verbose_name_plural = "Charts"
@@ -74,6 +75,42 @@ class Chart(PolymorphicModel):
 	@property
 	def encore_search_query(self):
 		return { 'name' : self.name, 'charter' : self.charter, 'artist' : self.artist, 'album' : self.album, 'instrument': self.instrument, 'difficulty' : self.difficulty, 'blake3' : self.blake3 }
+
+	@property
+	def leaderboard_stats(self):
+		"""
+		Meant to be used with chart html view - provides raw numbers on chart stats and plays
+		"""
+		from .match import MatchRound, MatchBan
+		rounds = MatchRound.objects.filter(chart=self)
+		stats = {
+			"total_bans" : MatchBan.objects.filter(chart=self).count(),
+			"total_plays" : rounds.count(),
+			"rounds_played" : []
+		}
+
+		for round in rounds:
+			steg = round.high_seed_steg
+			play = {
+				"player" : round.match.high_seed.player,
+				"hit_percent" : f"{(steg.notes_hit / steg.total_notes * 100):.2f}%",
+				"round" : round,
+				"steg" : steg,
+			}
+			stats['rounds_played'].append(play)
+			steg = round.low_seed_steg
+			#Quick n dirty, seems silly to just loop this twice :shrug:
+			play = {
+				"player" : round.match.low_seed.player,
+				"hit_percent" : f"{(steg.notes_hit / steg.total_notes * 100):.2f}%",
+				"round": round,
+				"steg" : steg,
+			}
+			stats['rounds_played'].append(play)
+
+		stats['rounds_played'] = reversed(sorted(stats['rounds_played'], key=lambda steg: steg['steg'].score))
+		return stats
+
 
 	# These modifiers could be made better. Not sure quite yet on how the 0 index in the types should be defined back to here as class vars
 	@property

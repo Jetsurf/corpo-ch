@@ -258,8 +258,12 @@ class DiscordUser(AbstractUser):
 		#Find dominate color in avatar
 		array = numpy.asarray(image)
 		shape = array.shape
-		array = array.reshape(numpy.prod(shape[:2]), shape[2]).astype(float)
-		codes, dist = scipy.cluster.vq.kmeans(array, 3)
+		try:
+			array = array.reshape(numpy.prod(shape[:2]), shape[2]).astype(float)
+		except:
+			return int("0xababab", 16)
+
+		codes, dist = scipy.cluster.vq.kmeans(array, 2)
 		vectors, dist = scipy.cluster.vq.vq(array, codes)
 		counts, bins = numpy.histogram(vectors, len(codes))
 		index_max = numpy.argmax(counts)
@@ -291,7 +295,7 @@ class DiscordUser(AbstractUser):
 			if self.avatar == None or str(self.id) not in self.avatar.name:
 				if self.avatar and self.discord_avatar_hash not in self.avatar.name and str(self.id) not in self.avatar.name:
 					pass
-				elif not self.discord_avatar_hash in self.avatar.name:
+				elif not self.avatar or not self.discord_avatar_hash in self.avatar.name:
 					print(f"Updating {self.id} avatar {self.discord_avatar}")
 					response = requests.get(self.discord_avatar, data=None, headers={'User-Agent': "corpoch"}, stream=True)
 					self.avatar = File(io.BytesIO(response.content), "discord.png")
@@ -303,8 +307,9 @@ class DiscordUser(AbstractUser):
 			if self.banner == None or str(self.id) not in self.banner.name:
 				if not self.__accent_color:
 					self.__accent_color = self.avatar_dominate_color
+					self.accent_color = self.__accent_color
 				if self.discord_banner:
-					if not self.discord_banner_hash in self.banner.name:
+					if not self.banner or not self.discord_banner_hash in self.banner.name:
 						print(f"Updating {self.id} banner {self.discord_banner}")
 						response = requests.get(self.discord_banner, data=None, headers={'User-Agent': "corpoch"}, stream=True)
 						self.banner = File(io.BytesIO(response.content), "discord.png")
@@ -342,13 +347,14 @@ class DiscordUser(AbstractUser):
 
 					self.tag = existing
 
+			if self.accent_color == None and self.__accent_color != None:
+				self.accent_color = self.__accent_color
 
+			super().save()
 		except Exception:
 			print(traceback.format_exc())
-		if self.accent_color == None and self.__accent_color != None:
-			self.accent_color = self.__accent_color
 
-		super().save()
+
 
 class DiscordToken(models.Model):
 	"""

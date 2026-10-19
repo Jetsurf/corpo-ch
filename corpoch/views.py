@@ -84,6 +84,16 @@ def user(request: HttpRequest):
 	context['logged_in_user'] = discord_user
 	return render(request, "user.html", context=context)
 
+def chart(request: HttpRequest, chart_pk):
+	from corpoch.models import Chart
+	if not chart_pk or chart_pk == "None":
+		return HttpResponse(f"Can't find a chart if you don't provide one!", status=404)
+	else:
+		chart = get_object_or_404(Chart, pk=chart_pk)
+
+	context = { "logged_in_user" : logged_in_user(request), "chart" : chart, "stats" : chart.leaderboard_stats }
+	return render(request, "chart.html", context=context)
+
 def profile(request: HttpRequest, user_pk):
 	from corpoch.models import DiscordUser
 	if not user_pk or user_pk == "None":

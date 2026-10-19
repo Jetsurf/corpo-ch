@@ -1,0 +1,17 @@
+#main {
+    display: flex;
+    justify-content: center;
+    overflow: visible;
+    flex-direction: column;
+    padding-top: 3vh;
+}
+
+#chart-stats {
+    width: 95%;
+    justify-content: center;
+}
+
+#leaderboard-stats {
+    width: 95%;
+    justify-content: center;
+}

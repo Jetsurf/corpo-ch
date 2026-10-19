@@ -128,7 +128,7 @@ input:focus {
             {% if logged_in_user %}
                 <a href="/profile/{{logged_in_user.id}}">
             {% endif %}
-            <img class="pfp rounded-circle" src="{{logged_in_user.avatar.url}}">
+            <img class="pfp rounded-circle" {% if logged_in_user.avatar %}src="https://{{request.get_host}}{{logged_in_user.avatar.url}}"{% endif %}>
             {% if logged_in_user %}
                 </a>
             {% endif %}
