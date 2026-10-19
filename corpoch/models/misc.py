@@ -1,6 +1,6 @@
 import binascii, datetime, io, json, numpy, requests, scipy, struct, traceback
 
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from requests import Session
 
 from django.core.files import File
@@ -34,7 +34,7 @@ def banner_upload_dir(self, filename):
 	return f"profile/banners/{new_name}.{filename.split('.')[-1]}"
 
 def tag_upload_dir(self, filename):
-	return f"profile/tags/{self.discord_tag.split("/")[5].split(".")[0]}.{filename.split('.')[-1]}"
+	return f"profile/tags/{self.id}/{self.tag_hash}.{filename.split('.')[-1]}"
 
 class GSheetAPI(SingletonModel):
 	api_key = EncryptedJSONField(null=False, blank=True, default=dict)
@@ -56,6 +56,45 @@ class GSheetAPI(SingletonModel):
 	name.short_description = "Service Account Name"
 	sa_name = property(name)
 
+class DiscordTag(models.Model):
+	id = models.BigIntegerField(primary_key=True, unique=True, help_text="Discord snowflake ID of the guild.")
+	badge = models.CharField(max_length=255, null=True, blank=True, help_text="URL of users discord banner img.")
+	tag = models.CharField(max_length=8, null=True, blank=True, help_text="Text for users discord banner img.")
+	tag_image = models.ImageField(upload_to=tag_upload_dir, verbose_name="Tag Image", null=True, blank=True, help_text="Avatar image for user.")
+
+	def __str__(self):
+		return self.tag
+
+	@property
+	def tag_hash(self):
+		return self.badge.split("/")[5].split(".")[0]
+
+	@property
+	def image(self):
+		if not self.tag_image:
+			font = ImageFont.truetype('OpenSans-Bold.ttf', size = 20)
+			box = font.getbbox(self.tag)
+			print(f"Font box: {box}")
+			width = 36 + font.getbbox(self.tag)[2]
+			print(f"Font width: {width}")
+			#font = ImageFont.truetype(f'{settings.PROJECT_HOME}/corpoch/static/mainapp/fontawesome-free-5.15.3-web/webfonts/fa-regular-400.ttf', size=2)
+			image = Image.new("RGBA", (width, 32), f"#22242A")
+			response = requests.get(self.badge, data=None, headers={'User-Agent': "corpoch"}, stream=True)
+			badge_img = Image.open(io.BytesIO(response.content))
+			badge_img = badge_img.convert("RGBA")
+			badge_img = badge_img.resize((24, 24))
+			image.paste(badge_img, (4, 4, 28, 28), badge_img)
+			draw = ImageDraw.Draw(image)
+			draw.text((32, 0), text=self.tag, fill=(255, 255, 255), font=font)
+
+			buf = io.BytesIO()
+			image.save(buf, format="PNG")
+			img = File(buf, "tag.png")
+			self.tag_image = img
+			self.save()
+
+		return self.tag_image.url
+
 class DiscordUser(AbstractUser):
 	"""
 	Represents a Discord User. 
@@ -65,12 +104,11 @@ class DiscordUser(AbstractUser):
 	global_name = models.CharField(max_length=255, null=True, blank=True, help_text="Global or display name used on the account.")
 	public_flags = models.IntegerField(null=True, blank=True, help_text="Discord account badge/flag's.")
 	flags = models.IntegerField(null=True, blank=True)
-	discord_avatar = models.CharField(max_length=255, null=True, blank=True, help_text="Hash of users discord avatar.")
+	discord_avatar = models.CharField(max_length=255, null=True, blank=True, help_text="URL of users discord avatar.")
 	avatar = models.ImageField(upload_to=avatar_upload_dir, verbose_name="Avatar Image", null=True, blank=True, help_text="Avatar image for user.")
-	discord_banner = models.CharField(max_length=255, null=True, blank=True, help_text="Hash of users discord banner.")
+	discord_banner = models.CharField(max_length=255, null=True, blank=True, help_text="URL of users discord banner.")
 	banner = models.ImageField(upload_to=banner_upload_dir, verbose_name="Banner Image", null=True, blank=True, help_text="Banner image for user.")
-	discord_tag = models.CharField(max_length=255, null=True, blank=True, help_text="URL of users discord banner.")
-
+	tag = models.ForeignKey(DiscordTag, null=True, verbose_name="Discord Tag", on_delete=models.SET_NULL)
 	accent_color = models.PositiveIntegerField(null=True, blank=True, help_text="Users banner accent color")
 	locale = models.CharField(max_length=255, null=True, blank=True, help_text="Users's Discord locale")
 	mfa_enabled = models.BooleanField(default=False, help_text="Does user have MFA enabled for their Discord account.")
@@ -78,6 +116,8 @@ class DiscordUser(AbstractUser):
 
 
 	username = None
+	__accent_color = None #Private check for incoming accent_color == None from discord
+	primary_guild = None
 	USERNAME_FIELD = 'id'
 	REQUIRED_FIELDS = ()
 
@@ -85,6 +125,12 @@ class DiscordUser(AbstractUser):
 		verbose_name = "Discord User"
 		verbose_name_plural = "Discord Users"
 		app_label = 'corpoch'
+
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		self.__accent_color = self.accent_color
+		if self.tag:
+			self.primary_guild = self.tag.id
 
 	def __str__(self):
 		if self.global_name:
@@ -206,49 +252,101 @@ class DiscordUser(AbstractUser):
 
 		return stats
 
-	def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
-		super().save() #Force new data in, so duplicate lookups function correctly
+	@property
+	def avatar_dominate_color(self):
+		image = Image.open(self.avatar)
+		#Find dominate color in avatar
+		array = numpy.asarray(image)
+		shape = array.shape
+		array = array.reshape(numpy.prod(shape[:2]), shape[2]).astype(float)
+		codes, dist = scipy.cluster.vq.kmeans(array, 3)
+		vectors, dist = scipy.cluster.vq.vq(array, codes)
+		counts, bins = numpy.histogram(vectors, len(codes))
+		index_max = numpy.argmax(counts)
+		peak = codes[index_max]
+		color = binascii.hexlify(bytearray(int(c) for c in peak)).decode('ascii')
+		return int(f"0x{color}", 16)
+
+	@property
+	def discord_avatar_hash(self):
+		return self.discord_avatar.split("/")[5].split(".")[0]
+
+	@property
+	def discord_banner_hash(self):
+		return self.discord_banner.split("/")[5].split(".")[0]
+
+	def save(self, *args, **kwargs):
+
+		if not self.discord_avatar:
+			return # Break early as user object is only partial
+
+		#This function uses the internal __accent_color as a check to prevent discord users leaving it auto-set, forcing none here
+
+		#User changed/set discord accent color, set now before updates
+		if self.accent_color != None and self.accent_color != self.__accent_color:
+			self.__accent_color = self.accent_color
+
 		try:
+			#Update avatar if discord hash updated, and not manually uploaded
 			if self.avatar == None or str(self.id) not in self.avatar.name:
-				if not self.discord_avatar.split("/")[5].split(".")[0] in self.avatar.name:
+				if self.avatar and self.discord_avatar_hash not in self.avatar.name and str(self.id) not in self.avatar.name:
+					pass
+				elif not self.discord_avatar_hash in self.avatar.name:
 					print(f"Updating {self.id} avatar {self.discord_avatar}")
 					response = requests.get(self.discord_avatar, data=None, headers={'User-Agent': "corpoch"}, stream=True)
 					self.avatar = File(io.BytesIO(response.content), "discord.png")
-			if self.avatar:
-				image = Image.open(self.avatar)
-				#Find dominate color in avatar
-				array = numpy.asarray(image)
-				shape = array.shape
-				array = array.reshape(numpy.prod(shape[:2]), shape[2]).astype(float)
-				codes, dist = scipy.cluster.vq.kmeans(array, 5)
-				vectors, dist = scipy.cluster.vq.vq(array, codes)
-				counts, bins = numpy.histogram(vectors, len(codes))
-				index_max = numpy.argmax(counts)
-				peak = codes[index_max]
-				color = binascii.hexlify(bytearray(int(c) for c in peak)).decode('ascii')
-				self.accent_color = int(f"0x{color}", 16)
 
+				if not self.accent_color:
+					self.__accent_color = self.avatar_dominate_color
+
+			#Update banner if discord hash updated, and not manually uploaded
 			if self.banner == None or str(self.id) not in self.banner.name:
+				if not self.__accent_color:
+					self.__accent_color = self.avatar_dominate_color
 				if self.discord_banner:
-					if not self.discord_banner.split("/")[5].split(".")[0] in self.banner.name:
+					if not self.discord_banner_hash in self.banner.name:
 						print(f"Updating {self.id} banner {self.discord_banner}")
 						response = requests.get(self.discord_banner, data=None, headers={'User-Agent': "corpoch"}, stream=True)
 						self.banner = File(io.BytesIO(response.content), "discord.png")
 					else:
 						pass #Don't trigger below
-				elif self.banner == None or str(self.accent_color) not in self.banner.name:
-					generated = DiscordUser.objects.filter(banner__contains=self.accent_color)
+				elif self.banner == None or str(self.__accent_color) not in self.banner.name:
+					generated = DiscordUser.objects.filter(banner__contains=self.__accent_color)
 					if generated.count() > 0:
 						img = generated.first().banner
 					else:
-						print(f"Generating user {self.id} avatar from accent_color {self.accent_color} HEX: {hex(self.accent_color)}")
-						img = Image.new("RGB", (512, 180), f"#{hex(self.accent_color)[2:].ljust(6, "0")}")
+						print(f"Generating user {self.id} avatar from accent_color {self.__accent_color} HEX: {hex(self.__accent_color)[:8]}")
 						buf = io.BytesIO()
+						img = Image.new("RGB", (512, 180), f"#{hex(self.__accent_color)[2:8].ljust(6, "0")}")
 						img.save(buf, format="PNG")
 						img = File(buf, "accent.png")
 					self.banner = img
+
+			if self.primary_guild and not isinstance(self.primary_guild, int): #Is update from oauth or dbot bot_task
+				if not self.tag or self.primary_guild.identity_guild_id != self.tag.id or self.primary_guild.badge.key != self.tag.tag_hash: #Tag changed guilds
+					print(f"Updating tag for {self.id}")
+					try:
+						existing = DiscordTag.objects.get(id=self.primary_guild.identity_guild_id)
+					except DiscordTag.DoesNotExist:
+						print(f"No existing tag for guild {self.primary_guild.identity_guild_id}")
+						existing = DiscordTag(id=self.primary_guild.identity_guild_id)
+						existing.badge = self.primary_guild.badge.url
+						existing.tag = self.primary_guild.tag
+						existing.save()
+
+					if existing.tag_hash not in self.primary_guild.badge.key or existing.tag != self.primary_guild.tag:
+						print(f"Tag changed {self.primary_guild.identity_guild_id}")
+						existing.badge = self.primary_guild.badge.url
+						existing.tag = self.primary_guild.tag
+						existing.save()
+
+					self.tag = existing
+
+
 		except Exception:
 			print(traceback.format_exc())
+		if self.accent_color == None and self.__accent_color != None:
+			self.accent_color = self.__accent_color
 
 		super().save()
 
@@ -364,3 +462,4 @@ class DiscordToken(models.Model):
 				raise self.AuthError(f"OAuth guild join error {response.status_code} joining user {self.user.id} to guild {guild.id}\n{response.text}")
 		else:
 			raise self.AuthError("User OAuth scopes do not include guilds.join")
+

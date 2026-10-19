@@ -19,7 +19,7 @@ class DiscordBackend(ModelBackend):
 			check_user.locale = user.locale
 			check_user.mfa_enabled = user.mfa_enabled
 			check_user.last_login = timezone.now()
-			check_user.discord_tag = user.primary_guild.badge if user.primary_guild else None
+			check_user.primary_guild = user.primary_guild #Set for tag generation
 			check_user.save()
 		finally:
 			return check_user

@@ -204,8 +204,8 @@ async def update_user(bot, user_id):
 	dbuser.global_name = duser.global_name if duser.global_name else duser.display_name
 	dbuser.discord_avatar = duser.display_avatar.url
 	dbuser.discord_banner = duser.banner.url if duser.banner else None
-	dbuser.accent_color = duser.accent_color.value if duser.accent_color else None #ABABAB Hex - Grey
-	dbuser.discord_tag = duser.primary_guild.badge if duser.primary_guild else None
+	dbuser.accent_color = duser.accent_color.value if duser.accent_color else None
+	dbuser.primary_guild = duser.primary_guild
 	for ply in dbuser.tournaments.all().filter(is_active=True):
 		guild = bot.get_guild(str(ply.tournament.guild.id))
 		if guild:

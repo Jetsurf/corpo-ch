@@ -12,7 +12,7 @@
 <meta content="{{user.global_name}}&#10;Clone Hero Tournament Profile" property="og:title">
 <meta content="Match W/L: {{stats.match_wins}}/{{stats.match_loss}}&#10;Song W/L: {{stats.song_wins}}/{{stats.song_loss}}" property="og:description">
 <meta content="https://{{request.get_host}}/profile/{{user.id}}" property="og:url">
-<meta content="{{user.avatar}}" property="og:image">
+<meta content="https://{{request.get_host}}{{user.avatar.url}}" property="og:image">
 
 <html>
 <body>
@@ -23,8 +23,8 @@
 			<img class="rounded-circle mx-auto" src="{{user.avatar.url}}" alt="Card image">
 			<div class="card-body">
 				<div class="card-title">
-					<h4><b>{{user.global_name}}</b></h4>
-					<p>CH Aliases<br>{% for alias in stats.ch_names %} - {{alias}}<br>{% endfor %}</p>
+					<h4><b>{{user.global_name}}{% if user.tag %}&nbsp;&nbsp;<img src="https://{{request.get_host}}{{user.tag.image}}">{% endif %}</b></h4>
+					<p>CH Aliases<br>{% for alias in stats.ch_names %}&nbsp;&nbsp;&nbsp;{{alias}}<br>{% endfor %}</p>
 				</div>
 			</div>
 		</div>

@@ -152,6 +152,7 @@ def update_livematches(request: HttpRequest):
 	})
 
 def update_search(request: HttpRequest):
+	from corpoch.models import DiscordUser
 	search = request.GET.get('user-search', '')
 	if len(search) < 3:
 		return render(request, 'partials/search-partial.html', { 'users' : DiscordUser.objects.none(), "count" : 0 })

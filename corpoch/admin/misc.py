@@ -15,7 +15,7 @@ class GSheetAPIAdmin(SingletonModelAdmin):
 class DiscordUserAdmin(admin.ModelAdmin):
 	model = DiscordUser
 	list_display = ('_avatar', 'id', 'global_name')
-	readonly_fields = ['global_name', 'mfa_enabled', '_id', 'discord_avatar', 'discord_banner', 'discord_tag', 'locale', 'flags', 'public_flags', 'last_login', 'date_joined']
+	readonly_fields = ['global_name', 'mfa_enabled', '_id', 'discord_avatar', 'discord_banner', 'tag', 'accent_color', 'locale', 'flags', 'public_flags', 'last_login', 'date_joined']
 	exclude = ['password', 'first_name', 'last_name', 'email', 'username']
 	search_fields = ['id', "global_name"]
 	actions = ['update_discord_user']
