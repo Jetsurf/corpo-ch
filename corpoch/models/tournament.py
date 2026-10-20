@@ -44,6 +44,17 @@ class Tournament(models.Model):
 		super().save()
 		TournamentConfig.objects.get_or_create(tournament=self) if is_new else None
 
+	@property
+	def tournament_stats(self):
+		from .match import Match, MatchBan, MatchRound
+		stats = {}
+		stats['total_players'] = TournamentPlayer.objects.filter(tournament__id=self.id).count()
+		stats['active_players'] = TournamentPlayer.objects.filter(tournament__id=self.id, is_active=True).count()
+		stats['matches'] = Match.objects.filter(group__bracket__tournament=self).count()
+		stats['songs'] = MatchRound.objects.filter(match__group__bracket__tournament=self).count()
+		stats['bans'] = MatchBan.objects.filter(match__group__bracket__tournament=self).count()
+		return stats
+
 class TournamentConfig(models.Model):
 	"""
 	Represents a configuration for a Tournament. 
@@ -90,6 +101,24 @@ class Bracket(models.Model):
 		is_new = self.pk is None
 		super().save()
 		BracketRules.objects.create(bracket=self) if is_new or not self.ruleset else None
+
+	@property
+	def bracket_stats(self):
+		from .match import Match, MatchBan, MatchRound
+		stats = {
+			'groups' : self.groups.count(),
+			'players' : 0
+		}
+		for group in self.groups.all():
+			stats['players'] += group.seeding.count()
+		
+		stats = {}
+		stats['total_players'] = GroupSeed.objects.filter(group__bracket=self).count()
+		stats['active_players'] = GroupSeed.objects.filter(group__bracket=self, player__is_active=True).count()
+		stats['matches'] = Match.objects.filter(group__bracket=self).count()
+		stats['songs'] = MatchRound.objects.filter(match__group__bracket=self).count()
+		stats['bans'] = MatchBan.objects.filter(match__group__bracket=self).count()
+		return stats
 
 class BracketRules(models.Model):
 	"""

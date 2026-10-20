@@ -3,7 +3,7 @@ from requests import Session
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, Http404
 from django.shortcuts import redirect, render, get_object_or_404
 from django.utils import timezone
 
@@ -129,6 +129,38 @@ def round(request: HttpRequest, match_pk, round_pk):
 	context = { "logged_in_user" : logged_in_user(request), "match" : match, "round" : round }
 	return render(request, "round.html", context=context)
 
+def tournament_view(request: HttpRequest, tournament_pk):
+	from corpoch.models import Tournament, Bracket
+	if not tournament_pk or tournament_pk == "None":
+		return HttpResponse("Can't find a tournament if you don't provide one!", status=404)
+	else:
+		tourney = get_object_or_404(Tournament, short_name=tournament_pk)
+
+	context = {
+		'logged_in_user' : logged_in_user(request),
+		'tournament' : tourney,
+		'stats' : tourney.tournament_stats
+	}
+	return render(request, "tournament.html", context=context)
+
+def bracket_view(request: HttpRequest, tournament_pk, bracket_pk):
+	from corpoch.models import Tournament, Bracket
+	if not tournament_pk or tournament_pk == "None":
+		return HttpResponse("Can't find a tournament if you don't provide one!", status=404)
+	else:
+		tournament = get_object_or_404(Tournament, short_name=tournament_pk)
+
+	if not bracket_pk or bracket_pk == "None":
+		return HttpResponse("Can't find a bracket if you don't provide one!", status=404)
+	else:
+		try:
+			bracket = Bracket.objects.get(tournament=tournament, name=bracket_pk)
+		except Bracket.DoesNotExist:
+			return Http404("Bracket found/valid")
+
+	context = { 'logged_in_user' : logged_in_user(request), 'bracket' : bracket }
+	return render(request, "bracket.html", context=context)
+
 def livematches(request: HttpRequest):
 	from corpoch.models import Match, DiscordUser
 
@@ -162,14 +194,16 @@ def update_livematches(request: HttpRequest):
 	})
 
 def update_search(request: HttpRequest):
-	from corpoch.models import DiscordUser
-	search = request.GET.get('user-search', '')
+	from corpoch.models import DiscordUser, Chart
+	search = request.GET.get('search', '')
 	if len(search) < 3:
-		return render(request, 'partials/search-partial.html', { 'users' : DiscordUser.objects.none(), "count" : 0 })
-	from corpoch.models import DiscordUser
+		return render(request, 'partials/search-partial.html', { 'users' : DiscordUser.objects.none(), "charts" : DiscordUser.objects.none(), "count" : 0 })
+	
 	users = DiscordUser.objects.filter(global_name__icontains=search)
-	search_count = users.count()
-	return render(request, 'partials/search-partial.html', { 'users' : users, "count" : search_count })
+	charts = Chart.objects.filter(name__icontains=search)
+
+	search_count = users.count() + charts.count()
+	return render(request, 'partials/search-partial.html', { 'users' : users, 'charts' : charts , "count" : search_count })
 
 def privterms(request: HttpRequest):
 	return render(request, 'privterms.html', context={'logged_in_user' : logged_in_user(request)})

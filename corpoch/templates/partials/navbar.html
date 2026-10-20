@@ -113,7 +113,7 @@ input:focus {
     <div class="row">
         <div class="dropdown">
             <!--<i id="search-icon" class="fas fa-search"></i>-->
-            <input id="user-input" name="user-search" placeholder="Search Users" autocomplete="off"
+            <input id="user-input" name="search" placeholder="Search" autocomplete="off"
                 hx-get="{% url 'update-search' %}"
                 hx-trigger="input changed delay:500ms"
                 hx-target="#search-results"

@@ -2,16 +2,22 @@
     display: flex;
     justify-content: center;
     overflow: visible;
-    flex-direction: column;
+    flex-direction: row;
     padding-top: 3vh;
 }
 
+#chart-info {
+    width: 45%;
+    justify-content: center;
+}
+
 #chart-stats {
-    width: 95%;
+    width: 45%;
     justify-content: center;
 }
 
 #leaderboard-stats {
     width: 95%;
     justify-content: center;
+    padding-left: 5%;
 }
