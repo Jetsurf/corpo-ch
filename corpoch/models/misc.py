@@ -138,8 +138,13 @@ class DiscordUser(AbstractUser):
 		else:
 			return str(self.id)
 
+	#Fixes the ID being shown as a username in admin
 	def get_short_name(self):
 		return self.global_name
+
+	#Removes password change links in admin
+	def has_usable_password(self):
+		return False
 
 	@property
 	def career_stats(self):
