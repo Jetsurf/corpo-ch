@@ -30,7 +30,7 @@
 					{% for guild in guilds %}
 					<tr>
 						<td><img class="rounded-circle" src="{{guild.icon}}" width="64" height="64"></td>
-						<td><span>{{guild}}</span></td>
+						<td><span><a href="https://{{request.get_host}}/tournament/{{guild.tournament.short_name}}">{{guild.tournament}}</span></td>
 						<td><i {% if guild.qualifier_active %} class="text-success text-center fas fa-check" {% else %} class="text-danger text-center fas fa-times" {% endif %}></i></td>
 						<td><i {% if guild.tournament.active %} class="text-success text-center fas fa-check" {% else %} class="text-danger text-center fas fa-times" {% endif %}></i></td>
 						<td><i {% if guild.player %} class="text-success text-center fas fa-check" {% else %} class="text-danger text-center fas fa-times" {% endif %}></i></td>

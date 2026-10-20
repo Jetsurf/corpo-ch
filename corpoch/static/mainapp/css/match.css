@@ -4,6 +4,7 @@
     overflow: visible;
     flex-direction: column;
     padding-top: 3vh;
+    padding-left: 5%;
 }
 
 #match {

@@ -138,6 +138,9 @@ class DiscordUser(AbstractUser):
 		else:
 			return str(self.id)
 
+	def get_short_name(self):
+		return self.global_name
+
 	@property
 	def career_stats(self):
 		"""
