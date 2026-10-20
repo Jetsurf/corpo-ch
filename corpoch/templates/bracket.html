@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% load static %}
+{% load humanize %}
+{% block title %}{{bracket.tournament.short_name}} {{bracket.name}} - Stats{% endblock %}
+{% block style %}
+{{ block.super }}
+<link rel="stylesheet" type="text/css" href="{% static 'mainapp/css/login.css' %}">
+<link rel="stylesheet" type="text/css" href="{% static 'mainapp/css/bracket.css' %}">
+{% endblock %}
+{% block body %}data-spy="scroll" data-target=".navbar" data-offset="50"{% endblock %}
+{% block content %}
+{% include 'partials/navbar.html' %}
+<!--- Discord Embed for URL hotlinks --->
+<meta content="{{bracket.tournament.short_name}} {{bracket.name}}&#10;Bracket Stats" property="og:title">
+<meta content="Groups: {{bracket.groups.count}}&#10;Players: {{bracket.bracket_stats.total_players}}&#10;Songs Played: {{bracket.bracket_stats.songs}}" property="og:description">
+<meta content="https://{{request.get_host}}/tournament/{{bracket.tournament.short_name}}/{{bracket.name}}" property="og:url">
+<!---{% if tournament.guild.icon %}<meta content="https://{{request.get_host}}{{tournament.guild.icon}}" property="og:image">{% endif %} needs local copy --->
+
+<html>
+<body>
+<div id="main">
+	<div class="w3-cell w3-container", id="bracket-info">
+		<section id="info" class="status">
+			<h2>{{bracket.tournament}} - {{bracket.name}} Info</h2>
+			<hr>
+			<table class="table table-striped table-hover table-bordered">
+				<tbody>
+					<tr><td>Tournament</td><td><a href="https://{{request.get_host}}/tournament/{{bracket.tournament.short_name}}">{{bracket.tournament}}</a></td></tr>
+					<tr><td>Groups</td><td>{{bracket.groups.count}}</td></tr>
+					<!--- Add join button? --->
+					<tr><td>Active Players</td><td>{{bracket.bracket_stats.active_players}}</td></tr>
+					<tr><td>Total Players</td><td>{{bracket.bracket_stats.total_players}}</td></tr>
+					<tr><td>Matches</td><td>{{bracket.bracket_stats.matches}}</td></tr>
+					<tr><td>Songs Played</td><td>{{bracket.bracket_stats.songs}}</td></tr>
+					<tr><td>Bans</td><td>{{bracket.bracket_stats.bans}}</td></tr>
+				</tbody>
+			</table>
+		</section>
+	</div>
+	<div class="w3-cell w3-container" id="bracket-groups">
+		<section id="groups" class="status">
+			<h2>Groups</h2>
+			<hr>
+			<table class="table table-striped table-hover table-bordered">
+				<thead>
+					<tr>
+						<th>Group</th>
+						<th>Players</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for group in bracket.groups.all %}
+					<tr>
+						<td>{{group.name}}</td>
+						<td>{{group.seeding.count}}</td>
+					</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		</section>
+	</div>
+</div>
+{% if bracket.revealed %}
+<div class="w3-cell w3-container" id="bracket-setlist">
+	<section id="setlist" class="status">
+		<h2>Setlist</h2>
+		<hr>
+		<table class="table table-striped table-hover table-bordered">
+			<thead>
+				<tr>
+					<th>Chart</th>
+					<th>Plays</th>
+					<th>Bans</th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for chart in bracket.setlist.all %}
+				<tr>
+					<td>
+						<a href="https://{{request.get_host}}/chart/{{chart.id}}">{{chart.tournament_name}}</a>
+						{% if chart.icon %}
+							<img class="rounded-circle mx-auto" src="https://{{request.get_host}}{{chart.icon.img.url}}" width="32" height="32" alt="Chart Icon">
+						{% endif %}
+					</td>
+					<td>{{chart.matches_played.count}}</td>
+					<td>{{chart.matches_banned.count}}</td>
+				</tr>
+				{% endfor %}
+			</tbody>
+		</table>
+	</section>
+</div>
+{% endif %}
+</body>
+</html>
+
+<!---  --->
+{% endblock %}
+{% block js%}
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+	<script src="{% static 'mainapp/bootstrap/js/bootstrap.min.js' %}"></script>
+	<script src="{% static 'mainapp/js/script.js'%}"></script>
+{% endblock %}
+

@@ -77,6 +77,16 @@ class Chart(PolymorphicModel):
 		return { 'name' : self.name, 'charter' : self.charter, 'artist' : self.artist, 'album' : self.album, 'instrument': self.instrument, 'difficulty' : self.difficulty, 'blake3' : self.blake3 }
 
 	@property
+	def matches_played(self):
+		from .match import MatchRound
+		return MatchRound.objects.filter(chart=self)
+
+	@property
+	def matches_banned(self):
+		from .match import MatchBan
+		return MatchBan.objects.filter(chart=self)
+
+	@property
 	def leaderboard_stats(self):
 		"""
 		Meant to be used with chart html view - provides raw numbers on chart stats and plays
