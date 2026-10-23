@@ -11,9 +11,15 @@
     justify-content: center;
 }
 
-#bracket-groups {
+#bracket-stats {
     width: 45%;
     justify-content: center;
+}
+
+#bracket-groups {
+    width: 95%;
+    justify-content: center;
+    padding-left: 5%;
 }
 
 #setlist {
