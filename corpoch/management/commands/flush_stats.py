@@ -24,7 +24,7 @@ class Command(BaseCommand):
 
         for user in DiscordUser.objects.all():
             user.stats = Stats()
-            player.save()
+            user.save()
 
         for match in Match.objects.all():
             match.processed = False

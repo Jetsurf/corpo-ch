@@ -106,7 +106,10 @@ class Stats(pydantic.BaseModel):
 
 	@property
 	def notes_hit_percent(self):
-		return f"{(self.notes_hit / (self.total_notes) * 100):.2f}"
+		if self.total_notes > 0:
+			return f"{(self.notes_hit / (self.total_notes) * 100):.2f}"
+		else:
+			return "0.0"
 
 	@property
 	def round_percent(self):
@@ -122,7 +125,10 @@ class Stats(pydantic.BaseModel):
 
 	@property
 	def sp_phrases_hit_percent(self):
-		return f"{(self.sp_phrases_hit / (self.sp_phrases_total) * 100):.2f}"
+		if self.sp_phrases_total > 0:
+			return f"{(self.sp_phrases_hit / (self.sp_phrases_total) * 100):.2f}"
+		else:
+			return "0.0"
 
 	def update_stats(self, player_steg):
 		#Skip non-verified play data (errors/manual screenshots/etc)
@@ -180,7 +186,10 @@ class StegScreenshotPlayer(pydantic.BaseModel):
 
 	@property
 	def notes_hit_percent(self):
-		return f"{(self.notes_hit / (self.total_notes) * 100):.2f}%"
+		if self.total_notes > 0:
+			return f"{(self.notes_hit / (self.total_notes) * 100):.2f}"
+		else:
+			return "0.0"
 
 	@property
 	def notes_missed(self):
@@ -192,7 +201,10 @@ class StegScreenshotPlayer(pydantic.BaseModel):
 
 	@property
 	def sp_phrases_earned_percent(self):
-		return f"{(self.sp_phrases_hit / (self.sp_phrases_total) * 100):.2f}%"
+		if self.sp_phrases_total > 0:
+			return f"{(self.sp_phrases_hit / (self.sp_phrases_total) * 100):.2f}%"
+		else:
+			return "0.0"
 
 	@property
 	def video_calibration_ms(self):
@@ -332,7 +344,11 @@ class StegSectionV10(pydantic.BaseModel):
 
 	@property
 	def notes_hit_percent(self):
-		return f"{(self.notes_hit / (self.notes_count) * 100):.2f}%"
+		if self.notes_cound > 0:
+			return f"{(self.notes_hit / (self.notes_count) * 100):.2f}"
+		else:
+			return "0.0"
+
 
 class StegScreenshotPlayerV10(StegScreenshotPlayer):
 	avg_multiplier : float = 0

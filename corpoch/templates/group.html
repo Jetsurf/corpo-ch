@@ -12,7 +12,7 @@
 {% include 'partials/navbar.html' %}
 <!--- Discord Embed for URL hotlinks --->
 <meta content="{{group.tournament.short_name}} {{group.bracket.name}} {{group.name}}&#10;Group Stats" property="og:title">
-<meta content="Players: {{group.group_stats.total_players}}&#10;Songs Played: {{group.group_stats.songs}}" property="og:description">
+<meta content="Players: {{group.seeding.count}}&#10;Matches Played: {{group.matches.count}}&#10;Songs Played: {{group.rounds.count}}" property="og:description">
 <meta content="https://{{request.get_host}}/tournament/{{group.tournament.short_name}}/{{group.bracket.name}}/{{group.name}}" property="og:url">
 <!---{% if tournament.guild.icon %}<meta content="https://{{request.get_host}}{{tournament.guild.icon}}" property="og:image">{% endif %} needs local copy --->
 
@@ -35,32 +35,6 @@
 			</table>
 		</section>
 	</div>
-	<div class="w3-cell w3-container" id="group-seeding">
-		<section id="groups" class="status">
-			<h2>Group Seeding</h2>
-			<hr>
-			<table class="table table-striped table-hover table-bordered">
-				<thead>
-					<tr>
-						<th>Seed</th>
-						<th>User</th>
-						<th>Player CH Name</th>
-						<th>Match Stats W/L</th>
-					</tr>
-				</thead>
-				<tbody>
-					{% for seed in group.seeding.all %}
-					<tr>
-						<td>{{seed.seed}}</td>
-						<td><a href="https://{{request.get_host}}/profile/{{seed.player.user.id}}">{{seed.player.user.global_name}}</a></td>
-						<td>{{seed.player.ch_name}}</td>
-						<td>{{seed.player.matches_won.count}}/{{seed.player.matches_lost.count}}</td>
-					</tr>
-					{% endfor %}
-				</tbody>
-			</table>
-		</section>
-	</div>
 	<div class="w3-cell w3-container", id="group-stats">
 		<section id="stats" class="status">
 			<h2>Group {{group.name}} -  Play Stats</h2>
@@ -76,6 +50,33 @@
 			</table>
 		</section>
 	</div>
+</div>
+<div class="w3-cell w3-container" id="group-seeding">
+	<section id="seeding" class="status">
+		<h2>Group Seeding</h2>
+		<hr>
+		<table class="table table-striped table-hover table-bordered">
+			<thead>
+				<tr>
+					<th>Seed</th>
+					<th>User</th>
+					<th>Player CH Name</th>
+					<th>Match Stats W/L</th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for seed in group.seeding.all %}
+				<tr>
+					<td>{{seed.seed}}</td>
+					<td><a href="https://{{request.get_host}}/profile/{{seed.player.user.id}}">{{seed.player.user.global_name}}</a></td>
+					<td>{{seed.player.ch_name}}</td>
+					<td>{{seed.player.matches_won.count}}/{{seed.player.matches_lost.count}}</td>
+				</tr>
+				{% endfor %}
+			</tbody>
+		</table>
+	</section>
+</div>
 </body>
 </html>
 

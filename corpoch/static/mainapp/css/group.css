@@ -2,22 +2,22 @@
     display: flex;
     justify-content: center;
     overflow: visible;
-    flex-direction: column;
+    flex-direction: row;
     padding-top: 3vh;
-    padding-left: 5%;
 }
 
 #group-info {
-    width: 95%;
+    width: 45%;
+    justify-content: center;
+}
+
+#group-stats {
+    width: 45%;
     justify-content: center;
 }
 
 #group-seeding {
     width: 95%;
     justify-content: center;
-}
-
-#group-stats {
-    width: 95%;
-    justify-content: center;
+    padding-left: 5%;
 }

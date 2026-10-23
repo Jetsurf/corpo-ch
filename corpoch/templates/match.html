@@ -23,7 +23,7 @@
 				<tbody>
 					<tr><td>Tournament</td><td><a href="https://{{request.get_host}}/tournament/{{match.tournament.short_name}}">{{match.tournament.short_name}}</a></td></tr>
 					<tr><td>Bracket</td><td><a href="https://{{request.get_host}}/tournament/{{match.tournament.short_name}}/{{match.bracket.name}}">{{match.bracket.name}}</a></td></tr>
-					<tr><td>Group</td><td>{{match.group.name}}</td></tr>
+					<tr><td>Group</td><td><a href="https://{{request.get_host}}/tournament/{{match.tournament.short_name}}/{{match.bracket.name}}/{{match.group.name}}">{{match.group.name}}</a></td></tr>
 					<tr><td>Winner</td><td><a href="https://{{request.get_host}}/profile/{{match.winner.user.id}}">{{match.winner}}</a></td></tr>
 					<tr><td>Loser</td><td><a href="https://{{request.get_host}}/profile/{{match.loser.user.id}}">{{match.loser}}</a></td></tr>
 					{% if 'defer' in match.group.bracket.ruleset.ban_ruleset %}
