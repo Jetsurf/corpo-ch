@@ -27,6 +27,7 @@ class MatchAbstract(models.Model):
 	ended_on = models.DateTimeField(verbose_name="Match End Time", null=True, blank=True, help_text="Match end time.")
 	complete = models.BooleanField(verbose_name="'Complete'", default=False, help_text="Match is finalized, but waiting for screenshots.")
 	finished = models.BooleanField(verbose_name="Finished", default=False, help_text="Match is finished and has all screenshots/data.")
+	processed = models.BooleanField(verbose_name="Processed", default=False, help_text="Match is processed into stat calculations")
 	submitted = models.BooleanField(verbose_name="GSheet", default=False, help_text="Match is uploaded to GSheet for Tournament.")
 	channel = models.ForeignKey("dbot.Channels", verbose_name="Ref-Tool Discord Channel", on_delete=models.SET_NULL, null=True, blank=True, help_text="Discord Channel the reftool was ran in for a match.")
 	message = models.BigIntegerField(verbose_name="Ref-Tool Discord Message ID", null=True, blank=True, help_text="Discord snowflake ID of the message for a match.")
@@ -484,6 +485,13 @@ class MatchRoundAbstract(models.Model):
 		embed.set_thumbnail(url=f"https://{settings.BASE_URL}{self.screenshot.url}")
 		embed.set_footer(text=embed.footer.text, icon_url = f"https://{settings.BASE_URL}{self.chart.icon.img.url}")
 		return embed
+
+	@property
+	def score_diff(self):
+		if self.steg and len(self.steg.players):
+			return abs(self.steg.players[0].score - self.steg.players[1].score)
+		else:
+			return 0
 
 	@property
 	def screenshot_full_url(self):

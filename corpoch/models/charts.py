@@ -53,10 +53,10 @@ class Chart(PolymorphicModel):
 	icon = models.ForeignKey(CHIcon, related_name="charts", verbose_name="CH Icon", null=True, blank=True, on_delete=models.SET_NULL, help_text="The in-game setlist icon for the chart.")
 	sngfile = models.FileField(upload_to="sngfiles/", validators=[validate_chart_file], verbose_name="SNG File", null=True, blank=True, help_text="The chart file. Stored as .sng but available as old .chart format.")
 
-
 	class Meta:
 		verbose_name = "Chart"
 		verbose_name_plural = "Charts"
+		ordering = ['-id']
 
 	@property
 	def long_name(self):
@@ -101,6 +101,9 @@ class Chart(PolymorphicModel):
 
 		for round in rounds:
 			steg = round.high_seed_steg
+			if not steg:
+				continue
+
 			if steg.total_notes > 0:
 				 percent = f"{(steg.notes_hit / steg.total_notes * 100):.2f}%"
 			else:
@@ -113,7 +116,7 @@ class Chart(PolymorphicModel):
 			}
 			stats['rounds_played'].append(play)
 			steg = round.low_seed_steg
-			if steg.total_notes > 0:
+			if steg and steg.total_notes > 0:
 				 percent = f"{(steg.notes_hit / steg.total_notes * 100):.2f}%"
 			else:
 				percent = "0.0%"

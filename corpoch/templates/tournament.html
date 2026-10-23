@@ -28,11 +28,26 @@
 					<tr><td>Short Name</td><td>{{tournament.short_name}}</td></tr>
 					<tr><td>Discord Guild</td><td>{{tournament.guild.name}}</td></tr>
 					<!--- Add join button? --->
-					<tr><td>Active Players</td><td>{{stats.active_players}}</td></tr>
-					<tr><td>Total Entrants</td><td>{{stats.total_players}}</td></tr>
-					<tr><td>Matches</td><td>{{stats.matches}}</td></tr>
-					<tr><td>Songs Played</td><td>{{stats.songs}}</td></tr>
-					<tr><td>Bans</td><td>{{stats.bans}}</td></tr>
+					<tr><td>Active Players</td><td>{{tournament.active_players.count|intcomma}}</td></tr>
+					<tr><td>Total Entrants</td><td>{{tournament.players.count|intcomma}}</td></tr>
+					<tr><td>Matches</td><td>{{tournament.matches.count|intcomma}}</td></tr>
+					<tr><td>Songs Played</td><td>{{tournament.rounds.count|intcomma}}</td></tr>
+					<tr><td>Bans</td><td>{{tournament.bans.count|intcomma}}</td></tr>
+				</tbody>
+			</table>
+		</section>
+	</div>
+	<div class="w3-cell w3-container", id="tournament-stats">
+		<section id="stats" class="status">
+			<h2>{{tournament.short_name}} Play Stats</h2>
+			<hr>
+			<table class="table table-striped table-hover table-bordered">
+				<tbody>
+					<tr><td>Notes Hit/Total - Miss Average</td><td>{{tournament.stats.notes_hit|intcomma}}/{{tournament.stats.total_notes|intcomma}} ({{tournament.stats.notes_hit_percent|floatformat:2}}%) - {% widthratio tournament.stats.notes_missed tournament.rounds.count 1 %}</td></tr><!--- Widthratio here divides --->
+					<tr><td>Total Ghosts - Average</td><td>{{tournament.stats.frets_ghosted|intcomma}} - {% widthratio tournament.stats.frets_ghosted tournament.rounds.count 1 %}</td></tr>
+					<tr><td>SP Earned/Total</td><td>{{tournament.stats.sp_phrases_hit|intcomma}}/{{tournament.stats.sp_phrases_total|intcomma}} ({{tournament.stats.sp_phrases_hit_percent}})</td></tr>
+					<tr><td>Total Score</td><td>{{tournament.stats.score|intcomma}}</td></tr>
+					<tr><td><!---<img src="{% static  'fc.png' %}" width="24" height="24"/>--->FC's</td><td>{{tournament.stats.fcs}}</td></tr>
 				</tbody>
 			</table>
 		</section>
@@ -46,7 +61,7 @@
 					<tr>
 						<th>Bracket</th>
 						<th>Groups</th>
-						<th>Players</th>
+						<th>Active/Total Players</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -54,7 +69,7 @@
 					<tr>
 						<td><a href="https://{{request.get_host}}/tournament/{{tournament.short_name}}/{{bracket.name}}">{{bracket.name}}</a></td>
 						<td>{{bracket.groups.count}}</td>
-						<td>{{bracket.bracket_stats.total_players}}</td>
+						<td>{{bracket.active_players.count}}/{{bracket.players.count}}</td>
 					</tr>
 					{% endfor %}
 				</tbody>

@@ -28,11 +28,11 @@
 					<tr><td>Tournament</td><td><a href="https://{{request.get_host}}/tournament/{{bracket.tournament.short_name}}">{{bracket.tournament}}</a></td></tr>
 					<tr><td>Groups</td><td>{{bracket.groups.count}}</td></tr>
 					<!--- Add join button? --->
-					<tr><td>Active Players</td><td>{{bracket.bracket_stats.active_players}}</td></tr>
-					<tr><td>Total Players</td><td>{{bracket.bracket_stats.total_players}}</td></tr>
-					<tr><td>Matches</td><td>{{bracket.bracket_stats.matches}}</td></tr>
-					<tr><td>Songs Played</td><td>{{bracket.bracket_stats.songs}}</td></tr>
-					<tr><td>Bans</td><td>{{bracket.bracket_stats.bans}}</td></tr>
+					<tr><td>Active Players</td><td>{{bracket.active_players.count}}</td></tr>
+					<tr><td>Total Players</td><td>{{bracket.players.count}}</td></tr>
+					<tr><td>Matches</td><td>{{bracket.matches.count}}</td></tr>
+					<tr><td>Songs Played</td><td>{{bracket.rounds.count}}</td></tr>
+					<tr><td>Bans</td><td>{{bracket.bans.count}}</td></tr>
 				</tbody>
 			</table>
 		</section>
@@ -49,9 +49,9 @@
 					</tr>
 				</thead>
 				<tbody>
-					{% for group in bracket.groups.all %}
+					{% for group in bracket.groups.all reversed %}
 					<tr>
-						<td>{{group.name}}</td>
+						<td><a href="https://{{request.get_host}}/tournament/{{group.tournament.short_name}}/{{group.bracket.name}}/{{group.name}}">{{group.name}}</a></td>
 						<td>{{group.seeding.count}}</td>
 					</tr>
 					{% endfor %}
@@ -81,6 +81,8 @@
 						{% if chart.icon %}
 							<img class="rounded-circle mx-auto" src="https://{{request.get_host}}{{chart.icon.img.url}}" width="32" height="32" alt="Chart Icon">
 						{% endif %}
+						{% if chart.boss %} - BOSS{% endif %}
+						{% if chart.tiebreaker %} - TIEBREAKER{% endif %}
 					</td>
 					<td>{{chart.matches_played.count}}</td>
 					<td>{{chart.matches_banned.count}}</td>

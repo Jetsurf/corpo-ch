@@ -4,17 +4,18 @@
     overflow: visible;
     flex-direction: column;
     padding-top: 3vh;
+    padding-left: 5%;
 }
 
-#match {
+#tournament-info {
     width: 95%;
 }
 
-#bans {
+#tournament-stats {
     width: 95%;
 }
 
-#rounds {
+#tournament-brackets {
     width: 95%;
     justify-content: center;
 }

@@ -14,10 +14,23 @@
     object-fit: cover;
 }
 
-#round-high-seed {
+#stats {
+    display: flex;
+    justify-content: center;
+    overflow: visible;
+    flex-direction: row;
+    padding-top: 3vh;
+}
+
+#round-stats {
     width: 95%;
+    padding-left: 5%;    
+}
+
+#round-high-seed {
+    width: 45%;
 }
 
 #round-low-seed {
-    width: 95%;
+    width: 45%;
 }

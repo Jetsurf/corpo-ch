@@ -183,3 +183,37 @@ def update_oauth_tokens():
 			print(f"OAUTH TOKENS: Deleting token for user {token.user.global_name} - {e}")
 			token.delete()
 	close_old_connections()
+
+@app.task
+def process_matches():
+	close_old_connections()
+	for match in Match.objects.filter(complete=True, processed=False):
+		for round in match.rounds:
+			match.tournament.stats.update_stats(round.high_seed_steg)
+			match.tournament.stats.update_stats(round.low_seed_steg)
+			match.tournament.save()
+			match.bracket.stats.update_stats(round.high_seed_steg)
+			match.bracket.stats.update_stats(round.low_seed_steg)
+			match.bracket.save()
+			match.group.stats.update_stats(round.high_seed_steg)
+			match.group.stats.update_stats(round.low_seed_steg)
+			match.group.save()
+			#Using it with deep references breaks? Works with this level :shrug:
+			player = TournamentPlayer.objects.get(id=match.high_seed.player.id)
+			user = DiscordUser.objects.get(id=match.high_seed.player.user.id)
+			player.stats.update_stats(round.high_seed_steg)
+			user.stats.update_stats(round.high_seed_steg)
+			user.save()
+			player.save()
+			player = TournamentPlayer.objects.get(id=match.low_seed.player.id)
+			user = DiscordUser.objects.get(id=match.low_seed.player.user.id)
+			player.stats.update_stats(round.low_seed_steg)
+			user.stats.update_stats(round.low_seed_steg)
+			player.save()
+			user.save()
+
+		print(f"Processed match {match.id} {match} for stats")
+		match.processed = True
+		match.save()
+
+	close_old_connections()

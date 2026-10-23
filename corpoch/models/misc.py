@@ -9,10 +9,12 @@ from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 
 from encrypted_fields.fields import EncryptedJSONField, EncryptedTextField
+from django_pydantic_field import SchemaField
 from solo.models import SingletonModel
 
 from corpoch import settings
 from corpoch.managers import DiscordOAuth2Manager
+from corpoch.types import Stats
 
 from .match import Match, TournamentPlayer
 
@@ -72,12 +74,10 @@ class DiscordTag(models.Model):
 	@property
 	def image(self):
 		if not self.tag_image:
+			#Generate Tag Image
 			font = ImageFont.truetype('OpenSans-Bold.ttf', size = 20)
 			box = font.getbbox(self.tag)
-			print(f"Font box: {box}")
 			width = 36 + font.getbbox(self.tag)[2]
-			print(f"Font width: {width}")
-			#font = ImageFont.truetype(f'{settings.PROJECT_HOME}/corpoch/static/mainapp/fontawesome-free-5.15.3-web/webfonts/fa-regular-400.ttf', size=2)
 			image = Image.new("RGBA", (width, 32), f"#22242A")
 			response = requests.get(self.badge, data=None, headers={'User-Agent': "corpoch"}, stream=True)
 			badge_img = Image.open(io.BytesIO(response.content))
@@ -113,7 +113,7 @@ class DiscordUser(AbstractUser):
 	locale = models.CharField(max_length=255, null=True, blank=True, help_text="Users's Discord locale")
 	mfa_enabled = models.BooleanField(default=False, help_text="Does user have MFA enabled for their Discord account.")
 	last_login = models.DateTimeField(null=True, blank=True, help_text="User's last login time.")
-
+	stats = SchemaField(Stats, verbose_name="User Stats", default=Stats, help_text="User stats for all matches")
 
 	username = None
 	__accent_color = None #Private check for incoming accent_color == None from discord
@@ -147,118 +147,63 @@ class DiscordUser(AbstractUser):
 		return False
 
 	@property
-	def career_stats(self):
-		"""
-		Used for Django View. Can likely be retooled for easier access/use
-		"""
-		user = self
-		matches =  Match.objects.filter(players__player__user=user).order_by('-started_on')
-		rounds = []
-		stats = {
-			'match_wins' : 0,
-			'match_loss' : 0,
-			'song_wins' : 0,
-			'song_loss' : 0,
-			'notes_hit' : 0,
-			'notes_total' : 0,
-			'ghosts' : 0,
-			'phrases_hit' : 0,
-			'phrases_total' : 0,
-			'score' : 0,
-			'fcs' : 0,
-			'streak' : { 'song' : "temp", "notes" : 0, "screenshot" : "temp" },
-			'matches_reffed' : Match.objects.filter(referee=user).count()
-		}
-		for match in matches:
-			if match.winner and match.winner.user == user:
-				stats['match_wins'] += 1
-			elif match.loser and match.loser.user == user:
-				stats['match_loss'] += 1
+	def bans(self):
+		from .match import MatchBan
+		return MatchBan.objects.filter(match__players__player__user=self)
 
-			if match.high_seed.player.user == user:
-				player = match.high_seed.player
-			else:
-				player = match.low_seed.player
+	@property
+	def latest_matches(self):
+		#Return only latest 3 rounds
+		queryset = self.matches.order_by("ended_on")
+		return queryset[len(queryset)-3:]
 
-			for round in match.rounds.reverse():
-				if round.winner and player == round.winner:
-					stats['song_wins'] += 1
-				elif round.loser and player == round.loser:
-					stats['song_loss'] += 1
+	@property
+	def matches(self):
+		from .match import Match
+		return Match.objects.filter(players__player__user=self).order_by('-started_on')
 
-				if len(round.steg.players) > 0:
-					if player.check_ch_name(round.steg.players[0].profile_name):
-						ply_steg = round.steg.players[0]
-						opponent_steg = round.steg.players[1]
-					else:
-						ply_steg = round.steg.players[1]
-						opponent_steg = round.steg.players[0]
+	@property
+	def match_win_percent(self):
+		return f"{(self.matches_won.count() / (self.matches_won.count() + self.matches_lost.count()) * 100):2f}"
 
-					# Used for returning back to view for round stats, extracts non-model-field round info
-					score_diff = ply_steg.score - opponent_steg.score
-					ret_round = {
-						"data" : round,
-						"score" : f"{ply_steg.score:,}",
-						"score_diff" : f"{"+" if score_diff > 0 else ""}{score_diff:,}"
-					}
+	@property
+	def matches_won(self):
+		from .match import Match
+		return Match.objects.filter(players__player__user=self, winner__user=self)
 
-					stats['notes_total'] += ply_steg.total_notes
-					stats['notes_hit'] += ply_steg.notes_hit
-					stats['ghosts'] += ply_steg.frets_ghosted
-					stats['phrases_hit'] += ply_steg.sp_phrases_earned
-					stats['phrases_total'] += ply_steg.sp_phrases_total
-					stats['score'] += ply_steg.score
-					if ply_steg.is_fc:
-						stats['fcs'] += 1
-					if stats['streak']['notes'] < ply_steg.max_streak:
-						stats['streak']['song'] = round.chart.tournament_name
-						stats['streak']['notes'] = ply_steg.max_streak
-						stats['streak']['screenshot'] = round.screenshot_full_url
-				rounds.append(ret_round)
+	@property
+	def matches_lost(self):
+		from .match import Match
+		return Match.objects.filter(players__player__user=self, loser__user=self)
 
-		stats['score'] = f"{stats['score']:,}"
-		if stats['match_wins'] + stats['match_loss'] > 0:
-			stats['match_percent'] = f"{(stats['match_wins'] / (stats['match_wins'] + stats['match_loss']) * 100):.2f}%"
-		else:
-			stats['match_percent'] = "0.0%"
+	@property
+	def matches_reffed(self):
+		from .match import Match
+		return Match.objects.filter(referee=self).count()
 
-		if stats['song_wins'] + stats['song_loss'] > 0:
-			stats['song_percent'] = f"{(stats['song_wins'] / (stats['song_wins'] + stats['song_loss']) * 100):.2f}%"
-		else:
-			stats['song_percent'] = "0.0%"
+	@property
+	def rounds(self):
+		from .match import MatchRound
+		return MatchRound.objects.filter(match__players__player__user=self)
 
-		if stats['notes_total'] > 0:
-			stats['notes_percent'] = f"{(stats['notes_hit'] / stats['notes_total'] * 100):.2f}%"
-		else:
-			stats['notes_percent'] = "0.0%"
+	@property
+	def rounds_won(self):
+		from .match import MatchRound
+		return MatchRound.objects.filter(match__players__player__user=self, winner__user=self)
 
-		if stats['phrases_total'] > 0:
-			stats['phrases_percent'] = f"{stats['phrases_hit'] / stats['phrases_total'] * 100:.2f}%"
-		else:
-			stats['phrases_percent'] = "0.0%"
+	@property
+	def round_win_percent(self):
+		return f"{(self.rounds_won.count() / (self.rounds_won.count() + self.rounds_lost.count()) * 100):2f}"
 
-		stats['phrases_hit'] = f"{stats['phrases_hit']:,}"
-		stats['phrases_total'] = f"{stats['phrases_total']:,}"
-		stats['songs_total'] = stats['song_wins'] + stats['song_loss']
-		if stats['songs_total'] > 0:
-			stats['miss_average'] = f"{(stats['notes_total'] - stats['notes_hit']) / stats['songs_total']:.1f}"
-			stats['ghosts_average'] = f"{stats['ghosts'] / stats['songs_total']:.1f}"
-		else:
-			stats['miss_average'] = "0.0"
-			stats['ghosts_average'] = "0.0"
+	@property
+	def rounds_lost(self):
+		from .match import MatchRound
+		return MatchRound.objects.filter(match__players__player__user=self, loser__user=self)
 
-		stats['notes_hit'] = f"{stats['notes_hit']:,}"
-		stats['notes_total'] = f"{stats['notes_total']:,}"
-		stats['streak']['notes'] = f"{stats['streak']['notes']:,}"
-		stats['rounds'] = rounds
-
-		stats["ch_names"] = []
-		for player in TournamentPlayer.objects.filter(user=user).order_by("-id"):
-			for name in player.ch_aliases:
-				if not name in stats['ch_names']:
-					stats['ch_names'].append(name)
-
-		return stats
+	@property
+	def match_bans(self):
+		from .match import MatchBan
+		return MatchBan.objects.filter(match__players__player__user=self)
 
 	@property
 	def avatar_dominate_color(self):
@@ -313,7 +258,7 @@ class DiscordUser(AbstractUser):
 
 			#Update banner if discord hash updated, and not manually uploaded
 			if self.banner == None or str(self.id) not in self.banner.name:
-				if not self.__accent_color:
+				if not self.__accent_color and self.__accent_color !=  0:
 					self.__accent_color = self.avatar_dominate_color
 					self.accent_color = self.__accent_color
 				if self.discord_banner:
@@ -328,7 +273,8 @@ class DiscordUser(AbstractUser):
 					if generated.count() > 0:
 						img = generated.first().banner
 					else:
-						print(f"Generating user {self.id} avatar from accent_color {self.__accent_color} HEX: {hex(self.__accent_color)[:8]}")
+						print(f"Generating user {self.id} banner {self.banner.name} from accent_color {self.__accent_color} HEX: {hex(self.__accent_color)[:8]}")
+						self.accent_color = self.__accent_color
 						buf = io.BytesIO()
 						img = Image.new("RGB", (512, 180), f"#{hex(self.__accent_color)[2:8].ljust(6, "0")}")
 						img.save(buf, format="PNG")
@@ -361,8 +307,6 @@ class DiscordUser(AbstractUser):
 			super().save()
 		except Exception:
 			print(traceback.format_exc())
-
-
 
 class DiscordToken(models.Model):
 	"""

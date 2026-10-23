@@ -101,7 +101,7 @@ def profile(request: HttpRequest, user_pk):
 	else:
 		user = get_object_or_404(DiscordUser, pk=user_pk)
 
-	context = { "user" : user, "guilds": TournamentGuilds(user), "logged_in_user" : logged_in_user(request), "stats" : user.career_stats, "users" : [] }
+	context = { "user" : user, "guilds": TournamentGuilds(user), "logged_in_user" : logged_in_user(request) }
 	return render(request, "profile.html", context=context)
 
 def match(request: HttpRequest, match_pk):
@@ -139,7 +139,6 @@ def tournament_view(request: HttpRequest, tournament_pk):
 	context = {
 		'logged_in_user' : logged_in_user(request),
 		'tournament' : tourney,
-		'stats' : tourney.tournament_stats
 	}
 	return render(request, "tournament.html", context=context)
 
@@ -160,6 +159,32 @@ def bracket_view(request: HttpRequest, tournament_pk, bracket_pk):
 
 	context = { 'logged_in_user' : logged_in_user(request), 'bracket' : bracket }
 	return render(request, "bracket.html", context=context)
+
+def group_view(request: HttpRequest, tournament_pk, bracket_pk, group_pk):
+	from corpoch.models import Tournament, Bracket, Group
+	if not tournament_pk or tournament_pk == "None":
+		return HttpResponse("Can't find a tournament if you don't provide one!", status=404)
+	else:
+		tournament = get_object_or_404(Tournament, short_name=tournament_pk)
+
+	if not bracket_pk or bracket_pk == "None":
+		return HttpResponse("Can't find a bracket if you don't provide one!", status=404)
+	else:
+		try:
+			bracket = Bracket.objects.get(tournament=tournament, name=bracket_pk)
+		except Bracket.DoesNotExist:
+			return Http404("Bracket found/valid")
+
+	if not group_pk or group_pk == "None":
+		return HttpResponse("Can't find a group if you don't provide one!", status=404)
+	else:
+		try:
+			group = Group.objects.get(bracket=bracket, name=group_pk)
+		except Group.DoesNotExist:
+			return Http404("Group not found/valid")
+
+	context = { 'logged_in_user' : logged_in_user(request), 'group' : group }
+	return render(request, "group.html", context=context)
 
 def livematches(request: HttpRequest):
 	from corpoch.models import Match, DiscordUser
