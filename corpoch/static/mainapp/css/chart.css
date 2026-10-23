@@ -11,9 +11,15 @@
     justify-content: center;
 }
 
-#chart-stats {
+#chart-play-stats {
     width: 45%;
     justify-content: center;
+}
+
+#chart-stats {
+    width: 95%;
+    justify-content: center;
+    padding-left: 5%;
 }
 
 #leaderboard-stats {

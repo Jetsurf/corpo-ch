@@ -11,8 +11,8 @@
 {% include 'partials/navbar.html' %}
 <!--- Discord OpenGraph Embed --->
 <meta content="{{match.high_seed}} vs {{match.low_seed}}&#10" property="og:title">
-<meta content="Bracket - Group: {{match.group.bracket.short_name}} - {{match.group.name}}&#10;Rounds: {{rounds|length}}&#10;Winner: {{match.winner}}&#10;Loser: {{match.loser}}" property="og:description">
-<meta content="https://{{request.get_host}}/match/{{match.id}}" property="og:url">
+<meta content="Tournament: {{match.tournament.short_name}}&#10;Bracket: {{match.bracket.name}}&#10;Group: {{match.group.name}}&#10;Rounds: {{match.rounds.count}}&#10;Score: {{match.score}}&#10;{% if match.winner %}Winner: {{match.winner}}&#10;Loser: {{match.loser}}&#10;{% endif %}" property="og:description">
+<meta content="{% url 'match' match.id %}" property="og:url">
 
 <div id="main">
 	<div class="w3-cell w3-container", id="match-stats">

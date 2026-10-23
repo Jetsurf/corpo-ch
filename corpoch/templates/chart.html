@@ -13,9 +13,9 @@
 {% include 'partials/navbar.html' %}
 <!--- Discord Embed for URL hotlinks --->
 <meta content="{{chart.tournament_name}}&#10;Tournament Chart" property="og:title">
-<meta content="Matches Played: {{stats.total_plays}}&#10;Total Bans: {{stats.total_bans}}" property="og:description">
-<meta content="https://{{request.get_host}}/chart/{{chart.id}}" property="og:url">
-{% if chart.icon %}<meta content="https://{{request.get_host}}{{chart.icon.img.url}}" property="og:image">{% endif %}
+<meta content="Rounds Played: {{chart.rounds.count}}&#10;Matches Banned: {{chart.bans.count}}&#10;Total Score: {{chart.stats.score|intcomma}}&#10;Notes Hit: {{chart.stats.notes_hit_percent|floatformat:2}}%" property="og:description">
+<meta content="{% url 'chart' chart.id %}" property="og:url">
+{% if chart.icon %}<meta content="{{chart.icon.img.url}}" property="og:image">{% endif %}
 
 <html>
 <body>
@@ -37,27 +37,51 @@
 			</table>
 		</section>
 	</div>
-	<div class="w3-cell w3-container", id="chart-stats">
-		<section id="chart" class="status">
-			<h2>Stats</h2>
+	<div class="w3-cell w3-container", id="chart-play-stats">
+		<section id="stats" class="status">
+			<h2>Play Stats</h2>
 			<hr>
 			<table class="table table-striped table-hover table-bordered">
 				<tbody>
-					<tr><td>Tournaments Used In</td><td> - </td></tr>
-					<tr><td>Brackets(?)</td><td> - </td></tr>
-					<tr><td>Matches Played</td><td>{{stats.total_plays}}</td></tr>
-					<tr><td>Matches Banned</td><td>{{stats.total_bans}}</td></tr>
-					<!--- Saves? --->
-					<tr><td>Average Misses/% Hit</td><td> - </td></tr>
-					<tr><td>Download (CH 1.1 ONLY)</td><td><a href="https://{{request.get_host}}{{chart.sngfile.url}}">.SNG Link</a></td></tr>
+					<tr><td>Matches Played</td><td>{{chart.rounds.count}}</td></tr>
+					<tr><td>Matches Banned</td><td>{{chart.bans.count}}</td></tr>
+					<tr><td>Notes Hit/Total - Miss Average</td><td>{{chart.stats.notes_hit|intcomma}}/{{chart.stats.total_notes|intcomma}} ({{chart.stats.notes_hit_percent|floatformat:2}}%) - {% widthratio chart.stats.notes_missed chart.rounds.count 1 %}</td></tr><!--- Widthratio here divides --->
+					<tr><td>Total Ghosts - Average</td><td>{{chart.stats.frets_ghosted|intcomma}} - {% widthratio chart.stats.frets_ghosted chart.rounds.count 1 %}</td></tr>
+					<tr><td>SP Earned/Total</td><td>{{chart.stats.sp_phrases_hit|intcomma}}/{{chart.stats.sp_phrases_total|intcomma}} ({{chart.stats.sp_phrases_hit_percent}})</td></tr>
+					<tr><td>Total Score</td><td>{{chart.stats.score|intcomma}}</td></tr>
+					<tr><td><img class="fc-img" src="{% static  'fc.png' %}" width="28" height="28"/> FC's</td><td>{{chart.stats.fcs}}</td></tr>
 				</tbody>
 			</table>
 		</section>
 	</div>
 </div>
+<div class="w3-cell w3-container", id="chart-stats">
+	<section id="chart" class="status">
+		<h2>Info</h2>
+		<hr>
+		<table class="table table-striped table-hover table-bordered">
+			<tbody>
+				<tr><td>Brackets Used-In</td><td> 
+					{% if chart.brackets.count > 0 %}
+					{% for bracket in chart.brackets.all %}
+						<a href="{% url 'tournament' bracket.tournament.short_name %}">{{bracket.tournament.short_name}}
+						</a> - 
+						<a href="/tournament/{{bracket.tournament.short_name}}/{{bracket.name}}">{{bracket.name}}<br>
+						</a>
+					{% endfor %}
+					{% else %}
+					-
+					{% endif %}
+				</td></tr>
+				<!--- Saves? --->
+				<tr><td>Download (CH 1.1 ONLY)</td><td><a href="{{chart.sngfile.url}}">.SNG Link</a></td></tr>
+			</tbody>
+		</table>
+	</section>
+</div>
 <div class="w3-cell w3-container" id="leaderboard-stats">
 	<section id="leaderboard" class="status">
-		<h2>Match Leaderboard</h2>
+		<h2>Leaderboard</h2>
 		<hr>
 		<table class="table table-striped table-hover table-bordered">
 			<thead>
@@ -72,8 +96,13 @@
 			<tbody>
 				{% for round in stats.rounds_played %}
 				<tr>
-					<td><a href="https://{{request.get_host}}/profile/{{round.player.user.id}}">{{round.player.user}}</a></td>
-					<td><a href="https://{{request.get_host}}/match/{{round.round.match.id}}">{{round.round.match}}</a></td>
+					<td><a href="{% url 'profile' round.player.user.id %}">{{round.player.user}}</a></td>
+					<td>
+						<a href="/tournament/{{round.round.match.tournament.short_name}}">{{round.round.match.tournament.short_name}}</a> -
+						<a href="/tournament/{{round.round.match.tournament.short_name}}/{{round.round.match.bracket.name}}">{{round.round.match.bracket.name}}</a> - 
+						<a href="/tournament/{{round.round.match.tournament.short_name}}/{{round.round.match.bracket.name}}/{{round.round.match.group.name}}">{{round.round.match.group.name}}</a> - 
+						<a href="/match/{{round.round.match.id}}">{{round.round.match.short_name}}</a>
+					</td>
 					<td>{% if round.round.screenshot %}<a href="/match/{{round.round.match.id}}/{{round.round.id}}"><button onclick="window.location.href='/match/{{round.round.match.id}}/{{round.round.id}}'" class="btn btn-dark">{{round.round.num}}</button></a>{% else %}In-Progress{% endif %}</td>
 					<td>{{round.steg.score|intcomma}}</td>
 					<td>{{round.steg.notes_hit|intcomma}}/{{round.steg.total_notes|intcomma}} {{round.hit_percent}}</td>

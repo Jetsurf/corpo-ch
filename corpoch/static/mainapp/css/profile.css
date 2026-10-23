@@ -1,0 +1,27 @@
+#main {
+    display: flex;
+    justify-content: center;
+    overflow: visible;
+    flex-direction: row;
+    padding-top: 3vh;
+}
+
+#user {
+    width: 30%;
+    justify-content: center;
+    padding-top: 2vh;
+}
+
+#user-stats {
+    width: 60%;
+}
+
+#tournament-stats {
+    width: 95%;
+    padding-left: 5%;
+}
+
+#match-rounds {
+    width: 95%;
+    padding-left: 5%;
+}

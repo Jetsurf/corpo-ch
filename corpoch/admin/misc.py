@@ -22,13 +22,6 @@ class DiscordUserAdmin(admin.ModelAdmin):
 	search_fields = ['id', "global_name"]
 	actions = ['update_discord_user']
 
-	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
-
-	def get_formset(self, request, obj=None, **kwargs):
-		formset = super().get_formset(request, obj, **kwargs)
-		formset.form.base_fields['stats'].disabled = True
-		return formset
-
 	def _id(self, obj):
 		return str(obj.id)
 

@@ -152,6 +152,15 @@ class DiscordUser(AbstractUser):
 		return MatchBan.objects.filter(match__players__player__user=self)
 
 	@property
+	def ch_aliases(self):
+		ret_aliases = []
+		for player in self.tournaments.all():
+			for alias in player.ch_aliases:
+				if alias not in ret_aliases:
+					ret_aliases.append(alias)
+		return ret_aliases
+
+	@property
 	def latest_matches(self):
 		#Return only latest 3 rounds
 		queryset = self.matches.order_by("ended_on")
@@ -233,80 +242,78 @@ class DiscordUser(AbstractUser):
 		return self.discord_banner.split("/")[5].split(".")[0]
 
 	def save(self, *args, **kwargs):
-
 		if not self.discord_avatar:
 			return # Break early as user object is only partial
 
-		#This function uses the internal __accent_color as a check to prevent discord users leaving it auto-set, forcing none here
+		#This function uses the internal __accent_color as a check to prevent discord users leaving it auto-set
+		# - This leaves it none coming from the API
 
 		#User changed/set discord accent color, set now before updates
 		if self.accent_color != None and self.accent_color != self.__accent_color:
 			self.__accent_color = self.accent_color
 
-		try:
-			#Update avatar if discord hash updated, and not manually uploaded
-			if self.avatar == None or str(self.id) not in self.avatar.name:
-				if self.avatar and self.discord_avatar_hash not in self.avatar.name and str(self.id) not in self.avatar.name:
-					pass
-				elif not self.avatar or not self.discord_avatar_hash in self.avatar.name:
-					print(f"Updating {self.id} avatar {self.discord_avatar}")
-					response = requests.get(self.discord_avatar, data=None, headers={'User-Agent': "corpoch"}, stream=True)
-					self.avatar = File(io.BytesIO(response.content), "discord.png")
+		#Update avatar if discord hash updated, and not manually uploaded
+		if self.avatar == None or str(self.id) not in self.avatar.name:
+			if self.avatar and self.discord_avatar_hash not in self.avatar.name and str(self.id) not in self.avatar.name:
+				pass
+			elif not self.avatar or not self.discord_avatar_hash in self.avatar.name:
+				print(f"Updating {self.id} avatar {self.discord_avatar}")
+				response = requests.get(self.discord_avatar, data=None, headers={'User-Agent': "corpoch"}, stream=True)
+				self.avatar = File(io.BytesIO(response.content), "discord.png")
 
-				if not self.accent_color:
-					self.__accent_color = self.avatar_dominate_color
+			if not self.accent_color:
+				self.__accent_color = self.avatar_dominate_color
 
-			#Update banner if discord hash updated, and not manually uploaded
-			if self.banner == None or str(self.id) not in self.banner.name:
-				if not self.__accent_color and self.__accent_color !=  0:
-					self.__accent_color = self.avatar_dominate_color
-					self.accent_color = self.__accent_color
-				if self.discord_banner:
-					if not self.banner or not self.discord_banner_hash in self.banner.name:
-						print(f"Updating {self.id} banner {self.discord_banner}")
-						response = requests.get(self.discord_banner, data=None, headers={'User-Agent': "corpoch"}, stream=True)
-						self.banner = File(io.BytesIO(response.content), "discord.png")
-					else:
-						pass #Don't trigger below
-				elif self.banner == None or str(self.__accent_color) not in self.banner.name:
-					generated = DiscordUser.objects.filter(banner__contains=self.__accent_color)
-					if generated.count() > 0:
-						img = generated.first().banner
-					else:
-						print(f"Generating user {self.id} banner {self.banner.name} from accent_color {self.__accent_color} HEX: {hex(self.__accent_color)[:8]}")
-						self.accent_color = self.__accent_color
-						buf = io.BytesIO()
-						img = Image.new("RGB", (512, 180), f"#{hex(self.__accent_color)[2:8].ljust(6, "0")}")
-						img.save(buf, format="PNG")
-						img = File(buf, "accent.png")
-					self.banner = img
-
-			if self.primary_guild and not isinstance(self.primary_guild, int): #Is update from oauth or dbot bot_task
-				if not self.tag or self.primary_guild.identity_guild_id != self.tag.id or self.primary_guild.badge.key != self.tag.tag_hash: #Tag changed guilds
-					print(f"Updating tag for {self.id}")
-					try:
-						existing = DiscordTag.objects.get(id=self.primary_guild.identity_guild_id)
-					except DiscordTag.DoesNotExist:
-						print(f"No existing tag for guild {self.primary_guild.identity_guild_id}")
-						existing = DiscordTag(id=self.primary_guild.identity_guild_id)
-						existing.badge = self.primary_guild.badge.url
-						existing.tag = self.primary_guild.tag
-						existing.save()
-
-					if existing.tag_hash not in self.primary_guild.badge.key or existing.tag != self.primary_guild.tag:
-						print(f"Tag changed {self.primary_guild.identity_guild_id}")
-						existing.badge = self.primary_guild.badge.url
-						existing.tag = self.primary_guild.tag
-						existing.save()
-
-					self.tag = existing
-
-			if self.accent_color == None and self.__accent_color != None:
+		#Update banner if discord hash updated, and not manually uploaded
+		if self.banner == None or str(self.id) not in self.banner.name:
+			if not self.__accent_color and self.__accent_color !=  0:
+				self.__accent_color = self.avatar_dominate_color
 				self.accent_color = self.__accent_color
+			if self.discord_banner:
+				if not self.banner or not self.discord_banner_hash in self.banner.name:
+					print(f"Updating {self.id} banner {self.discord_banner}")
+					response = requests.get(self.discord_banner, data=None, headers={'User-Agent': "corpoch"}, stream=True)
+					self.banner = File(io.BytesIO(response.content), "discord.png")
+				else:
+					pass #Don't trigger below
+			elif self.banner == None or str(self.__accent_color) not in self.banner.name:
+				generated = DiscordUser.objects.filter(banner__contains=self.__accent_color)
+				if generated.count() > 0:
+					img = generated.first().banner
+				else:
+					print(f"Generating user {self.id} banner {self.banner.name} from accent_color {self.__accent_color} HEX: {hex(self.__accent_color)[:8]}")
+					self.accent_color = self.__accent_color
+					buf = io.BytesIO()
+					img = Image.new("RGB", (512, 180), f"#{hex(self.__accent_color)[2:8].ljust(6, "0")}")
+					img.save(buf, format="PNG")
+					img = File(buf, "accent.png")
+				self.banner = img
 
-			super().save()
-		except Exception:
-			print(traceback.format_exc())
+		if self.primary_guild and not isinstance(self.primary_guild, int): #Is update from oauth or dbot bot_task
+			if not self.tag or self.primary_guild.identity_guild_id != self.tag.id or self.primary_guild.badge.key != self.tag.tag_hash: #Tag changed guilds
+				print(f"Updating tag for {self.id}")
+				try:
+					existing = DiscordTag.objects.get(id=self.primary_guild.identity_guild_id)
+				except DiscordTag.DoesNotExist:
+					print(f"No existing tag for guild {self.primary_guild.identity_guild_id}")
+					existing = DiscordTag(id=self.primary_guild.identity_guild_id)
+					existing.badge = self.primary_guild.badge.url
+					existing.tag = self.primary_guild.tag
+					existing.save()
+
+				if existing.tag_hash not in self.primary_guild.badge.key or existing.tag != self.primary_guild.tag:
+					print(f"Tag changed {self.primary_guild.identity_guild_id}")
+					existing.badge = self.primary_guild.badge.url
+					existing.tag = self.primary_guild.tag
+					existing.save()
+
+				self.tag = existing
+
+		#Force color to one we set to keep it from being set to None
+		if self.accent_color == None and self.__accent_color != None:
+			self.accent_color = self.__accent_color
+
+		super().save()
 
 class DiscordToken(models.Model):
 	"""

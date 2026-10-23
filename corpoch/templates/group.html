@@ -11,10 +11,9 @@
 {% block content %}
 {% include 'partials/navbar.html' %}
 <!--- Discord Embed for URL hotlinks --->
-<meta content="{{group.tournament.short_name}} {{group.bracket.name}} {{group.name}}&#10;Group Stats" property="og:title">
-<meta content="Players: {{group.seeding.count}}&#10;Matches Played: {{group.matches.count}}&#10;Songs Played: {{group.rounds.count}}" property="og:description">
-<meta content="https://{{request.get_host}}/tournament/{{group.tournament.short_name}}/{{group.bracket.name}}/{{group.name}}" property="og:url">
-<!---{% if tournament.guild.icon %}<meta content="https://{{request.get_host}}{{tournament.guild.icon}}" property="og:image">{% endif %} needs local copy --->
+<meta content="{{group.tournament.short_name}} - {{group.bracket.name}} - {{group.name}}&#10;Group Stats" property="og:title">
+<meta content="Players: {{group.seeding.count}}&#10;Matches Played: {{group.matches.count}}&#10;Rounds Played: {{group.rounds.count}}&#10;Total Score: {{group.stats.score|intcomma}}&#10;Notes Hit: {{group.stats.notes_hit_percent|floatformat:2}}%" property="og:description">
+<meta content="/tournament/{{group.tournament.short_name}}/{{group.bracket.name}}/{{group.name}}" property="og:url">
 
 <html>
 <body>
@@ -25,8 +24,8 @@
 			<hr>
 			<table class="table table-striped table-hover table-bordered">
 				<tbody>
-					<tr><td>Tournament</td><td><a href="https://{{request.get_host}}/tournament/{{group.tournament.short_name}}">{{group.tournament}}</a></td></tr>
-					<tr><td>Bracket</td><td><a href="https://{{request.get_host}}/tournament/{{group.tournament.short_name}}/{{group.bracket.name}}">{{group.bracket.name}}</a></td></tr>
+					<tr><td>Tournament</td><td><a href="{% url 'tournament' group.tournament.short_name %}">{{group.tournament}}</a></td></tr>
+					<tr><td>Bracket</td><td><a href="/tournament/{{group.tournament.short_name}}/{{group.bracket.name}}">{{group.bracket.name}}</a></td></tr>
 					<tr><td>Players</td><td>{{group.seeding.count|intcomma}}</td></tr>
 					<tr><td>Matches</td><td>{{group.matches.count|intcomma}}</td></tr>
 					<tr><td>Songs Played</td><td>{{group.rounds.count|intcomma}}</td></tr>
@@ -42,15 +41,17 @@
 			<table class="table table-striped table-hover table-bordered">
 				<tbody>
 					<tr><td>Notes Hit/Total - Miss Average</td><td>{{group.stats.notes_hit|intcomma}}/{{group.stats.total_notes|intcomma}} ({{group.stats.notes_hit_percent|floatformat:2}}%) - {% widthratio group.stats.notes_missed group.rounds.count 1 %}</td></tr><!--- Widthratio here divides --->
+					<tr><td>Excess Hits (Overstrums)</td><td>{{group.stats.excess_hits}}</td></tr>
 					<tr><td>Total Ghosts - Average</td><td>{{group.stats.frets_ghosted|intcomma}} - {% widthratio group.stats.frets_ghosted group.rounds.count 1 %}</td></tr>
 					<tr><td>SP Earned/Total</td><td>{{group.stats.sp_phrases_hit|intcomma}}/{{group.stats.sp_phrases_total|intcomma}} ({{group.stats.sp_phrases_hit_percent}})</td></tr>
 					<tr><td>Total Score</td><td>{{group.stats.score|intcomma}}</td></tr>
-					<tr><td><!---<img src="{% static  'fc.png' %}" width="24" height="24"/>--->FC's</td><td>{{group.stats.fcs}}</td></tr>
+					<tr><td><img class="fc-img" src="{% static  'fc.png' %}" width="28" height="28"/> FC's</td><td>{{group.stats.fcs}}</td></tr>
 				</tbody>
 			</table>
 		</section>
 	</div>
 </div>
+{% if group.bracket.seeding_revealed %}
 <div class="w3-cell w3-container" id="group-seeding">
 	<section id="seeding" class="status">
 		<h2>Group Seeding</h2>
@@ -60,15 +61,15 @@
 				<tr>
 					<th>Seed</th>
 					<th>User</th>
-					<th>Player CH Name</th>
-					<th>Match Stats W/L</th>
+					<th>CH Name</th>
+					<th>Match W/L</th>
 				</tr>
 			</thead>
 			<tbody>
 				{% for seed in group.seeding.all %}
 				<tr>
 					<td>{{seed.seed}}</td>
-					<td><a href="https://{{request.get_host}}/profile/{{seed.player.user.id}}">{{seed.player.user.global_name}}</a></td>
+					<td><a href="{% url 'profile' seed.player.user.id %}">{{seed.player.user.global_name}}</a></td>
 					<td>{{seed.player.ch_name}}</td>
 					<td>{{seed.player.matches_won.count}}/{{seed.player.matches_lost.count}}</td>
 				</tr>
@@ -79,8 +80,7 @@
 </div>
 </body>
 </html>
-
-<!---  --->
+{% endif %}
 {% endblock %}
 {% block js%}
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>

@@ -199,6 +199,10 @@ def process_matches():
 			match.group.stats.update_stats(round.low_seed_steg)
 			match.group.save()
 			#Using it with deep references breaks? Works with this level :shrug:
+			chart = round.chart
+			chart.stats.update_stats(round.high_seed_steg)
+			chart.stats.update_stats(round.low_seed_steg)
+			chart.save()
 			player = TournamentPlayer.objects.get(id=match.high_seed.player.id)
 			user = DiscordUser.objects.get(id=match.high_seed.player.user.id)
 			player.stats.update_stats(round.high_seed_steg)

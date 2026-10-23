@@ -48,4 +48,23 @@ class Migration(migrations.Migration):
             name='stats',
             field=django_pydantic_field.fields.PydanticSchemaField(config=None, default=corpoch.types.Stats, encoder=django.core.serializers.json.DjangoJSONEncoder, help_text='Player stats for all matches', schema=corpoch.types.Stats, verbose_name='Player Stats'),
         ),
+        migrations.AlterModelOptions(
+            name='chart',
+            options={'ordering': ['-id'], 'verbose_name': 'Chart', 'verbose_name_plural': 'Charts'},
+        ),
+        migrations.AddField(
+            model_name='bracket',
+            name='seeding_revealed',
+            field=models.BooleanField(default=False, help_text='Is the seeding for the groups in this bracket revealed.', verbose_name='Seeding Revealed'),
+        ),
+        migrations.AddField(
+            model_name='chart',
+            name='stats',
+            field=django_pydantic_field.fields.PydanticSchemaField(config=None, default=corpoch.types.Stats, encoder=django.core.serializers.json.DjangoJSONEncoder, help_text='Chart stats for all matches', schema=corpoch.types.Stats, verbose_name='Chart Stats'),
+        ),
+        migrations.AlterField(
+            model_name='bracket',
+            name='seeding_revealed',
+            field=models.BooleanField(default=True, help_text='Is the seeding for the groups in this bracket revealed.', verbose_name='Seeding Revealed'),
+        ),
     ]

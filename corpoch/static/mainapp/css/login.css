@@ -37,16 +37,8 @@ hr {
     overflow: visible;
 }
 
-#user {
-    width: 25%;
-}
-
-#tournaments {
-    width: 40%;
-}
-
-#user-stats {
-    width: 40%;
+.fc-img {
+    border: 0;
 }
 
 .card {

@@ -90,6 +90,7 @@ class Bracket(models.Model):
 	score_log = models.ForeignKey("dbot.Channels", verbose_name="Score Log Channel", on_delete=models.SET_NULL, null=True, blank=True)
 	is_active = models.BooleanField(verbose_name="Bracket Active", default=False, help_text="Is bracket active/matches are allowed to start.")
 	revealed = models.BooleanField("Setlist Revealed", default=False, help_text="Is the setlist revealed. If True, the charts for a setlist are made available.")
+	seeding_revealed = models.BooleanField("Seeding Revealed", default=True, help_text="Is the seeding for the groups in this bracket revealed.")
 	role = models.ForeignKey("dbot.Roles", verbose_name="Bracket Role", null=True, on_delete=models.SET_NULL, blank=True, db_index=True, help_text="Discord role to assign to players in this bracket.")
 	stats = SchemaField(Stats, verbose_name="Bracket Stats", default=Stats, help_text="Bracket stats for all matches")
 
@@ -336,7 +337,7 @@ class TournamentPlayer(models.Model):
 		#Do not fail on space, capitalization, or bracket differences
 		to_check = name_to_find.replace(' ', '').replace('(', '[').replace(')', ']').capitalize()
 		for name in self.config.names_list:
-			if str(name).replace(' ', '').replace('(', '[').replace(')', ']').capitalize() == to_check:
+			if str(name.ch_name).replace(' ', '').replace('(', '[').replace(')', ']').capitalize() == to_check:
 				return True
 
 		return False

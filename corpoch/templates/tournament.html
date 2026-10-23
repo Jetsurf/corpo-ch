@@ -12,8 +12,8 @@
 {% include 'partials/navbar.html' %}
 <!--- Discord Embed for URL hotlinks --->
 <meta content="{{tournament.short_name}}&#10;Tournament Stats" property="og:title">
-<meta content="Active Players: {{stats.active_players}}&#10;Matches: {{stats.matches}}&#10;Songs Played: {{stats.songs}}" property="og:description">
-<meta content="https://{{request.get_host}}/tournament/{{tournament.id}}" property="og:url">
+<meta content="Active/Total Players: {{tournament.active_players.count}}/{{tournament.players.count}}&#10;Matches: {{tournament.matches.count}}&#10;Rounds Played: {{tournament.rounds.count}}&#10;Total Score: {{tournament.stats.score|intcomma}}&#10;Notes Hit: {{tournament.stats.notes_hit|intcomma}} {{tournament.stats.notes_hit_percent|floatformat:2}}%" property="og:description">
+<meta content="{% url 'tournament' tournament.short_name %}" property="og:url">
 <!---{% if tournament.guild.icon %}<meta content="https://{{request.get_host}}{{tournament.guild.icon}}" property="og:image">{% endif %} needs local copy --->
 
 <html>
@@ -44,6 +44,7 @@
 			<table class="table table-striped table-hover table-bordered">
 				<tbody>
 					<tr><td>Notes Hit/Total - Miss Average</td><td>{{tournament.stats.notes_hit|intcomma}}/{{tournament.stats.total_notes|intcomma}} ({{tournament.stats.notes_hit_percent|floatformat:2}}%) - {% widthratio tournament.stats.notes_missed tournament.rounds.count 1 %}</td></tr><!--- Widthratio here divides --->
+					<tr><td>Excess Hits (Overstrums)</td><td>{{tournament.stats.excess_hits|intcomma}}</td></tr>
 					<tr><td>Total Ghosts - Average</td><td>{{tournament.stats.frets_ghosted|intcomma}} - {% widthratio tournament.stats.frets_ghosted tournament.rounds.count 1 %}</td></tr>
 					<tr><td>SP Earned/Total</td><td>{{tournament.stats.sp_phrases_hit|intcomma}}/{{tournament.stats.sp_phrases_total|intcomma}} ({{tournament.stats.sp_phrases_hit_percent}})</td></tr>
 					<tr><td>Total Score</td><td>{{tournament.stats.score|intcomma}}</td></tr>

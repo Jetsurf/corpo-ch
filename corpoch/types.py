@@ -85,6 +85,7 @@ class Stats(pydantic.BaseModel):
 	total_notes : int = 0
 	notes_missed : int = 0
 	notes_hit : int = 0
+	excess_hits : int = 0
 	frets_ghosted : int = 0
 	sp_phrases_hit : int = 0
 	sp_phrases_total : int = 0
@@ -137,6 +138,7 @@ class Stats(pydantic.BaseModel):
 
 		self.total_notes += player_steg.total_notes
 		self.notes_missed += player_steg.notes_missed
+		self.excess_hits += player_steg.excess_hits
 		self.notes_hit += player_steg.notes_hit
 		self.frets_ghosted += player_steg.frets_ghosted
 		self.sp_phrases_hit += player_steg.sp_phrases_earned

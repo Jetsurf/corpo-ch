@@ -136,10 +136,7 @@ def tournament_view(request: HttpRequest, tournament_pk):
 	else:
 		tourney = get_object_or_404(Tournament, short_name=tournament_pk)
 
-	context = {
-		'logged_in_user' : logged_in_user(request),
-		'tournament' : tourney,
-	}
+	context = {	'logged_in_user' : logged_in_user(request),	'tournament' : tourney,	}
 	return render(request, "tournament.html", context=context)
 
 def bracket_view(request: HttpRequest, tournament_pk, bracket_pk):
@@ -219,16 +216,23 @@ def update_livematches(request: HttpRequest):
 	})
 
 def update_search(request: HttpRequest):
-	from corpoch.models import DiscordUser, Chart
+	from corpoch.models import DiscordUser, Chart, Tournament
 	search = request.GET.get('search', '')
-	if len(search) < 3:
-		return render(request, 'partials/search-partial.html', { 'users' : DiscordUser.objects.none(), "charts" : DiscordUser.objects.none(), "count" : 0 })
-	
-	users = DiscordUser.objects.filter(global_name__icontains=search)
-	charts = Chart.objects.filter(name__icontains=search)
+	context = {
+		'users' : DiscordUser.objects.none(),
+		'charts' : DiscordUser.objects.none(),
+		'tournaments': Tournament.objects.none(),
+		'count' : 0
+	}
 
-	search_count = users.count() + charts.count()
-	return render(request, 'partials/search-partial.html', { 'users' : users, 'charts' : charts , "count" : search_count })
+	if len(search) < 3:
+		return render(request, 'partials/search-partial.html', context=context)
+	
+	context['users'] = DiscordUser.objects.filter(global_name__icontains=search)
+	context['charts'] = Chart.objects.filter(name__icontains=search)
+	context['tournaments'] = Tournament.objects.filter(short_name__icontains=search)
+	context['count'] = context['users'].count() + context['charts'].count() + context['tournaments'].count()
+	return render(request, 'partials/search-partial.html', context=context)
 
 def privterms(request: HttpRequest):
 	return render(request, 'privterms.html', context={'logged_in_user' : logged_in_user(request)})
@@ -320,6 +324,10 @@ class Guild:
 	@property
 	def player(self):
 		return self.__player
+
+	@property
+	def guild_name(self):
+		return self.__guild.name
 
 	@property
 	def match_stats(self):

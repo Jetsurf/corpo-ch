@@ -30,12 +30,6 @@ class TournamentAdmin(admin.ModelAdmin):
 	list_display = ('name', 'guild', 'active')
 	inlines = [TournamentConfigInline]
 	actions = ['set_tournament_role', 'set_players_active', 'regen_player_list_gsheet']
-	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
-
-	def get_formset(self, request, obj=None, **kwargs):
-		formset = super().get_formset(request, obj, **kwargs)
-		formset.form.base_fields['stats'].disabled = True
-		return formset
 
 	def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
 		if db_field.name == "role":
@@ -103,12 +97,6 @@ class BracketAdmin(admin.ModelAdmin):
 	list_filter = ['tournament']
 	inlines = [BracketRulesInline]
 	actions = ['set_bracket_role']
-	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
-
-	def get_formset(self, request, obj=None, **kwargs):
-		formset = super().get_formset(request, obj, **kwargs)
-		formset.form.base_fields['stats'].disabled = True
-		return formset
 
 	def _name(self, obj):
 		return f"{obj}"
@@ -297,12 +285,6 @@ class GroupAdmin(SortableAdminBase, admin.ModelAdmin):
 	search_fields = ('bracket',)
 	list_per_page = 32
 	actions = ['set_group_role']
-	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
-
-	def get_formset(self, request, obj=None, **kwargs):
-		formset = super().get_formset(request, obj, **kwargs)
-		formset.form.base_fields['stats'].disabled = True
-		return formset
 
 	def tournament(self, obj):
 		return obj.bracket.tournament.short_name

@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from corpoch.models import Tournament, Bracket, Group, TournamentPlayer, DiscordUser, Match
+from corpoch.models import Tournament, Bracket, Group, TournamentPlayer, DiscordUser, Match, Chart
 from corpoch.types import Stats
 
 class Command(BaseCommand):
@@ -17,6 +17,11 @@ class Command(BaseCommand):
         for group in Group.objects.all():
             group.stats = Stats()
             group.save()
+
+        for chart in Chart.objects.all():
+            chart.processed = False
+            chart.stats = Stats()
+            chart.save()
 
         for player in TournamentPlayer.objects.all():
             player.stats = Stats()
