@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load humanize %}
 {% block title %}Home{% endblock %}
 {% block style %} 
 {{ block.super }}
@@ -8,37 +9,64 @@
 {% block body %}data-spy="scroll" data-target=".navbar" data-offset="50"{% endblock %}
 {% block content %}
 {% include 'partials/navbar.html' %}
-	<br><br>
+<div id="main">
 	<div class="container" style="padding-top: 3vh;">
 		<div class="jumbotron">
-			<h1><strong id="Corpo">Corpo</strong></h1>
-			<div id="Corpo">
-				<p> Corpo is a Clone Hero tournament organizier tool used to assist with a lot of tasks involved in running one.
-
-				This page will eventually have more information from Tournaments past and on-going.</p>
+			<h1><strong id="Corpo CH">Corpo</strong></h1>
+			<div id="stats">
+				<p>Corpo is a Clone Hero tournament organizer and stats collector. For tournaments it's used in, it pulls all play stats from screenshots.</p>
+				<p>All of the data collected is then aggregated and made easily findable through this site or the API.</p>
 			</div>
-			<div id="Bot">
-				<h4>Corpo Discord Bot</h4>
-				<blockquote cite="https://discord.com/oauth2/authorize?client_id=1381816611086012456">
-					<a href="https://discord.com/oauth2/authorize?client_id=1381816611086012456" target="_blank">The Corpo Discord Bot</a> is a component of Corpo that handles matches, qualifiers, screenshot collection, and CHOpt/Hydra path generation. 
-				</blockquote>
-				<h6>/qualifier</h6>
-				<p>Provides information on a running qualifier for a Discord Guild (Download links, forms, etc). Allows for submitting a qualifier screenshot to enter a tournament, and shows previous submissions.</p>
-				<h6>/ch path</h6>
-				<p>Will generate a <a href="https://github.com/GenericMadScientist/CHOpt">CHOpt</a> or <a href="https://github.com/DragonDelgar/hydra">Hydra</a> (for Drums) path for either a chart listed on <a href="https://www.enchor.us/">Encore</a> or from a tournament's setlist (only ones the bot has ran for now)</p>
-				<h6>CH Steg - <a href="https://github.com/GenericMadScientist/CH-Steg-Reader">Github</a></h6>
-				<p>This command can be ran by right clicking a discord message, selecting "Apps" and then this command. If the discord message has a valid Clone Hero in-game screenshot attached to it, a readout of the play stats will be sent to the channel.</p>
-				<h6>Discord User Installation</h6>
-				<p>In the link above to install the bot, if you select "User Install", this will make the /ch path and "CH Steg" available in other servers/channels/DMs.
+			<br>
+			<div id="stats">
+				<h4>Total Stats</h4>
+				<table class="table table-striped table-hover table-bordered" id="stats-table">
+					<tbody>
+						<tr><td>Tracked Matches</td><td>{{matches|intcomma}}</td></tr>
+						<tr><td>Tracked Rounds</td><td>{{rounds|intcomma}}</td></tr>
+						<tr><td>Notes Hit/Total</td><td>{{stats.notes_hit|intcomma}}/{{stats.total_notes|intcomma}} ({{stats.notes_hit_percent|floatformat:2}}%)</td></tr>
+						<tr><td>Excess Hits (Overstrums)</td><td>{{stats.excess_hits|intcomma}}</td></tr>
+						<tr><td>Ghosts</td><td>{{stats.frets_ghosted|intcomma}}</td></tr>
+						<tr><td>SP Earned/Total</td><td>{{stats.sp_phrases_earned|intcomma}}/{{stats.sp_phrases_total|intcomma}} ({{stats.sp_phrases_earned_percent}}%)</td></tr>
+						<tr><td>Total Score</td><td>{{stats.score|intcomma}}</td></tr>
+						<tr><td><img class="fc-img" src="{% static 'fc.png' %}" width="28" height="28"/> FC's</td><td>{{stats.fcs}}</td></tr>
+						<tr><td><img class="fc-img" src="{% static 'pfcd.png' %}" width="28" height="28"/>/<img class="fc-img" src="{% static 'pfcg.png' %}" width="28" height="28"/> PFC's</td><td>{{stats.pfcs}}</td></tr>
+					</tbody>
+				</table>
 			</div>
+			<br>
+			<br>
+			<div id="tournaments">
+				<h4>Tracked Tournaments</h4>
+				<table class="table table-striped table-hover table-bordered" id="tournaments-table">
+					<thead>
+						<tr>
+							<th>Tournament</th>
+							<th>Discord Server</th>
+							<th>Joinable</th>
+							<th>In-Progress</th>
+						</tr>
+					</thead>
+					<tbody>
+						{% for tournament in tournaments %}
+						<tr>
+							<td><span><a href="{% url 'tournament' tournament.short_name %}">{{tournament}}</a></span></td>
+							<td>{{tournament.guild.name}}</td>
+							<td><i {% if tournament.qualifier_active %} class="text-success text-center fas fa-check" {% else %} class="text-danger text-center fas fa-times" {% endif %}></i></td>
+							<td><i {% if tournament.active %} class="text-success text-center fas fa-check" {% else %} class="text-danger text-center fas fa-times" {% endif %}></i></td>
+							{% endfor %}
+						</tr>
+					</tbody>
+				</table>
 			<div id="About">
 				<h4>About</h4>
-				<p>Corpo is a passion project made by competitive Clone Hero players for everyone. It's primary aim is to make data on CH tournaments easily available.</p>
+				<p>Corpo is a passion project made by competitive Clone Hero players. It's primary aim is to make Clone Hero tournaments easier to run, and make their data easily available.</p>
 				<p>It will always remain open-source, free to use, and collect as little information as possible.</p>
-				<p>For now, this is just a basic landing page. More to come. Questions, please reach out to @jetsurf on Discord.</p>
 			</div>	
 		</div>	
 	</div>
+</div>
+
 {% endblock %}
 {% block js %}
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>

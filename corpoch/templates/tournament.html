@@ -46,7 +46,7 @@
 					<tr><td>Notes Hit/Total - Miss Average</td><td>{{tournament.stats.notes_hit|intcomma}}/{{tournament.stats.total_notes|intcomma}} ({{tournament.stats.notes_hit_percent|floatformat:2}}%) - {% widthratio tournament.stats.notes_missed tournament.rounds.count 1 %}</td></tr><!--- Widthratio here divides --->
 					<tr><td>Excess Hits (Overstrums)</td><td>{{tournament.stats.excess_hits|intcomma}}</td></tr>
 					<tr><td>Total Ghosts - Average</td><td>{{tournament.stats.frets_ghosted|intcomma}} - {% widthratio tournament.stats.frets_ghosted tournament.rounds.count 1 %}</td></tr>
-					<tr><td>SP Earned/Total</td><td>{{tournament.stats.sp_phrases_hit|intcomma}}/{{tournament.stats.sp_phrases_total|intcomma}} ({{tournament.stats.sp_phrases_hit_percent}}%)</td></tr>
+					<tr><td>SP Earned/Total</td><td>{{tournament.stats.sp_phrases_earned|intcomma}}/{{tournament.stats.sp_phrases_total|intcomma}} ({{tournament.stats.sp_phrases_earned_percent}}%)</td></tr>
 					<tr><td>Total Score</td><td>{{tournament.stats.score|intcomma}}</td></tr>
 					<tr><td><!---<img src="{% static  'fc.png' %}" width="24" height="24"/>--->FC's</td><td>{{tournament.stats.fcs}}</td></tr>
 				</tbody>

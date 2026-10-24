@@ -47,7 +47,7 @@
 					<tr><td>Matches Banned</td><td>{{chart.bans.count}}</td></tr>
 					<tr><td>Notes Hit/Total - Miss Average</td><td>{{chart.stats.notes_hit|intcomma}}/{{chart.stats.total_notes|intcomma}} ({{chart.stats.notes_hit_percent|floatformat:2}}%) - {% widthratio chart.stats.notes_missed chart.rounds.count 1 %}</td></tr><!--- Widthratio here divides --->
 					<tr><td>Total Ghosts - Average</td><td>{{chart.stats.frets_ghosted|intcomma}} - {% widthratio chart.stats.frets_ghosted chart.rounds.count 1 %}</td></tr>
-					<tr><td>SP Earned/Total</td><td>{{chart.stats.sp_phrases_hit|intcomma}}/{{chart.stats.sp_phrases_total|intcomma}} ({{chart.stats.sp_phrases_hit_percent}})</td></tr>
+					<tr><td>SP Earned/Total</td><td>{{chart.stats.sp_phrases_earned|intcomma}}/{{chart.stats.sp_phrases_total|intcomma}} ({{chart.stats.sp_phrases_earned_percent}})</td></tr>
 					<tr><td>Total Score</td><td>{{chart.stats.score|intcomma}}</td></tr>
 					<tr><td><img class="fc-img" src="{% static  'fc.png' %}" width="28" height="28"/> FC's</td><td>{{chart.stats.fcs}}</td></tr>
 				</tbody>

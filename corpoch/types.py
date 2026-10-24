@@ -87,7 +87,7 @@ class Stats(pydantic.BaseModel):
 	notes_hit : int = 0
 	excess_hits : int = 0
 	frets_ghosted : int = 0
-	sp_phrases_hit : int = 0
+	sp_phrases_earned : int = 0
 	sp_phrases_total : int = 0
 	score : int = 0
 	fcs : int = 0
@@ -125,15 +125,15 @@ class Stats(pydantic.BaseModel):
 		return self.sp_phrases_total - self.sp_phrases_hit
 
 	@property
-	def sp_phrases_hit_percent(self):
+	def sp_phrases_earned_percent(self):
 		if self.sp_phrases_total > 0:
-			return f"{(self.sp_phrases_hit / (self.sp_phrases_total) * 100):.2f}"
+			return f"{(self.sp_phrases_earned / (self.sp_phrases_total) * 100):.2f}"
 		else:
 			return "0.0"
 
 	def update_stats(self, player_steg):
 		#Skip non-verified play data (errors/manual screenshots/etc)
-		if not isinstance(player_steg, StegScreenshotPlayer) and not isinstance(player_steg, StegScreenshotPlayerV10):
+		if not isinstance(player_steg, StegScreenshotPlayer) and not isinstance(player_steg, StegScreenshotPlayerV10) and not isinstance(player_steg, Stats):
 			return
 
 		self.total_notes += player_steg.total_notes
@@ -141,11 +141,15 @@ class Stats(pydantic.BaseModel):
 		self.excess_hits += player_steg.excess_hits
 		self.notes_hit += player_steg.notes_hit
 		self.frets_ghosted += player_steg.frets_ghosted
-		self.sp_phrases_hit += player_steg.sp_phrases_earned
+		self.sp_phrases_earned += player_steg.sp_phrases_earned
 		self.sp_phrases_total += player_steg.sp_phrases_total
 		self.score += player_steg.score
-		self.fcs += 1 if player_steg.is_fc else 0
-		self.pfcs += 1 if hasattr(player_steg, 'is_pfc') and player_steg.is_pfc else 0
+		if not isinstance(player_steg, Stats):
+			self.fcs += 1 if player_steg.is_fc else 0
+			self.pfcs += 1 if hasattr(player_steg, 'is_pfc') and player_steg.is_pfc else 0
+		else:
+			self.fcs += player_steg.fcs
+			self.pfcs += player_steg.pfcs
 
 #This is for v6 steg
 class StegScreenshotPlayer(pydantic.BaseModel):

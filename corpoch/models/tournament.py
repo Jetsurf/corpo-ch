@@ -100,7 +100,7 @@ class Bracket(models.Model):
 	score_log = models.ForeignKey("dbot.Channels", verbose_name="Score Log Channel", on_delete=models.SET_NULL, null=True, blank=True)
 	is_active = models.BooleanField(verbose_name="Bracket Active", default=False, help_text="Is bracket active/matches are allowed to start.")
 	revealed = models.BooleanField("Setlist Revealed", default=False, help_text="Is the setlist revealed. If True, the charts for a setlist are made available.")
-	seeding_revealed = models.BooleanField("Seeding Revealed", default=True, help_text="Is the seeding for the groups in this bracket revealed.")
+	seeding_revealed = models.BooleanField("Seeding Revealed", default=False, help_text="Is the seeding for the groups in this bracket revealed.")
 	role = models.ForeignKey("dbot.Roles", verbose_name="Bracket Role", null=True, on_delete=models.SET_NULL, blank=True, db_index=True, help_text="Discord role to assign to players in this bracket.")
 	stats = SchemaField(Stats, verbose_name="Bracket Stats", default=Stats, help_text="Bracket stats for all matches")
 
@@ -223,6 +223,7 @@ class Group(models.Model):
 		verbose_name = "Group"
 		verbose_name_plural = "Groups"
 		app_label = 'corpoch'
+		ordering = ['name']
 
 	def __str__(self):
 		return f"{self.tournament.short_name} - {self.bracket.name} - {self.name}"

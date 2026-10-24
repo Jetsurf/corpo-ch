@@ -21,7 +21,7 @@
 <div id="main">
 	<div class="w3-cell w3-container", id="bracket-info">
 		<section id="info" class="status">
-			<h2>{{bracket.tournament.short_name}} - {{bracket.name}} - Bracket Info</h2>
+			<h2>{{bracket.tournament.short_name}} - {{bracket.name}} - Info</h2>
 			<hr>
 			<table class="table table-striped table-hover table-bordered">
 				<tbody>
@@ -38,7 +38,7 @@
 	</div>
 	<div class="w3-cell w3-container", id="bracket-stats">
 		<section id="stats" class="status">
-			<h2>Bracket {{bracket.name}} -  Play Stats</h2>
+			<h2>Play Stats</h2>
 			<hr>
 			<table class="table table-striped table-hover table-bordered">
 				<tbody>
@@ -48,7 +48,7 @@
 					<tr><td>Notes Hit/Total - Miss Average</td><td>{{bracket.stats.notes_hit|intcomma}}/{{bracket.stats.total_notes|intcomma}} ({{bracket.stats.notes_hit_percent|floatformat:2}}%) - {% widthratio bracket.stats.notes_missed bracket.rounds.count 1 %}</td></tr><!--- Widthratio here divides --->
 					<tr><td>Excess Hits (Overstrums)</td><td>{{bracket.stats.excess_hits|intcomma}}</td></tr>
 					<tr><td>Total Ghosts - Average</td><td>{{bracket.stats.frets_ghosted|intcomma}} - {% widthratio bracket.stats.frets_ghosted bracket.rounds.count 1 %}</td></tr>
-					<tr><td>SP Earned/Total</td><td>{{bracket.stats.sp_phrases_hit|intcomma}}/{{bracket.stats.sp_phrases_total|intcomma}} ({{bracket.stats.sp_phrases_hit_percent}})</td></tr>
+					<tr><td>SP Earned/Total</td><td>{{bracket.stats.sp_phrases_earned|intcomma}}/{{bracket.stats.sp_phrases_total|intcomma}} ({{bracket.stats.sp_phrases_earned_percent}})</td></tr>
 					<tr><td>Total Score</td><td>{{bracket.stats.score|intcomma}}</td></tr>
 					<tr><td><img class="fc-img" src="{% static  'fc.png' %}" width="28" height="28"/> FC's</td><td>{{bracket.stats.fcs}}</td></tr>
 				</tbody>

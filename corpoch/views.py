@@ -9,23 +9,42 @@ from django.utils import timezone
 
 from corpoch import settings
 from corpoch.dbot.tasks import update_user
+from corpoch.types import Stats
 
 def null(request: HttpRequest):
   return redirect("home")
 
 def home(request: HttpRequest):
+	from corpoch.models import Tournament, Match, MatchRound
+	from pprint import pprint
 	if request.method == "POST":
 		try:
 			request.session.clear()
 		except KeyError:
 			pass
 
-	return render(request, "home.html", context={"auth_url" : settings.AUTH_URL_DISCORD, 'logged_in_user' : logged_in_user(request)})
+	total_stats = Stats()
+	for tournament in Tournament.objects.all():
+		pprint(tournament.stats)
+		total_stats.update_stats(tournament.stats)
+		pprint(total_stats)
+
+	context = {
+		'logged_in_user' : logged_in_user(request),
+		'tournaments' : Tournament.objects.all(),
+		'matches' : Match.objects.all().count(),
+		'rounds' : MatchRound.objects.all().count(),
+		'stats' : total_stats
+	}
+	print("Calculated stats")
+
+	pprint(total_stats)
+	return render(request, "home.html", context=context)
 
 def auth(request: HttpRequest):
 	from corpoch.models import DiscordUser, DiscordToken
 	code = request.GET.get("code")
-	if code:# if code is valid
+	if code:
 		oauth = DiscordToken()
 		oauth.login(code=code)
 		identity = oauth.identity()
@@ -51,6 +70,7 @@ def auth(request: HttpRequest):
 
 	if not oauth:
 		return redirect(settings.AUTH_URL_DISCORD)
+
 	return redirect("user")
 
 def user(request: HttpRequest):
@@ -94,16 +114,15 @@ def user(request: HttpRequest):
 					ret['is_member'] = True
 					break
 			guilds.append(ret)
-		return render(request, "user.html", context={ "logged_in_user" : logged_in_user(request), "guilds" : guilds })
 	else:
 		return redirect(settings.AUTH_URL_DISCORD)
 
-	discord_user = authenticate(request, user=context['user'])
-	if not isinstance(discord_user, DiscordUser):
-		discord_user = discord_user[0]
-	login(request, discord_user, backend="corpoch.auth.DiscordBackend")
-	context['logged_in_user'] = discord_user
-	return render(request, "user.html", context=context)
+	auth = authenticate(request, user=user)
+	if auth:
+		login(request, auth, backend="corpoch.auth.DiscordBackend")
+		return render(request, "user.html", context={ "logged_in_user" : user, "guilds" : guilds })
+	else:
+		return redirect(settings.AUTH_URL_DISCORD)
 
 def chart(request: HttpRequest, chart_pk):
 	from corpoch.models import Chart

@@ -155,4 +155,8 @@ class Migration(migrations.Migration):
             name='stats',
             field=django_pydantic_field.fields.PydanticSchemaField(config=None, default=corpoch.types.Stats, encoder=django.core.serializers.json.DjangoJSONEncoder, help_text='Chart stats for all matches', schema=corpoch.types.Stats, verbose_name='Chart Stats'),
         ),
+        migrations.AlterModelOptions(
+            name='group',
+            options={'ordering': ['name'], 'verbose_name': 'Group', 'verbose_name_plural': 'Groups'},
+        ),
     ]

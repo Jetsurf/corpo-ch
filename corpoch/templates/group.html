@@ -43,7 +43,7 @@
 					<tr><td>Notes Hit/Total - Miss Average</td><td>{{group.stats.notes_hit|intcomma}}/{{group.stats.total_notes|intcomma}} ({{group.stats.notes_hit_percent|floatformat:2}}%) - {% widthratio group.stats.notes_missed group.rounds.count 1 %}</td></tr><!--- Widthratio here divides --->
 					<tr><td>Excess Hits (Overstrums)</td><td>{{group.stats.excess_hits|intcomma}}</td></tr>
 					<tr><td>Total Ghosts - Average</td><td>{{group.stats.frets_ghosted|intcomma}} - {% widthratio group.stats.frets_ghosted group.rounds.count 1 %}</td></tr>
-					<tr><td>SP Earned/Total</td><td>{{group.stats.sp_phrases_hit|intcomma}}/{{group.stats.sp_phrases_total|intcomma}} ({{group.stats.sp_phrases_hit_percent}})</td></tr>
+					<tr><td>SP Earned/Total</td><td>{{group.stats.sp_phrases_earned|intcomma}}/{{group.stats.sp_phrases_total|intcomma}} ({{group.stats.sp_phrases_earned_percent}})</td></tr>
 					<tr><td>Total Score</td><td>{{group.stats.score|intcomma}}</td></tr>
 					<tr><td><img class="fc-img" src="{% static  'fc.png' %}" width="28" height="28"/> FC's</td><td>{{group.stats.fcs}}</td></tr>
 				</tbody>

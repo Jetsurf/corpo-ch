@@ -15,6 +15,11 @@ nav{
 	width: 6vh;
 }
 
+p, h1, h2, h4, th, td {
+    color: white;
+    cursor: default;
+}
+
 .navbar-brand span{
 	font-size: 2.5vh;
 }

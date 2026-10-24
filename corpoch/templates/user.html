@@ -39,9 +39,9 @@
 						<td><i {% if input.player %} class="text-success text-center fas fa-check" {% else %} class="text-danger text-center fas fa-times" {% endif %}></i></td>
 						<td><span>
 						{% if input.player %}
-						{{input.player.matches_won.count}}W {{input.player.matches_lost.count}} / {{input.player.rounds_won.count}}W {{input.player.rounds_lost.count}}
+							{{input.player.matches_won.count}}W {{input.player.matches_lost.count}}L / {{input.player.rounds_won.count}}W {{input.player.rounds_lost.count}}L
 						{% else %}
-						-
+							-
 						{% endif %}
 						</span></td>
 					</tr>
