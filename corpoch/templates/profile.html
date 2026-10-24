@@ -40,7 +40,7 @@
 			<table class="table table-striped table-hover table-bordered">
 				<tbody>
 					<tr><td>Match Wins/Losses</td><td>{{user.matches_won.count|intcomma}}/{{user.matches_lost.count|intcomma}} ({{user.match_win_percent|floatformat:2}}%)</td></tr>
-					<tr><td>Song Wins/Losses - Total</td><td>{{user.rounds_won.count|intcomma}}/{{user.rounds_lost.count}} ({{user.round_win_percent|floatformat:2}}) - {{user.rounds.count}}</td></tr>
+					<tr><td>Song Wins/Losses - Total</td><td>{{user.rounds_won.count|intcomma}}/{{user.rounds_lost.count}} ({{user.round_win_percent|floatformat:2}}%) - {{user.rounds.count}}</td></tr>
 					<tr><td>Notes Hit/Total - Miss Average</td><td>{{user.stats.notes_hit|intcomma}}/{{user.stats.total_notes|intcomma}} ({{user.stats.notes_hit_percent|floatformat:2}}%) - {% widthratio user.stats.notes_missed user.rounds.count 1 %}</td></tr><!--- Widthratio here divides --->
 					<tr><td>Excess Hits (Overstrums) - Average</td><td>{{user.stats.excess_hits|intcomma}} - {% widthratio user.stats.excess_hits user.rounds.count 1 %}</td></tr>
 					<tr><td>Total Ghosts - Average</td><td>{{user.stats.frets_ghosted|intcomma}} - {% widthratio user.stats.frets_ghosted user.rounds.count 1 %}</td></tr>

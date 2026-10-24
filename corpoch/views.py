@@ -54,7 +54,7 @@ def auth(request: HttpRequest):
 	return redirect("user")
 
 def user(request: HttpRequest):
-	from corpoch.models import DiscordToken, DiscordUser
+	from corpoch.models import DiscordToken, DiscordUser, Tournament, TournamentPlayer
 	from corpoch.dbot.models import Guilds
 	if request.session.get("access_token"):
 		user = DiscordUser.objects.get(id=request.session.get('user_id'))
@@ -70,10 +70,31 @@ def user(request: HttpRequest):
 		else:
 			token.login()
 
+		#Get OAuth Guilds
 		try:
-			context = { "user" : user, "guilds" : TournamentGuilds(user) }
+			oauth_guilds = token.guilds()
 		except DiscordToken.AuthError:
 			return redirect(settings.AUTH_URL_DISCORD)
+
+		#Stitch OAuth Guilds/Tournaments together
+		guilds = []
+		for tournament in Tournament.objects.all().order_by('-id'):
+			ret = {
+				'player' : None,
+				'tournament' : tournament,
+				'is_member' : False
+			}
+			try:
+				ret['player'] = tournament.players.get(user__id=user.id)
+			except TournamentPlayer.DoesNotExist:
+				pass
+
+			for guild in oauth_guilds:
+				if int(guild['id']) == tournament.guild.id:
+					ret['is_member'] = True
+					break
+			guilds.append(ret)
+		return render(request, "user.html", context={ "logged_in_user" : logged_in_user(request), "guilds" : guilds })
 	else:
 		return redirect(settings.AUTH_URL_DISCORD)
 

@@ -28,16 +28,22 @@
 					</tr>
 				</thead>
 				<tbody>
-					{% for guild in guilds %}
+					{% for input in guilds %}
 					<tr>
-						<td><img class="rounded-circle" src="{{guild.icon}}" width="64" height="64"></td>
-						<td><span><a href="{% url 'tournament' guild.tournament.short_name %}">{{guild.tournament}}</a></span></td>
-						<td><span>{{guild.guild_name}}</span></td>
-						<td><span>{% if guild.is_member %}Yes{% else %}<form class="form-inline" action="/auth/user?guild_id={{guild.id}}" method="post"> {% csrf_token %}<button id="join" type="submit" class="btn btn-dark">Join</button></form>{% endif %}</span></td>
-						<td><i {% if guild.qualifier_active %} class="text-success text-center fas fa-check" {% else %} class="text-danger text-center fas fa-times" {% endif %}></i></td>
-						<td><i {% if guild.tournament.active %} class="text-success text-center fas fa-check" {% else %} class="text-danger text-center fas fa-times" {% endif %}></i></td>
-						<td><i {% if guild.player %} class="text-success text-center fas fa-check" {% else %} class="text-danger text-center fas fa-times" {% endif %}></i></td>
-						<td><span>{{guild.match_stats}} / {{guild.round_stats}}</span></td>
+						<td><img class="rounded-circle" src="{{input.tournament.guild.icon}}" width="64" height="64"></td>
+						<td><span><a href="{% url 'tournament' input.tournament.short_name %}">{{input.tournament}}</a></span></td>
+						<td><span>{{input.tournament.guild.name}}</span></td>
+						<td><span>{% if input.is_member %}Yes{% else %}<form class="form-inline" action="/auth/user?guild_id={{input.tournament.guild.id}}" method="post"> {% csrf_token %}<button id="join" type="submit" class="btn btn-dark">Join</button></form>{% endif %}</span></td>
+						<td><i {% if input.tournament.qualifier_active %} class="text-success text-center fas fa-check" {% else %} class="text-danger text-center fas fa-times" {% endif %}></i></td>
+						<td><i {% if input.tournament.active %} class="text-success text-center fas fa-check" {% else %} class="text-danger text-center fas fa-times" {% endif %}></i></td>
+						<td><i {% if input.player %} class="text-success text-center fas fa-check" {% else %} class="text-danger text-center fas fa-times" {% endif %}></i></td>
+						<td><span>
+						{% if input.player %}
+						{{input.player.matches_won.count}}W {{input.player.matches_lost.count}} / {{input.player.rounds_won.count}}W {{input.player.rounds_lost.count}}
+						{% else %}
+						-
+						{% endif %}
+						</span></td>
 					</tr>
 					{% endfor %}
 				</tbody>

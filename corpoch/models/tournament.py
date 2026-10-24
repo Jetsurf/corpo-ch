@@ -61,6 +61,16 @@ class Tournament(models.Model):
 		from .match import MatchRound
 		return MatchRound.objects.filter(match__group__bracket__tournament=self)
 
+	@property
+	def qualifier_active(self):
+		from .tournament import Qualifier
+		qualis = Qualifier.objects.select_related().filter(tournament=self, end_time__gte=timezone.now()).count()
+
+		if qualis > 0:
+			return True
+		else:
+			return False
+
 class TournamentConfig(models.Model):
 	"""
 	Represents a configuration for a Tournament. 
