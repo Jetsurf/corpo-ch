@@ -127,7 +127,7 @@ def profile(request: HttpRequest, user_pk):
 
 		tournaments.append(ret)
 
-	context = { "user" : user, "tournies": tournaments, "logged_in_user" : logged_in_user(request) }
+	context = { "user" : user, "tournies": tournaments, "streak" : user.longest_streak, "logged_in_user" : logged_in_user(request) }
 	return render(request, "profile.html", context=context)
 
 def match(request: HttpRequest, match_pk):

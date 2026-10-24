@@ -1,7 +1,6 @@
 from django.contrib import admin
 from django.utils.safestring import mark_safe
 
-from django_jsonform.widgets import JSONFormWidget
 from django_pydantic_field import fields
 from solo.admin import SingletonModelAdmin
 

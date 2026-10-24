@@ -45,7 +45,7 @@
 					<tr><td>Excess Hits (Overstrums) - Average</td><td>{{user.stats.excess_hits|intcomma}} - {% widthratio user.stats.excess_hits user.rounds.count 1 %}</td></tr>
 					<tr><td>Total Ghosts - Average</td><td>{{user.stats.frets_ghosted|intcomma}} - {% widthratio user.stats.frets_ghosted user.rounds.count 1 %}</td></tr>
 					<tr><td>SP Earned/Total</td><td>{{user.stats.sp_phrases_hit|intcomma}}/{{user.stats.sp_phrases_total|intcomma}} ({{user.stats.sp_phrases_hit_percent}}%)</td></tr>
-					<tr><td>Longest Streak</td><td>{% if stats.streak.notes != '0' %}<a href="https://{{stats.streak.screenshot}}">{{stats.streak.song}}</a> - {{stats.streak.notes}}{% else %}N/A{% endif %}</td></tr>
+					<tr><td>Longest Streak</td><td>{% if streak %}<a href="/match/{{streak.match.id}}/{{streak.id}}">{{streak.chart.tournament_name}}</a>{% else %}N/A{% endif %}</td></tr>
 					<tr><td>Total Score</td><td>{{user.stats.score|intcomma}}</td></tr>
 					<tr><td><img class="fc-img" src="{% static 'fc.png' %}" width="28" height="28"/> FC's</td><td>{{user.stats.fcs}}</td></tr>
 					<tr><td><img class="fc-img" src="{% static 'pfcd.png' %}" width="28" height="28"/>/<img class="fc-img" src="{% static 'pfcg.png' %}" width="28" height="28"/> PFC's</td><td>{{user.stats.pfcs}}</td></tr>
@@ -79,7 +79,6 @@
 						-
 					{% endif %}
 					</td>
-
 				</tr>
 				{% endfor %}
 			</tbody>

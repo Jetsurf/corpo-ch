@@ -5,6 +5,7 @@ from requests import Session
 
 from django.core.files import File
 from django.db import models
+from django.db.models import Q
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 
@@ -165,6 +166,34 @@ class DiscordUser(AbstractUser):
 		#Return only latest 3 rounds
 		queryset = self.matches.order_by("ended_on")
 		return queryset[len(queryset)-3:]
+
+	@property
+	def longest_streak(self):
+		from .match import MatchRound
+		streak = 0
+		streak_round = None
+		for round in MatchRound.objects.filter(winner__user=self):
+			if round.winner.check_ch_name(round.steg.players[0].profile_name):
+				ply_steg = round.steg.players[0]
+			else:
+				ply_steg = round.steg.players[1]
+
+			if ply_steg.max_streak > streak:
+				streak = ply_steg.max_streak
+				streak_round = round
+
+		for round in MatchRound.objects.filter(loser__user=self):
+			if round.loser.check_ch_name(round.steg.players[0].profile_name):
+				ply_steg = round.steg.players[0]
+			else:
+				ply_steg = round.steg.players[1]
+
+			if ply_steg.max_streak > streak:
+				streak = ply_steg.max_streak
+				streak_round = round
+
+
+		return streak_round
 
 	@property
 	def matches(self):
