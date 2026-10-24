@@ -16,7 +16,6 @@ def null(request: HttpRequest):
 
 def home(request: HttpRequest):
 	from corpoch.models import Tournament, Match, MatchRound
-	from pprint import pprint
 	if request.method == "POST":
 		try:
 			request.session.clear()
@@ -25,9 +24,7 @@ def home(request: HttpRequest):
 
 	total_stats = Stats()
 	for tournament in Tournament.objects.all():
-		pprint(tournament.stats)
 		total_stats.update_stats(tournament.stats)
-		pprint(total_stats)
 
 	context = {
 		'logged_in_user' : logged_in_user(request),
@@ -36,9 +33,7 @@ def home(request: HttpRequest):
 		'rounds' : MatchRound.objects.all().count(),
 		'stats' : total_stats
 	}
-	print("Calculated stats")
 
-	pprint(total_stats)
 	return render(request, "home.html", context=context)
 
 def auth(request: HttpRequest):
