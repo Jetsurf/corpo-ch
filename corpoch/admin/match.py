@@ -132,7 +132,7 @@ class BansInline(SortableStackedInline):
 
 @admin.register(Match)
 class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
-	list_display = ('__str__', 'group', '_match_players', 'score', 'started_on', 'ended_on', 'complete', 'finished', 'submitted')
+	list_display = ('group', '_match_players', 'score', 'started_on', 'ended_on', 'complete', 'finished', 'processed', 'submitted')
 	list_filter = ('group__bracket__tournament',)
 	inlines = [BansInline, RoundsInline]
 	list_per_page = 25
@@ -141,17 +141,17 @@ class MatchAdmin(SortableAdminBase, admin.ModelAdmin):
 
 	def get_readonly_fields(self, request, obj=None):
 		if request.user.is_superuser:
-			return ('started_on',)
+			return ()
 		try:
 			is_ref = obj.group.tournament.guild.referees.get(id=request.user.id)
-			return ('started_on',)
+			return ('started_on', 'ended_on', 'processed')
 		except DiscordUser.DoesNotExist:
 			pass
 		try:
 			is_admin = obj.group.tournament.guild.admins.get(id=request.user.id)
-			return ('started_on',)
+			return ('started_on', 'ended_on', processed)
 		except DiscordUser.DoesNotExist:
-			return ('id', 'players', 'loser', 'winner', 'defer', 'group', 'started_on', 'ended_on', 'complete', 'finished', 'submitted', 'channel', 'message', 'referee', 'exhibition')			
+			return ('id', 'players', 'loser', 'winner', 'defer', 'group', 'started_on', 'ended_on', 'complete', 'finished', 'processed', 'submitted', 'channel', 'message', 'referee', 'exhibition')
 
 	def _match_players(self, obj):
 		retList = []

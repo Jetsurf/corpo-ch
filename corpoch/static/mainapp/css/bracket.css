@@ -1,0 +1,29 @@
+#main {
+    display: flex;
+    justify-content: center;
+    overflow: visible;
+    flex-direction: row;
+    padding-top: 3vh;
+}
+
+#bracket-info {
+    width: 45%;
+    justify-content: center;
+}
+
+#bracket-stats {
+    width: 45%;
+    justify-content: center;
+}
+
+#bracket-groups {
+    width: 95%;
+    justify-content: center;
+    padding-left: 5%;
+}
+
+#setlist {
+    width: 95%;
+    justify-content: center;
+    padding-left: 5%;
+}

@@ -4,11 +4,12 @@ from django.core.files import File
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
+from django_pydantic_field import SchemaField
 from multiselectfield import MultiSelectField
 from polymorphic.models import PolymorphicModel
 
 from corpoch.utils.snghandler import SNGHandler
-from corpoch.types import CH_INSTRUMENTS, CH_DIFFICULTIES, CH_MODIFIERS, CH_VERSIONS, CHART_CATEGORIES
+from corpoch.types import CH_INSTRUMENTS, CH_DIFFICULTIES, CH_MODIFIERS, CH_VERSIONS, CHART_CATEGORIES, Stats
 from corpoch.validators import validate_chart_file
 
 class CHIcon(models.Model):
@@ -52,14 +53,21 @@ class Chart(PolymorphicModel):
 	url = models.URLField(verbose_name="Chart URL", blank=True, help_text="URL this chart is available at.")
 	icon = models.ForeignKey(CHIcon, related_name="charts", verbose_name="CH Icon", null=True, blank=True, on_delete=models.SET_NULL, help_text="The in-game setlist icon for the chart.")
 	sngfile = models.FileField(upload_to="sngfiles/", validators=[validate_chart_file], verbose_name="SNG File", null=True, blank=True, help_text="The chart file. Stored as .sng but available as old .chart format.")
+	stats = SchemaField(Stats, verbose_name="Chart Stats", default=Stats, help_text="Chart stats for all matches")
 
 	class Meta:
 		verbose_name = "Chart"
 		verbose_name_plural = "Charts"
+		ordering = ['-id']
 
 	@property
 	def long_name(self):
 		return f"{self.name} - {self.charter} - {self.artist} - {self.album}{f' -{self.instrument[1]}' if self.instrument[0] != 'guitar' else ''}{f' {self.difficulty[1]}' if self.difficulty[0] != 'expert' else ''}"
+
+	@property
+	def bans(self):
+		from .match import MatchBan
+		return MatchBan.objects.filter(chart=self)
 
 	@property
 	def description(self) -> str:
@@ -74,6 +82,63 @@ class Chart(PolymorphicModel):
 	@property
 	def encore_search_query(self):
 		return { 'name' : self.name, 'charter' : self.charter, 'artist' : self.artist, 'album' : self.album, 'instrument': self.instrument, 'difficulty' : self.difficulty, 'blake3' : self.blake3 }
+
+	@property
+	def matches(self):
+		from .match import Match
+		return Match.objects.filter(match_rounds__chart=self)
+
+	@property
+	def rounds(self):
+		from .match import MatchRound
+		return MatchRound.objects.filter(chart=self)
+
+	@property
+	def bans(self):
+		from .match import MatchBan
+		return MatchBan.objects.filter(chart=self)
+
+	@property
+	def leaderboard_stats(self):
+		"""
+		Meant to be used with chart html view - provides raw numbers on chart stats and plays
+		"""
+		stats = {
+			"rounds_played" : []
+		}
+
+		for round in self.rounds:
+			steg = round.high_seed_steg
+			if not steg:
+				continue
+
+			if steg.total_notes > 0:
+				 percent = f"{(steg.notes_hit / steg.total_notes * 100):.2f}%"
+			else:
+				percent = "0.0%"
+			play = {
+				"player" : round.match.high_seed.player,
+				"hit_percent": percent,
+				"round" : round,
+				"steg" : steg,
+			}
+			steg = round.low_seed_steg
+			if steg and steg.total_notes > 0:
+				 percent = f"{(steg.notes_hit / steg.total_notes * 100):.2f}%"
+			else:
+				percent = "0.0%"
+			#Quick n dirty, seems silly to just loop this twice :shrug:
+			play = {
+				"player" : round.match.low_seed.player,
+				"hit_percent" : percent,
+				"round": round,
+				"steg" : steg,
+			}
+			stats['rounds_played'].append(play)
+
+		stats['rounds_played'] = reversed(sorted(stats['rounds_played'], key=lambda steg: steg['steg'].score))
+		return stats
+
 
 	# These modifiers could be made better. Not sure quite yet on how the 0 index in the types should be defined back to here as class vars
 	@property

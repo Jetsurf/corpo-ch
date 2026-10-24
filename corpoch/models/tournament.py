@@ -6,7 +6,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django_pydantic_field import SchemaField
 from django.utils import timezone
 
-from corpoch.types import CH_VERSIONS, TB_RULESETS, PICK_RULESETS, BAN_RULESETS, StegScreenshot, PlayerConfig, CH_Name
+from corpoch.types import CH_VERSIONS, TB_RULESETS, PICK_RULESETS, BAN_RULESETS, StegScreenshot, PlayerConfig, CH_Name, Stats
 
 def quali_upload_dir(self, filename):
 	return f"qualifiers/{str(self.qualifier).replace(' ', '').replace(':', '')}/{self.id}/{uuid.uuid1()}.{filename.split('.')[-1]}"
@@ -21,6 +21,7 @@ class Tournament(models.Model):
 	short_name = models.CharField(verbose_name="Short Name", max_length=16, default="NT1", help_text="Short/abbreviated name for this tournament.")
 	role = models.ForeignKey("dbot.Roles", verbose_name="Participant Role", on_delete=models.SET_NULL, null=True, blank=True, db_index=True, help_text="Discord Role to assign to players in this tournament.")
 	active = models.BooleanField(verbose_name="In-Progress", default=False, help_text="Is tournament active/running.")
+	stats = SchemaField(Stats, verbose_name="Tournament Stats", default=Stats, help_text="Tournament stats for all matches")
 
 	class Meta:
 		verbose_name = "Tournament"
@@ -29,9 +30,6 @@ class Tournament(models.Model):
 
 	def __str__(self):
 		return self.name
-
-	def active_players(self):
-		return self.players.filter(active=True)
 
 	def has_revealed_setlist(self) -> bool:
 		for bracket in self.brackets.all():
@@ -43,6 +41,35 @@ class Tournament(models.Model):
 		is_new = self.pk is None
 		super().save()
 		TournamentConfig.objects.get_or_create(tournament=self) if is_new else None
+
+	@property
+	def active_players(self):
+		return self.players.filter(is_active=True)
+
+	@property
+	def bans(self):
+		from .match import MatchBan
+		return MatchBan.objects.filter(match__group__bracket__tournament=self)
+
+	@property
+	def matches(self):
+		from .match import Match
+		return Match.objects.filter(group__bracket__tournament=self)
+
+	@property
+	def rounds(self):
+		from .match import MatchRound
+		return MatchRound.objects.filter(match__group__bracket__tournament=self)
+
+	@property
+	def qualifier_active(self):
+		from .tournament import Qualifier
+		qualis = Qualifier.objects.select_related().filter(tournament=self, end_time__gte=timezone.now()).count()
+
+		if qualis > 0:
+			return True
+		else:
+			return False
 
 class TournamentConfig(models.Model):
 	"""
@@ -73,7 +100,9 @@ class Bracket(models.Model):
 	score_log = models.ForeignKey("dbot.Channels", verbose_name="Score Log Channel", on_delete=models.SET_NULL, null=True, blank=True)
 	is_active = models.BooleanField(verbose_name="Bracket Active", default=False, help_text="Is bracket active/matches are allowed to start.")
 	revealed = models.BooleanField("Setlist Revealed", default=False, help_text="Is the setlist revealed. If True, the charts for a setlist are made available.")
+	seeding_revealed = models.BooleanField("Seeding Revealed", default=False, help_text="Is the seeding for the groups in this bracket revealed.")
 	role = models.ForeignKey("dbot.Roles", verbose_name="Bracket Role", null=True, on_delete=models.SET_NULL, blank=True, db_index=True, help_text="Discord role to assign to players in this bracket.")
+	stats = SchemaField(Stats, verbose_name="Bracket Stats", default=Stats, help_text="Bracket stats for all matches")
 
 	class Meta:
 		verbose_name = "Bracket"
@@ -90,6 +119,33 @@ class Bracket(models.Model):
 		is_new = self.pk is None
 		super().save()
 		BracketRules.objects.create(bracket=self) if is_new or not self.ruleset else None
+
+	@property
+	def active_players(self):
+		return self.all_group_seeds.filter(player__is_active=True)
+
+	@property
+	def all_group_seeds(self):
+		return GroupSeed.objects.filter(group__bracket=self)
+
+	@property
+	def bans(self):
+		from .match import MatchBan
+		return MatchBan.objects.filter(match__group__bracket=self)
+
+	@property
+	def matches(self):
+		from .match import Match
+		return Match.objects.filter(group__bracket=self)
+
+	@property
+	def players(self):
+		return self.all_group_seeds
+
+	@property
+	def rounds(self):
+		from .match import MatchRound
+		return MatchRound.objects.filter(match__group__bracket=self)
 
 class BracketRules(models.Model):
 	"""
@@ -161,22 +217,30 @@ class Group(models.Model):
 	name = models.CharField(verbose_name="Group Name", max_length=8, default="A", help_text="Group Name, full name constructed from tournament.short_name + bracket.name + group.name")
 	role = models.ForeignKey("dbot.Roles", verbose_name="Group Role", on_delete=models.SET_NULL, null=True, blank=True, db_index=True, help_text="Discord role from Tournament Guild to be assigned to group members",)
 	bracket = models.ForeignKey(Bracket, related_name="groups", verbose_name="Bracket", on_delete=models.CASCADE, help_text="Bracket this Group belongs to")
+	stats = SchemaField(Stats, verbose_name="Group Stats", default=Stats, help_text="Group stats for all matches")
 
 	class Meta:
 		verbose_name = "Group"
 		verbose_name_plural = "Groups"
 		app_label = 'corpoch'
+		ordering = ['name']
+
+	def __str__(self):
+		return f"{self.tournament.short_name} - {self.bracket.name} - {self.name}"
 
 	@property
 	def tournament(self) -> Tournament:
 		return self.bracket.tournament
 
 	@property
-	def active_players(self) -> list:
-		return self.players.objects.filter(is_active=True)
+	def bans(self):
+		from .match import MatchBan
+		return MatchBan.objects.filter(match__group=self)
 
-	def __str__(self):
-		return f"{self.tournament.short_name} - {self.bracket.name} - {self.name}"
+	@property
+	def rounds(self):
+		from .match import MatchRound
+		return MatchRound.objects.filter(match__group=self)
 
 class TournamentPlayer(models.Model):
 	"""
@@ -188,6 +252,7 @@ class TournamentPlayer(models.Model):
 	tournament = models.ForeignKey(Tournament, related_name="players", verbose_name="Tournament", on_delete=models.CASCADE, help_text="Tournament player signed up for.")
 	is_active = models.BooleanField(verbose_name="Player Active", default=False, help_text="Is player active. False means DNF/Did not enter.")
 	config = SchemaField(PlayerConfig, verbose_name="Player Configuration", blank=True, help_text="JSON Configuration feild for player")
+	stats = SchemaField(Stats, verbose_name="Player Stats", default=Stats, help_text="Player stats for all matches")
 
 	class Meta:
 		verbose_name = "Player"
@@ -276,11 +341,35 @@ class TournamentPlayer(models.Model):
 		config_obj.names_list = names_list
 		self.config = config_obj
 
+	@property
+	def is_ref(self):
+		from .misc import DiscordUser
+		try:
+			self.tournament.guild.referees.get(id=self.user.id)
+			return True
+		except DiscordUser.DoesNotExist:
+			return False
+
+	@property
+	def is_staff(self):
+		from .misc import DiscordUser
+		try:
+			self.tournament.guild.admins.get(id=self.user.id)
+			return True
+		except DiscordUser.DoesNotExist:
+			return False
+
 	def check_ch_name(self, name_to_find: str) -> bool:
 		if not self.config or not self.config.names_list:
 			return False
 
-		return any(item.ch_name == name_to_find for item in self.config.names_list)
+		#Do not fail on space, capitalization, or bracket differences
+		to_check = name_to_find.replace(' ', '').replace('(', '[').replace(')', ']').capitalize()
+		for name in self.config.names_list:
+			if str(name.ch_name).replace(' ', '').replace('(', '[').replace(')', ']').capitalize() == to_check:
+				return True
+
+		return False
 
 class GroupSeed(models.Model):
 	"""
@@ -347,6 +436,7 @@ class Qualifier(models.Model):
 	channel = models.ForeignKey("dbot.Channels", verbose_name="Submission Discord Channel", on_delete=models.SET_NULL, db_index=True, blank=True, null=True, help_text="Discord Channel users will submit scores in.")
 	gsheet = models.URLField(verbose_name="Submissions Google Sheet", null=True, blank=True, help_text="Google Sheet to submit qualifier scores to.")
 	output = models.BooleanField(verbose_name="Msg On Submission", default=True, help_text="Publically post in discord when user submits a qualifier.")
+	#Future: Add stats schema for qualifiers as a whole?
 
 	class Meta:
 		verbose_name = "Qualifier"

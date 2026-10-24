@@ -1,0 +1,21 @@
+#main {
+    display: flex;
+    justify-content: center;
+    overflow: visible;
+    flex-direction: column;
+    padding-top: 3vh;
+    padding-left: 5%;
+}
+
+#match {
+    width: 95%;
+}
+
+#bans {
+    width: 95%;
+}
+
+#rounds {
+    width: 95%;
+    justify-content: center;
+}

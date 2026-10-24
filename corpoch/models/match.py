@@ -27,10 +27,10 @@ class MatchAbstract(models.Model):
 	ended_on = models.DateTimeField(verbose_name="Match End Time", null=True, blank=True, help_text="Match end time.")
 	complete = models.BooleanField(verbose_name="'Complete'", default=False, help_text="Match is finalized, but waiting for screenshots.")
 	finished = models.BooleanField(verbose_name="Finished", default=False, help_text="Match is finished and has all screenshots/data.")
+	processed = models.BooleanField(verbose_name="Processed", default=False, help_text="Match is processed into stat calculations")
 	submitted = models.BooleanField(verbose_name="GSheet", default=False, help_text="Match is uploaded to GSheet for Tournament.")
 	channel = models.ForeignKey("dbot.Channels", verbose_name="Ref-Tool Discord Channel", on_delete=models.SET_NULL, null=True, blank=True, help_text="Discord Channel the reftool was ran in for a match.")
 	message = models.BigIntegerField(verbose_name="Ref-Tool Discord Message ID", null=True, blank=True, help_text="Discord snowflake ID of the message for a match.")
-	exhibition = models.BooleanField(default=False, help_text="Is a match an exhibition match (not an official match).")
 	rev_seeds = models.BooleanField(default=False, help_text="Inverses the seed order. Meant to be used where rules may not have high seed first.") #ONLY tested for 2 players
 
 	class Meta:
@@ -287,7 +287,7 @@ class MatchAbstract(models.Model):
 	@property
 	def setlist_remaining(self):
 		"""
-		Returns the rest of the setlist that hasn't been played for the match
+		Returns the  of the setlist that hasn't been played for the match
 		"""
 		#Ensure saves can't be "rebanned" in ban-phase of a match, otherwise keep "saved" songs available
 		if self.ruleset.ban_ruleset == "bansave" and (not self.tiebreaker or self.bans.count() > self.ruleset.total_bans):
@@ -486,6 +486,20 @@ class MatchRoundAbstract(models.Model):
 		embed.set_footer(text=embed.footer.text, icon_url = f"https://{settings.BASE_URL}{self.chart.icon.img.url}")
 		return embed
 
+	@property
+	def score_diff(self):
+		if self.steg and len(self.steg.players):
+			return abs(self.steg.players[0].score - self.steg.players[1].score)
+		else:
+			return 0
+
+	@property
+	def screenshot_full_url(self):
+		if self.screenshot:
+			return f"{settings.BASE_URL}{self.screenshot.url}"
+		else:
+			return None
+
 class MatchRound(MatchRoundAbstract):
 	match = models.ForeignKey(Match, related_name="match_rounds", verbose_name="Match ID", on_delete=models.CASCADE, null=True, blank=True, help_text="Match the round was played for.")
 	picked = models.ForeignKey("TournamentPlayer", related_name="picks", verbose_name="Picker", on_delete=models.CASCADE, blank=True, null=True, help_text="Player that picked the chart played.")
@@ -497,6 +511,26 @@ class MatchRound(MatchRoundAbstract):
 		verbose_name_plural = "Group Match Rounds"
 		ordering = ['num']
 		get_latest_by = 'num'
+
+	@property
+	def high_seed_steg(self):
+		if self.steg and len(self.steg.players) > 0:
+			if self.match.high_seed.player.check_ch_name(self.steg.players[0].profile_name):
+				return self.steg.players[0]
+			else:
+				return self.steg.players[1]
+		else:
+			return None
+
+	@property
+	def low_seed_steg(self):
+		if self.steg and len(self.steg.players) > 0:
+			if self.match.low_seed.player.check_ch_name(self.steg.players[0].profile_name):
+				return self.steg.players[0]
+			else:
+				return self.steg.players[1]
+		else:
+			return None
 
 class ExhibitionMatchRound(MatchRoundAbstract):
 	match = models.ForeignKey(ExhibitionMatch, related_name="exhibition_rounds", verbose_name="Match ID", on_delete=models.CASCADE, null=True, blank=True, help_text="Match the round was played for.")

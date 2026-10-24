@@ -1,0 +1,29 @@
+#main {
+    display: flex;
+    justify-content: center;
+    overflow: visible;
+    flex-direction: row;
+    padding-top: 3vh;
+}
+
+#chart-info {
+    width: 45%;
+    justify-content: center;
+}
+
+#chart-play-stats {
+    width: 45%;
+    justify-content: center;
+}
+
+#chart-stats {
+    width: 95%;
+    justify-content: center;
+    padding-left: 5%;
+}
+
+#leaderboard-stats {
+    width: 95%;
+    justify-content: center;
+    padding-left: 5%;
+}
