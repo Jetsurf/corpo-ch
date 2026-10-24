@@ -95,13 +95,39 @@ def chart(request: HttpRequest, chart_pk):
 	return render(request, "chart.html", context=context)
 
 def profile(request: HttpRequest, user_pk):
-	from corpoch.models import DiscordUser
+	from corpoch.models import DiscordUser, Tournament, TournamentPlayer
 	if not user_pk or user_pk == "None":
 		return HttpResponse(f"Can't find a user if you don't provide one!", status=404)
 	else:
 		user = get_object_or_404(DiscordUser, pk=user_pk)
 
-	context = { "user" : user, "guilds": TournamentGuilds(user), "logged_in_user" : logged_in_user(request) }
+	#way to stitch together user to all their tournament player objects/references
+	tournaments = []
+	for tournament in Tournament.objects.all().order_by('-id'):
+		ret = {
+			'tournament' : tournament,
+			'player' : None,
+			'is_staff' : False,
+			'is_ref' : False
+		}
+		try:
+			ret['player'] = tournament.players.get(user=user)
+		except TournamentPlayer.DoesNotExist:
+			pass
+		try:
+			temp = tournament.guild.admins.get(id=user.id)
+			ret['is_staff'] = True
+		except DiscordUser.DoesNotExist:
+			pass
+		try:
+			temp = tournament.guild.referees.get(id=user.id)
+			ret['is_ref'] = True
+		except DiscordUser.DoesNotExist:
+			pass
+
+		tournaments.append(ret)
+
+	context = { "user" : user, "tournies": tournaments, "logged_in_user" : logged_in_user(request) }
 	return render(request, "profile.html", context=context)
 
 def match(request: HttpRequest, match_pk):
@@ -248,140 +274,3 @@ def logged_in_user(request: HttpRequest):
 		return DiscordUser.objects.get(id=request.session['user_id'])
 	except:
 		return None
-
-class TournamentGuilds:
-
-	def __init__(self, user) -> None:
-		self.__guilds = []
-		self.__user = user
-		try:
-			oauth_guilds = self.__user.token.guilds() #Trigger refresh of OAUTH guilds in Token Model
-		except:
-			oauth_guilds = []
-		from corpoch.models import Tournament
-		for tournament in Tournament.objects.all().order_by("-id"):
-			oauth = None
-			for guild in oauth_guilds:
-				if int(guild['id']) == tournament.guild.id:
-					oauth = guild
-					break
-			tmp = Guild(user, tournament, oauth_guild=oauth)
-			if tmp not in self.__guilds:
-				self.__guilds.append(tmp)
-				
-	def __iter__(self):
-		return iter([guild for guild in self.__guilds])
-
-	def __repr__(self) -> str:
-			return repr(self.__guilds)
-
-	@property
-	def user_id(self):
-		if self.__user:
-			return self.__user.id
-		else:
-			return None
-
-class Guild:
-	def __init__(self, user, tournament, oauth_guild=None) -> None:
-		self.__user = None
-		self.__player = None
-		self.__guild = tournament.guild
-		self.__oauth_guild = oauth_guild
-		self.__tournament = tournament
-
-		self.__user = user
-		from corpoch.models import TournamentPlayer
-		try:
-			self.__player = TournamentPlayer.objects.get(user__id=user.id, tournament=tournament)
-		except TournamentPlayer.DoesNotExist:
-			pass
-
-	def __repr__(self) -> str:
-		return repr(self.__guild)
-
-	def __str__(self):
-		return f"{self.__tournament.name}"
-
-	@property
-	def active(self):
-		if self.__player:
-			return self.__player.active
-		else:
-			return False
-
-	@property
-	def icon(self):
-		if self.__guild.icon:
-			return self.__guild.icon
-		else:
-			return "https://cdn.discordapp.com/embed/avatars/0.png"
-
-	@property
-	def id(self):
-		return self.__guild.id
-
-	@property
-	def player(self):
-		return self.__player
-
-	@property
-	def guild_name(self):
-		return self.__guild.name
-
-	@property
-	def match_stats(self):
-		if self.__player:
-			from corpoch.models import Match
-			wins = Match.objects.filter(group__bracket__tournament=self.__tournament, winner=self.__player).count()
-			losses = Match.objects.filter(group__bracket__tournament=self.__tournament, loser=self.__player).count()
-			return f"{wins}W - {losses}L"
-		else:
-			return f"N/A"
-
-	@property
-	def round_stats(self):
-		if self.player:
-			from corpoch.models import MatchRound
-			wins = MatchRound.objects.all().filter(match__group__bracket__tournament=self.__tournament, winner=self.player).count()
-			losses = MatchRound.objects.all().filter(match__group__bracket__tournament=self.__tournament, loser=self.player).count()
-			return f"{wins}W - {losses}L"
-		else:
-			return f"N/A"		
-
-	@property
-	def tournament(self):
-		return self.__tournament
-
-	@property
-	def qualifier_active(self):
-		from corpoch.models import Qualifier
-		qualis = Qualifier.objects.select_related().all().filter(tournament=self.tournament, end_time__gte=timezone.now()).count()
-
-		if qualis > 0:
-			return True
-		else:
-			return False
-
-	@property
-	def is_staff(self):
-		try:
-			admin = self.__guild.admins.get(id=self.__user.id)
-			return True
-		except:
-			return False
-
-	@property
-	def is_referee(self):
-		try:
-			ref = self.__guild.referees.get(id=self.__user.id)
-			return True
-		except:
-			return False
-
-	@property
-	def is_member(self):
-		if self.__oauth_guild:
-			return True
-		else:
-			return False

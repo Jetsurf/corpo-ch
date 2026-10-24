@@ -187,7 +187,7 @@ def update_oauth_tokens():
 @app.task
 def process_matches():
 	close_old_connections()
-	for match in Match.objects.filter(complete=True, processed=False):
+	for match in Match.objects.filter(finished=True, processed=False):
 		for round in match.rounds:
 			match.tournament.stats.update_stats(round.high_seed_steg)
 			match.tournament.stats.update_stats(round.low_seed_steg)

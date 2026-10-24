@@ -68,11 +68,18 @@
 				</tr>
 			</thead>
 			<tbody>
-				{% for guild in guilds %}
+				{% for in in tournies %}
 				<tr>
-					<td><a href="{% url 'tournament' guild.tournament.short_name %}">{{guild}}</a></td>
-					<td><i {% if guild.player %} class="text-success text-center fas fa-check" {% else %} class="text-danger text-center fas fa-times" {% endif %}></i>{% if guild.is_staff %}🇸{% elif guild.is_referee %}🇷{% endif %}</td>
-					<td>{{guild.match_stats}} / {{guild.round_stats}}</td>
+					<td><a href="{% url 'tournament' in.tournament.short_name %}">{{in.tournament}}</a></td>
+					<td><i {% if in.player %} class="text-success text-center fas fa-check" {% else %} class="text-danger text-center fas fa-times" {% endif %}></i>{% if in.is_staff %}🇸{% elif in.is_referee %}🇷{% endif %}</td>
+					<td>
+					{% if in.player %}
+						{{in.player.matches_won.count}}W {{in.player.matches_lost.count}}L / {{in.player.rounds_won.count}}W {{in.player.rounds_lost.count}}L
+					{% else %}
+						-
+					{% endif %}
+					</td>
+
 				</tr>
 				{% endfor %}
 			</tbody>

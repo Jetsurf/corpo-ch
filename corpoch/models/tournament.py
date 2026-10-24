@@ -330,6 +330,24 @@ class TournamentPlayer(models.Model):
 		config_obj.names_list = names_list
 		self.config = config_obj
 
+	@property
+	def is_ref(self):
+		from .misc import DiscordUser
+		try:
+			self.tournament.guild.referees.get(id=self.user.id)
+			return True
+		except DiscordUser.DoesNotExist:
+			return False
+
+	@property
+	def is_staff(self):
+		from .misc import DiscordUser
+		try:
+			self.tournament.guild.admins.get(id=self.user.id)
+			return True
+		except DiscordUser.DoesNotExist:
+			return False
+
 	def check_ch_name(self, name_to_find: str) -> bool:
 		if not self.config or not self.config.names_list:
 			return False

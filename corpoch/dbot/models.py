@@ -38,10 +38,6 @@ class Guilds(models.Model):
 	def __str__(self):
 		return str(self.name)
 
-	def invite_user(self, user):
-		url = f'https://discordapp.com/api/'
-
-
 class Channels(models.Model):
 	"""
 	Represents a channel in a Discord Guild for a Tournament. 
