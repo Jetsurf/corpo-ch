@@ -5,26 +5,18 @@
 {{ block.super }}
 <link rel="stylesheet" type="text/css" href="{% static 'mainapp/css/home.css' %}">
 {% endblock %}
-{% block body %}class="dark" data-spy="scroll" data-target=".navbar" data-offset="50"class="dark" data-spy="scroll" data-target=".navbar" data-offset="50"{% endblock %}
+{% block body %}data-spy="scroll" data-target=".navbar" data-offset="50"{% endblock %}
 {% block content %}
+{% include 'partials/navbar.html' %}
 	<br><br>
-	<div class="container">
-		<nav class="navbar navbar-expand-sm  navbar-dark ">
-			<a class="navbar-brand mx-auto" href="#CorpoCH"><img class="rounded-circle" src="{% static 'mainapp/images/corpo.png' %}"><span> Corpo Clone Hero Bot</span></a>
-			<button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#navbarCollapse">
-				<span class="navbar-toggler-icon"></span>
-			</button>
-			<li class="nav-item">
-				<a class="nav-link" href="/livematches", target="_blank" rel="noopener noreferer">Live Matches</a>
-			</li>
-		</nav> 
-	</div>
 	<div class="container" style="padding-top: 3vh;">
 		<div class="jumbotron">
 			<h1><strong id="Corpo">Corpo</strong></h1>
 			<div id="Corpo">
 				<h4>Privacy and Terms</h4>
 				<p>Corpo is a passion/hobby project. It will remain free to use, and never charge money.</p>
+				<p>This site is not ran by the Clone Hero developers, and is a separate project.</p>
+				<p>Clone Hero assets used with permission from the Clone Hero developers.</p>
 			</div>
 			<div id="Privacy">
 				<h4>Collected Information</h4>

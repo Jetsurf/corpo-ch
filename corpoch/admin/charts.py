@@ -16,6 +16,7 @@ class ChartAdmin(admin.ModelAdmin):
 	readonly_fields = ['_icon', 'game_version']
 	search_fields = ('name', 'charter')
 	filter_horizontal = ['brackets']
+	exclude = ['stats']
 
 	def _tournament_name(self, obj):
 		return obj.tournament_name
@@ -36,7 +37,7 @@ class ChartAdmin(admin.ModelAdmin):
 	@mark_safe
 	def _icon(self, obj):
 		if obj.icon:
-			return f'<img src="{obj.icon.img.url}" width="24" height="24"'
+			return f'<img src="{obj.icon.img.url}" width="24" height="24"/>'
 		else:
 			return "None"
 

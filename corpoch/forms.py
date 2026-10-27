@@ -153,14 +153,16 @@ class TournamentPlayerForm(forms.ModelForm):
 
         if self._old_primary_name is not None and self._old_primary_name != new_primary_name:
 
-            submissions = instance.qualifiers.all()
+            #submissions = instance.qualifiers.all()
 
-            for sub in submissions:
-                update_gsheet.delay(sub.id)
+            #for sub in submissions:
+            #    update_gsheet.delay(sub.id)
 
             player_matches = Match.objects.filter(players__player=instance).distinct()
 
             for match in player_matches:
                 update_gsheet.delay(match.id)
+
+            update_gsheet.delay(instance.pk, is_player=True)
 
         return instance

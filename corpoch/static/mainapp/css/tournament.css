@@ -1,0 +1,21 @@
+#main {
+    display: flex;
+    justify-content: center;
+    overflow: visible;
+    flex-direction: column;
+    padding-top: 3vh;
+    padding-left: 5%;
+}
+
+#tournament-info {
+    width: 95%;
+}
+
+#tournament-stats {
+    width: 95%;
+}
+
+#tournament-brackets {
+    width: 95%;
+    justify-content: center;
+}

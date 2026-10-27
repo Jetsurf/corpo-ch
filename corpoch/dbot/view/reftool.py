@@ -477,7 +477,7 @@ class DiscordMatchView(discord.ui.View):
 			time.sleep(1)
 
 		if self.match.rounds.filter(screenshot='').count() == 0:
-			await interaction.followup.send("All screenshot's already uploaded", ephemeral=True, delete_after=10)
+			await self.match.finishMatch(interaction)
 			return
 
 		self.is_uploading = True

@@ -70,23 +70,30 @@ def update_all_users():
 	close_old_connections()
 
 @app.task
-def update_gsheet(submission_id, *args, **kwargs):
+def update_gsheet(submission_id, is_player=False, *args, **kwargs):
 	close_old_connections()
-	try:
-		sub = Match.objects.get(id=submission_id)
-	except Match.DoesNotExist:
-		sub = None
-	try:
-		if not sub:
-			sub = QualifierSubmission.objects.get(id=submission_id)
-	except QualifierSubmission.DoesNotExist:
-		sub = None
-	try:
-		if not sub:
-			sub = Tournament.objects.get(id=submission_id)
-	except Tournament.DoesNotExist:
-		print(f"Did not find qualifier submission, match, our tournament ID for {submission_id}")
-		return #Probably want to throw exception?
+	if not is_player:
+		try:
+			sub = Match.objects.get(id=submission_id)
+		except Match.DoesNotExist:
+			sub = None
+		try:
+			if not sub:
+				sub = QualifierSubmission.objects.get(id=submission_id)
+		except QualifierSubmission.DoesNotExist:
+			sub = None
+		try:
+			if not sub:
+				sub = Tournament.objects.get(id=submission_id)
+		except Tournament.DoesNotExist:
+			print(f"Did not find qualifier submission, match, our tournament ID for {submission_id}")
+			return #Probably want to throw exception?
+	else:
+		try:
+			sub = TournamentPlayer.objects.get(id=submission_id)
+		except:
+			print(f"Did not find TournamentPlayer for {submission_id}")
+			return #Probably want to throw exception?
 
 	sheet = GSheets()
 	sheet.login()
@@ -97,6 +104,8 @@ def update_gsheet(submission_id, *args, **kwargs):
 		sheet.update_qualifier()
 	elif isinstance(sub, Tournament):
 		sheet.submit_players()
+	elif isinstance(sub,  TournamentPlayer):
+		sheet.update_player()
 	close_old_connections()
 
 @app.task
@@ -173,3 +182,42 @@ def update_oauth_tokens():
 		except DiscordToken.AuthError as e:
 			print(f"OAUTH TOKENS: Deleting token for user {token.user.global_name} - {e}")
 			token.delete()
+	close_old_connections()
+
+@app.task
+def process_matches():
+	close_old_connections()
+	for match in Match.objects.filter(finished=True, processed=False):
+		for round in match.rounds:
+			match.tournament.stats.update_stats(round.high_seed_steg)
+			match.tournament.stats.update_stats(round.low_seed_steg)
+			match.tournament.save()
+			match.bracket.stats.update_stats(round.high_seed_steg)
+			match.bracket.stats.update_stats(round.low_seed_steg)
+			match.bracket.save()
+			match.group.stats.update_stats(round.high_seed_steg)
+			match.group.stats.update_stats(round.low_seed_steg)
+			match.group.save()
+			#Using it with deep references breaks? Works with this level :shrug:
+			chart = round.chart
+			chart.stats.update_stats(round.high_seed_steg)
+			chart.stats.update_stats(round.low_seed_steg)
+			chart.save()
+			player = TournamentPlayer.objects.get(id=match.high_seed.player.id)
+			user = DiscordUser.objects.get(id=match.high_seed.player.user.id)
+			player.stats.update_stats(round.high_seed_steg)
+			user.stats.update_stats(round.high_seed_steg)
+			user.save()
+			player.save()
+			player = TournamentPlayer.objects.get(id=match.low_seed.player.id)
+			user = DiscordUser.objects.get(id=match.low_seed.player.user.id)
+			player.stats.update_stats(round.low_seed_steg)
+			user.stats.update_stats(round.low_seed_steg)
+			player.save()
+			user.save()
+
+		print(f"Processed match {match.id} {match} for stats")
+		match.processed = True
+		match.save()
+
+	close_old_connections()

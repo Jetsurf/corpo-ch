@@ -1,0 +1,17 @@
+#main {
+    display: flex;
+    justify-content: center;
+    overflow: visible;
+    flex-direction: column;
+    padding-top: 3vh;
+}
+
+#tournaments {
+    width: 90%;
+    padding-left: 5%;
+}
+
+#join {
+    margin: auto;
+    display: block;
+}

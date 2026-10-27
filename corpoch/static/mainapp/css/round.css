@@ -1,0 +1,36 @@
+#main {
+    display: flex;
+    justify-content: center;
+    overflow: visible;
+    padding-top: 3vh;
+}
+
+#round-img {
+    width: 95%;
+}
+
+.w3-image {
+    width: 90%;
+    object-fit: cover;
+}
+
+#stats {
+    display: flex;
+    justify-content: center;
+    overflow: visible;
+    flex-direction: row;
+    padding-top: 3vh;
+}
+
+#round-stats {
+    width: 95%;
+    padding-left: 5%;    
+}
+
+#round-high-seed {
+    width: 45%;
+}
+
+#round-low-seed {
+    width: 45%;
+}

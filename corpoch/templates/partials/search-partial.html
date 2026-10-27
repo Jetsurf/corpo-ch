@@ -1,0 +1,23 @@
+{% if users or charts or tournaments %}
+<ul>
+    {% for user in users %}
+        <li class='result-item'>
+            <a href="{% url 'profile' user.id %}"><p>(User) {{ user.global_name }}</p></a>
+        </li>
+    {% endfor %}
+    {% for chart in charts %}
+        <li class='result-item'>
+            <a href="{% url 'chart' chart.id %}"><p>(Chart) {{ chart.tournament_name }}</p></a>
+        </li>
+    {% endfor %}
+    {% for tournament in tournaments %}
+        <li class='result-item'>
+            <a href="{% url 'tournament' tournament.short_name %}"><p>(Tournament) {{ tournament.name }}</p></a>
+        </li>
+    {% endfor %}
+</ul>
+{% else %}
+<ul>
+    <li><p>No results found.</p></li>
+</ul>
+{% endif %}

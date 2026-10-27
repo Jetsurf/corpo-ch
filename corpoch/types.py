@@ -72,12 +72,84 @@ BAN_RULESETS = (
 	("bansave", "Ban Save alternating")
 )
 
+#Player Config
 class CH_Name(pydantic.BaseModel):
 	ch_name: str
 	is_primary: bool
 
 class PlayerConfig(pydantic.BaseModel):
 	names_list: list[CH_Name] = []
+
+#Object statistics for saving long-compute stats
+class Stats(pydantic.BaseModel):
+	total_notes : int = 0
+	notes_missed : int = 0
+	notes_hit : int = 0
+	excess_hits : int = 0
+	frets_ghosted : int = 0
+	sp_phrases_earned : int = 0
+	sp_phrases_total : int = 0
+	score : int = 0
+	fcs : int = 0
+	pfcs : int = 0
+
+	@property
+	def hit_percent(self):
+		return f"{(self.notes_hit / (self.total_notes) * 100):.2f}%"
+
+	@property
+	def match_percent(self):
+		return f"{(self.match_wins / (self.match_wins + self.match_loss) * 100):.2f}%"
+
+	@property
+	def match_total(self):
+		return self.match_wins + self.match_loss
+
+	@property
+	def notes_hit_percent(self):
+		if self.total_notes > 0:
+			return f"{(self.notes_hit / (self.total_notes) * 100):.2f}"
+		else:
+			return "0.0"
+
+	@property
+	def round_percent(self):
+		return f"{(self.round_wins / self.round_total * 100):.2f}"
+
+	@property
+	def round_total(self):
+		return self.round_wins + self.round_loss
+
+	@property
+	def sp_phrases_missed(self):
+		return self.sp_phrases_total - self.sp_phrases_hit
+
+	@property
+	def sp_phrases_earned_percent(self):
+		if self.sp_phrases_total > 0:
+			return f"{(self.sp_phrases_earned / (self.sp_phrases_total) * 100):.2f}"
+		else:
+			return "0.0"
+
+	def update_stats(self, player_steg):
+		#Skip non-verified play data (errors/manual screenshots/etc)
+		if not isinstance(player_steg, StegScreenshotPlayer) and not isinstance(player_steg, StegScreenshotPlayerV10) and not isinstance(player_steg, Stats):
+			return
+
+		self.total_notes += player_steg.total_notes
+		self.notes_missed += player_steg.notes_missed
+		self.excess_hits += player_steg.excess_hits
+		self.notes_hit += player_steg.notes_hit
+		self.frets_ghosted += player_steg.frets_ghosted
+		self.sp_phrases_earned += player_steg.sp_phrases_earned
+		self.sp_phrases_total += player_steg.sp_phrases_total
+		self.score += player_steg.score
+		if not isinstance(player_steg, Stats):
+			self.fcs += 1 if player_steg.is_fc else 0
+			self.pfcs += 1 if hasattr(player_steg, 'is_pfc') and player_steg.is_pfc else 0
+		else:
+			self.fcs += player_steg.fcs
+			self.pfcs += player_steg.pfcs
 
 #This is for v6 steg
 class StegScreenshotPlayer(pydantic.BaseModel):
@@ -111,6 +183,39 @@ class StegScreenshotPlayer(pydantic.BaseModel):
 	excess_hits : int = 0
 	notes_missed : int = 0
 
+	#May need is_pfc property for future use - check conflict with StegScreensshotV10
+
+	@property
+	def audio_calibration_ms(self):
+		# with CH1.0, this is likely set to spectators delays only
+		return round(self.audio_calibration * 1000)
+
+	@property
+	def notes_hit_percent(self):
+		if self.total_notes > 0:
+			return f"{(self.notes_hit / (self.total_notes) * 100):.2f}"
+		else:
+			return "0.0"
+
+	@property
+	def notes_missed(self):
+		return self.total_notes - self.notes_hit
+
+	@property
+	def sp_phrases_missed(self):
+		return self.sp_phrases_total - self.sp_phrases_earned
+
+	@property
+	def sp_phrases_earned_percent(self):
+		if self.sp_phrases_total > 0:
+			return f"{(self.sp_phrases_earned / (self.sp_phrases_total) * 100):.2f}"
+		else:
+			return "0.0"
+
+	@property
+	def video_calibration_ms(self):
+		return round(self.video_calibration * 1000)
+
 #For manual non-ingame submissions w/ v6 steg
 class StegScreenshotManual6(pydantic.BaseModel):
 	profile_name : str = "Manual Player Entry"
@@ -138,8 +243,28 @@ class StegScreenshotManual6(pydantic.BaseModel):
 		return -1
 
 	@property
+	def is_pfc(self):
+		return False
+
+	@property
 	def gamepad_mode(self):
 		return False
+
+	@property
+	def audio_calibration(self):
+		return 0.0
+
+	@property
+	def audio_calibration_ms(self):
+		return 0
+
+	@property
+	def video_calibration(self):
+		return 0.0
+
+	@property
+	def video_calibration_ms(self):
+		return 0
 
 #For problem rounds
 class StegScreenshotPlayerDummy(pydantic.BaseModel):
@@ -181,7 +306,35 @@ class StegScreenshotPlayerDummy(pydantic.BaseModel):
 		return False
 
 	@property
+	def is_pfc(self):
+		return False
+
+	@property
 	def excess_hits(self):
+		return 0
+
+	@property
+	def max_streak(self):
+		return 0
+
+	@property
+	def gamepad_mode(self):
+		return False
+
+	@property
+	def audio_calibration(self):
+		return 0.0
+
+	@property
+	def audio_calibration_ms(self):
+		return 0
+
+	@property
+	def video_calibration(self):
+		return 0.0
+
+	@property
+	def video_calibration_ms(self):
 		return 0
 
 #v10 6085-final
@@ -194,6 +347,14 @@ class StegSectionV10(pydantic.BaseModel):
 
 	def __str__(self):
 		return f"{self.section_name} : {self.notes_hit}/{self.notes_count}"
+
+	@property
+	def notes_hit_percent(self):
+		if self.notes_cound > 0:
+			return f"{(self.notes_hit / (self.notes_count) * 100):.2f}"
+		else:
+			return "0.0"
+
 
 class StegScreenshotPlayerV10(StegScreenshotPlayer):
 	avg_multiplier : float = 0

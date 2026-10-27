@@ -34,6 +34,7 @@ INSTALLED_APPS = [
 	'django.contrib.contenttypes',
 	'django.contrib.sessions',
 	'django.contrib.messages',
+	'django.contrib.humanize',
 	'django.contrib.staticfiles',
 	'django_celery_beat',
 	'django_jsonform',
@@ -139,6 +140,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Corpo Specific Settings
 
 BOT_ID = os.getenv('BOT_ID')
+BOT_TOKEN = os.getenv('BOT_TOKEN')
 BOT_SECRET = os.getenv("BOT_SECRET")
 REDIRECT_URI = os.getenv("REDIRECT_URI")
 CHOPT_PATH = os.getenv("CHOPT_PATH")
