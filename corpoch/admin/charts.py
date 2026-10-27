@@ -16,6 +16,7 @@ class ChartAdmin(admin.ModelAdmin):
 	readonly_fields = ['_icon', 'game_version']
 	search_fields = ('name', 'charter')
 	filter_horizontal = ['brackets']
+	exclude = ['stats']
 
 	def _tournament_name(self, obj):
 		return obj.tournament_name

@@ -30,6 +30,7 @@ class TournamentAdmin(admin.ModelAdmin):
 	list_display = ('name', 'guild', 'active')
 	inlines = [TournamentConfigInline]
 	actions = ['set_tournament_role', 'set_players_active', 'regen_player_list_gsheet']
+	exclude = ['stats']
 
 	def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
 		if db_field.name == "role":
@@ -97,6 +98,7 @@ class BracketAdmin(admin.ModelAdmin):
 	list_filter = ['tournament']
 	inlines = [BracketRulesInline]
 	actions = ['set_bracket_role']
+	exclude = ['stats']
 
 	def _name(self, obj):
 		return f"{obj}"
@@ -144,6 +146,7 @@ class TournamentPlayerAdmin(admin.ModelAdmin):
 	actions = ["set_tournament_roles"]
 	readonly_fields = ("display_exact_ch_name",)
 	search_fields = ('name',)
+	exclude = ['stats']
 	fields = (
 		'user',
 		'name',
@@ -285,6 +288,7 @@ class GroupAdmin(SortableAdminBase, admin.ModelAdmin):
 	search_fields = ('bracket',)
 	list_per_page = 32
 	actions = ['set_group_role']
+	exclude = ['stats']
 
 	def tournament(self, obj):
 		return obj.bracket.tournament.short_name

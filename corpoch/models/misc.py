@@ -109,7 +109,7 @@ class DiscordUser(AbstractUser):
 	avatar = models.ImageField(upload_to=avatar_upload_dir, verbose_name="Avatar Image", null=True, blank=True, help_text="Avatar image for user.")
 	discord_banner = models.CharField(max_length=255, null=True, blank=True, help_text="URL of users discord banner.")
 	banner = models.ImageField(upload_to=banner_upload_dir, verbose_name="Banner Image", null=True, blank=True, help_text="Banner image for user.")
-	tag = models.ForeignKey(DiscordTag, null=True, verbose_name="Discord Tag", on_delete=models.SET_NULL)
+	tag = models.ForeignKey(DiscordTag, null=True, related_name="users", verbose_name="Discord Tag", on_delete=models.SET_NULL)
 	accent_color = models.PositiveIntegerField(null=True, blank=True, help_text="Users banner accent color")
 	locale = models.CharField(max_length=255, null=True, blank=True, help_text="Users's Discord locale")
 	mfa_enabled = models.BooleanField(default=False, help_text="Does user have MFA enabled for their Discord account.")
@@ -165,7 +165,10 @@ class DiscordUser(AbstractUser):
 	def latest_matches(self):
 		#Return only latest 3 rounds
 		queryset = self.matches.order_by("ended_on")
-		return queryset[len(queryset)-3:]
+		if len(queryset) > 2:
+			return queryset[3:]
+		else:
+			return queryset
 
 	@property
 	def longest_streak(self):

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load humanize %}
 {% block title %}{{match}} - Round {{round.num}}{% endblock %}
 {% block style %}
 {{ block.super }}
@@ -54,33 +55,34 @@
 <div id="stats">
 	<div class="w3-cell w3-container" id="round-high-seed">
 		<section id="high-seed" class="status">
-			<h2>{{match.high_seed.player}} Stats</h2>
+			<h2>{{match.high_seed}} Stats</h2>
 			<hr>
 			<div class="table-responsive-sm">
 				<table class="table table-striped table-hover table-bordered">
 					<tbody>
-						<tr><td>Score</td><td>{{round.high_seed_steg.score}}</td></tr>
-						<tr><td>Streak</td><td>{{round.high_seed_steg.max_streak}}</td></tr>
-						<tr><td>Notes Hit/Total</td><td>{{round.high_seed_steg.notes_hit}}/{{round.high_seed_steg.total_notes}}</td></tr>
-						<tr><td>Excess Hits (Overstrums)</td><td>{{round.high_seed_steg.excess_hits}}</td></tr>
-						<tr><td>Ghosts</th><td>{{round.high_seed_steg.frets_ghosted}}</td></td>
-						<tr><td>SP Phrases Earned/Total</td><td>{{round.high_seed_steg.sp_phrases_earned}}/{{round.high_seed_steg.sp_phrases_total}}</td></tr>
-						<tr><td>Solo Bonus</td><td>{{round.high_seed_steg.solo_bonus_total}}</td></tr>
-						<tr><td>Is FC</td><td>{% if round.high_seed_steg.is_fc %}<img class="fc-img" src="{% static  'fc.png' %}" width="28" height="28"/>{% else %} No {% endif %}</td></tr>
-						{% if match.tournament.config.version != "v1.0.0.4080-final" %}
-							<tr><td>is PFC</td><td>
-							{% if round.high_seed_steg.is_pfc %}
+						<tr><td>Score</td><td>{{round.high_seed_steg.score|intcomma}}</td></tr>
+						<tr><td>Streak</td><td>{{round.high_seed_steg.max_streak|intcomma}}</td></tr>
+						<tr><td>Notes Hit/Total</td>
+							<td>
+							{% if match.tournament.config.version != "v1.0.0.4080-final" and round.high_seed_steg.is_pfc %}
 								{% if round.high_seed_steg.controller_type == "Drums" %}
 									<img class="fc-img" src="{% static 'pfcd.png' %}" width="28" height="28"/>
 								{% else %}
 									<imt class="fc-img" src="{% static 'pfcg.png' %}" width="28" height="28">
-								{% endif %}
+								{% endif %}							
+							{% elif round.high_seed_steg.is_fc %}
+								<img class="fc-img" src="{% static  'fc.png' %}" width="28" height="28"/>
 							{% else %}
-							No {% endif %}</td></tr>
-						{% endif %}
-						<tr><td>Gamepad Mode</td><td>{{round.high_seed_steg.gamepad_mode}}</td></tr>
+								{{round.high_seed_steg.notes_hit|intcomma}}/{{round.high_seed_steg.total_notes|intcomma}} {{round.high_seed_steg.notes_hit_percent}}%
+							{% endif %}
+						</td></tr>
+						<tr><td>Excess Hits (Overstrums)</td><td>{{round.high_seed_steg.excess_hits|intcomma}}</td></tr>
+						<tr><td>Ghosts</th><td>{{round.high_seed_steg.frets_ghosted|intcomma}}</td></td>
+						<tr><td>SP Phrases Earned/Total</td><td>{{round.high_seed_steg.sp_phrases_earned}}/{{round.high_seed_steg.sp_phrases_total}} {{round.high_seed_steg.sp_phrases_earned_percent}}%</td></tr>
+						<tr><td>Solo Bonus</td><td>{{round.high_seed_steg.solo_bonus_total|intcomma}}</td></tr>
+						<tr><td>Gamepad Mode</td><td>{% if round.high_seed_steg.gamepad_mode %}Yes{% else %}No{% endif %}</td></tr>
 						<tr><td>Controller</td><td>{{round.high_seed_steg.controller_type}}</td></tr>
-						<tr><td>Lefty Flip</td><td>{{round.high_seed_steg.lefty_flip}}</td></tr>
+						<tr><td>Lefty Flip</td><td>{% if round.high_seed_steg.lefty_flip %}Yes{% else %}No{% endif %}</td></tr>
 						{% if match.tournament.config.version != "v1.0.0.4080-final" %}
 							<tr><td>Audio Delay</td><td>{{round.high_seed_steg.audio_calibration_ms}}ms</td></tr>
 							<tr><td>Video Delay</td><td>{{round.high_seed_steg.video_calibration_ms}}ms</td></tr>
@@ -93,33 +95,35 @@
 
 	<div class="w3-cell w3-container" id="round-low-seed">
 		<section id="low-seed" class="status">
-			<h2>{{match.low_seed.player}} Stats</h2>
+			<h2>{{match.low_seed}} Stats</h2>
 			<hr>
 			<div class="table-responsive-sm">
 				<table class="table table-striped table-hover table-bordered">
 					<tbody>
-						<tr><td>Score</td><td>{{round.low_seed_steg.score}}</td></tr>
-						<tr><td>Streak</td><td>{{round.low_seed_steg.max_streak}}</td></tr>
-						<tr><td>Notes Hit/Total</td><td>{{round.low_seed_steg.notes_hit}}/{{round.low_seed_steg.total_notes}}</td></tr>
-						<tr><td>Excess Hits (Overstrums)</td><td>{{round.low_seed_steg.excess_hits}}</td></tr>
-						<tr><td>Ghosts</td><td>{{round.low_seed_steg.frets_ghosted}}</td></tr>
-						<tr><td>SP Phrases Earned/Total</td><td>{{round.low_seed_steg.sp_phrases_earned}}/{{round.low_seed_steg.sp_phrases_total}}</td></tr>
-						<tr><td>Solo Bonus</td><td>{{round.low_seed_steg.solo_bonus_total}}</td></tr>
-						<tr><td>Is FC</td><td>{% if round.low_seed_steg.is_fc %}<img class="fc-img" src="{% static  'fc.png' %}" width="28" height="28"/>{% else %} No {% endif %}</td></tr>
-						{% if match.tournament.config.version != "v1.0.0.4080-final" %}
-							<tr><td>is PFC</td><td>
-							{% if round.low_seed_steg.is_pfc %}
+						<tr><td>Score</td><td>{{round.low_seed_steg.score|intcomma}}</td></tr>
+						<tr><td>Streak</td><td>{{round.low_seed_steg.max_streak|intcomma}}</td></tr>
+						<tr><td>Notes Hit/Total</td>
+							<td>
+							{% if match.tournament.config.version != "v1.0.0.4080-final" and round.low_seed_steg.is_pfc %}
 								{% if round.low_seed_steg.controller_type == "Drums" %}
 									<img class="fc-img" src="{% static 'pfcd.png' %}" width="28" height="28"/>
 								{% else %}
 									<imt class="fc-img" src="{% static 'pfcg.png' %}" width="28" height="28">
-								{% endif %}
+								{% endif %}							
+							{% elif round.low_seed_steg.is_fc %}
+								<img class="fc-img" src="{% static 'fc.png' %}" width="28" height="28"/>
 							{% else %}
-							No {% endif %}</td></tr>
-						{% endif %}
-						<tr><td>Gamepad Mode</td><td>{{round.low_seed_steg.gamepad_mode}}</td></tr>
+								{{round.low_seed_steg.notes_hit|intcomma}}/{{round.low_seed_steg.total_notes|intcomma}} {{round.low_seed_steg.notes_hit_percent}}%
+							{% endif %}
+						</td></tr>
+						<tr><td>Excess Hits (Overstrums)</td><td>{{round.low_seed_steg.excess_hits|intcomma}}</td></tr>
+						<tr><td>Ghosts</td><td>{{round.low_seed_steg.frets_ghosted|intcomma}}</td></tr>
+						<tr><td>SP Phrases Earned/Total</td><td>{{round.low_seed_steg.sp_phrases_earned}}/{{round.low_seed_steg.sp_phrases_total}} {{round.low_seed_steg.sp_phrases_earned_percent}}%</td></tr>
+						<tr><td>Solo Bonus</td><td>{{round.low_seed_steg.solo_bonus_total|intcomma}}</td></tr>
+
+						<tr><td>Gamepad Mode</td><td>{% if round.low_seed_steg.gamepad_mode %}Yes{% else %}No{% endif %}</td></tr>
 						<tr><td>Controller</td><td>{{round.low_seed_steg.controller_type}}</td></tr>
-						<tr><td>Lefty Flip</td><td>{{round.low_seed_steg.lefty_flip}}</td></tr>
+						<tr><td>Lefty Flip</td><td>{% if round.low_seed_steg.lefty_flip %}Yes{% else %}No{% endif %}</td></tr>
 						{% if match.tournament.config.version != "v1.0.0.4080-final" %}
 							<tr><td>Audio Delay</td><td>{{round.low_seed_steg.audio_calibration_ms}}ms</td></tr>
 							<tr><td>Video Delay</td><td>{{round.low_seed_steg.video_calibration_ms}}ms</td></tr>

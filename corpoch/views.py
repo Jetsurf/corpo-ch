@@ -298,6 +298,10 @@ def update_search(request: HttpRequest):
 def privterms(request: HttpRequest):
 	return render(request, 'privterms.html', context={'logged_in_user' : logged_in_user(request)})
 
+def faq(request: HttpRequest):
+	from corpoch.chdedi.models import GlobalConfig
+	return render(request, 'faq.html', context={ 'logged_in_user' : logged_in_user(request), 'dedi_servers' : GlobalConfig.objects.get().server_list })
+
 def logged_in_user(request: HttpRequest):
 	'''
 	Meant to not be a direct view, rather a function to return the currently logged in user

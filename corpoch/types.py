@@ -208,7 +208,7 @@ class StegScreenshotPlayer(pydantic.BaseModel):
 	@property
 	def sp_phrases_earned_percent(self):
 		if self.sp_phrases_total > 0:
-			return f"{(self.sp_phrases_hit / (self.sp_phrases_total) * 100):.2f}%"
+			return f"{(self.sp_phrases_earned / (self.sp_phrases_total) * 100):.2f}"
 		else:
 			return "0.0"
 

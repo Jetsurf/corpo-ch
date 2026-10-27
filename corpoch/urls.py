@@ -13,6 +13,7 @@ urlpatterns = [
     path('auth',views.auth),
     path('auth/user', views.user, name="user"),
     path('home', views.home, name="home"),
+    path('faq', views.faq, name="faq"),
     path('api/', include('corpoch.api.urls')),
     path('livematches/', views.livematches, name="livematches"),
     path('privterms/', views.privterms, name="privterms"),

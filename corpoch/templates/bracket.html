@@ -46,9 +46,9 @@
 					<tr><td>Songs Played</td><td>{{bracket.rounds.count}}</td></tr>
 					<tr><td>Bans</td><td>{{bracket.bans.count}}</td></tr>
 					<tr><td>Notes Hit/Total - Miss Average</td><td>{{bracket.stats.notes_hit|intcomma}}/{{bracket.stats.total_notes|intcomma}} ({{bracket.stats.notes_hit_percent|floatformat:2}}%) - {% widthratio bracket.stats.notes_missed bracket.rounds.count 1 %}</td></tr><!--- Widthratio here divides --->
-					<tr><td>Excess Hits (Overstrums)</td><td>{{bracket.stats.excess_hits|intcomma}}</td></tr>
+					<tr><td>Excess Hits (Overstrums) - Average</td><td>{{bracket.stats.excess_hits|intcomma}} - {% widthratio bracket.stats.excess_hits bracket.rounds.count 1 %}</td></tr>
 					<tr><td>Total Ghosts - Average</td><td>{{bracket.stats.frets_ghosted|intcomma}} - {% widthratio bracket.stats.frets_ghosted bracket.rounds.count 1 %}</td></tr>
-					<tr><td>SP Earned/Total</td><td>{{bracket.stats.sp_phrases_earned|intcomma}}/{{bracket.stats.sp_phrases_total|intcomma}} ({{bracket.stats.sp_phrases_earned_percent}})</td></tr>
+					<tr><td>SP Earned/Total</td><td>{{bracket.stats.sp_phrases_earned|intcomma}}/{{bracket.stats.sp_phrases_total|intcomma}} ({{bracket.stats.sp_phrases_earned_percent}}%)</td></tr>
 					<tr><td>Total Score</td><td>{{bracket.stats.score|intcomma}}</td></tr>
 					<tr><td><img class="fc-img" src="{% static  'fc.png' %}" width="28" height="28"/> FC's</td><td>{{bracket.stats.fcs}}</td></tr>
 				</tbody>

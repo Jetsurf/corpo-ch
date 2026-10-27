@@ -103,7 +103,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='discorduser',
             name='tag',
-            field=models.ForeignKey(null=True, on_delete=models.deletion.SET_NULL, to='corpoch.discordtag', verbose_name='Discord Tag'),
+            field=models.ForeignKey(null=True, on_delete=models.deletion.SET_NULL, related_name='users', to='corpoch.discordtag', verbose_name='Discord Tag'),
         ),
         migrations.AddField(
             model_name='bracket',

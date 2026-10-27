@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% load static %}
+{% load humanize %}
+{% block title %}Corpo - FAQ{% endblock %}
+{% block style %}
+{{ block.super }}
+<link rel="stylesheet" type="text/css" href="{% static 'mainapp/css/home.css' %}">
+<link rel="stylesheet" type="text/css" href="{% static 'mainapp/css/faq.css' %}">
+{% endblock %}
+{% block body %}data-spy="scroll" data-target=".navbar" data-offset="50"{% endblock %}
+{% block content %}
+{% include 'partials/navbar.html' %}
+<!--- Discord OpenGraph Embeds --->
+<meta content="Corpo FAQ" property="og:title" />
+<meta content="/match/{{match.id}}/{{round.id}}" property="og:url"/>
+
+<html>
+<body>
+
+<div id="main">
+	<div class="container" style="padding-top: 3vh;">
+		<div class="jumbotron">
+			<h1><strong id="faq">Corpo FAQ</strong></h1>
+			<div id="faq-base">
+				<p>There are many details with Corpo alone to cover. Clone Hero tournaments in-particular also have mutliple aspects that can cause confusion.</p>
+				<p>This page aims to answer frequently seen questions for both Corpo, and Clone Hero tournaments.</p>
+				<p>This page is largely a rough draft. More to come.</p>
+			</div>
+			<details><summary>General</summary>
+				<details><summary>New player? Best things to do.</summary>
+					<p> - Ensure auto-screenshots are turned on. Only in-game screenshots will provide full stats. Keeping this on will ensure all your matches are counted properly.</p>
+					<p> - Don't change your in-game name for matches played for a tournament. This ensures the bot will properly accept your screenshots.</p>
+					<p> - Add the dedicated servers (below) to your game. In the future, playing matches on Corpo's CH servers may make more features possible.</p>
+				</details>
+				<details><summary>How do I get a tournament tracked?</summary>
+					<p>At this time, it's not trivial to setup Corpo for tournament use without site administrator help. This may change in the future.</p>
+					<p>DM/Contact Jetsurf or join the <a href="https://discord.gg/UpPwyK5XbD">CORPo Offices</a> discord.</p>
+				</details>
+				<details><summary>What is Live-Matches for?</summary>
+					<p>Live-Matches shows any matches that are actively being played and updates as the match progresses. The primary use-case, however, is for streamers.</p>
+					<p>The color options are intended to be used as chroma-keying to be live-overlayed streaming tools to show live-match stats on-stream.</p>
+					<p>Information on the setup to-come.</p>
+				</details>
+				<details><summary>Stats Tracking/Details</summary>
+					<details><summary>Excess-Hits/Overstrums are Wrong? (CH 1.0 Only)</summary>
+						<p>Excess-Hits in Clone Hero 1.0 aren't actually provided cleanly in the data Corpo gets.</p>
+						<p>The stats on excess-hits are provided as a best-effort. Corpo does attempt to use OCR to extract them on screenshots where it's visible. However, not all screenshots actually show this stat.</p>
+					</details>
+					<details><summary>How is the info from a screenshot pulled out?</summary>
+						<p>In-game taken screenshots embed most of your play-stats into the screenshot itself. The data isn't visible, but can be extracted.</p>
+						<p><a href="https://github.com/GenericMadScientist/CH-Steg-Reader">CH Steg Reader</a> by <a href="https://github.com/GenericMadScientist">GMS</a> is able to read this data, and show the stats in-more detail than what's visually shown.</p>
+						<p>This is why in-game screenshots are important. Out-of-game taken screenshots do not have this data.</p>
+					</details>
+				</details>
+			</details>
+			<br>
+			<details><summary>Discord Bot</summary>
+				<details><summary>Inviting the bot</summary>
+					<p>The bot can be invited to either a guild, or installed to a user .</p>
+					<p><a href="https://discord.com/discovery/applications/1381816611086012456">Bot Discord Application</a></p>
+				</details>
+				<details><summary>Using commands in non-guild channels.</summary>
+					<p>How to user-install the bot goes here/what it does</p>
+				</details>
+				<details><summary>/ch Commands</summary>
+					<p><b>/ch path</b><br>Generates a CHOpt or Hydra path for a chart either on <a href="https://www.enchor.us/">encore</a> or from a setlist used in a tournament.</p>
+				</details>
+			</details>
+			<br>
+			<details><summary>Dedicated Servers</summary>
+				<details><summary>How to add custom servers</summary>
+					<p>Find the settings.ini file in located in C:\Users\YOURUSERNAME\Documents\Clone Hero (Windows) or ~/.clonehero/settings.ini (Linux)</p>
+					<p>Find the [Server] section and copy+paste the server list provided below under this section.</p>
+				</details>
+				<details><summary>Dedicated Server List</summary>
+					<p>Copy+Paste the entire box of text below underneath the [Server] section in your settings.ini file</p>
+					<code>{{dedi_servers}}</code>
+				</details>
+			</details>
+		</div>
+	</div>
+</div>
+
+</body>
+</html>
+
+{% endblock %}
+{% block js %}
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script src="{% static 'mainapp/bootstrap/js/bootstrap.min.js' %}"></script>
+<script>
+	$(document).ready(() =>{
+		$(".navbar-brand").click(function(){
+			$('html, body').animate({
+				scrollTop: $($(this).attr("href")).offset().top
+			}, 1000);
+		});
+	});
+</script>
+{% endblock %}

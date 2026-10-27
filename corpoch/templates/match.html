@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load humanize %}
 {% block title %}{{match}} - Match{% endblock %}
 {% block style %}
 {{ block.super }}
@@ -74,7 +75,7 @@
 						<th>Chart - Chart Category</th>
 						<th>Player Picked</th>
 						<th>Winner</th>
-						<th>Loser</th>
+						<th>Score Difference</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -97,7 +98,7 @@
 						</td>
 						<td>{{round.picked}}</td>
 						<td>{{round.winner}}</td>
-						<td>{{round.loser}}</td>
+						<td>{{round.score_diff|intcomma}}</td>
 					</tr>
 					{% endfor %}
 				</tbody>

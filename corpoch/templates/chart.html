@@ -46,8 +46,9 @@
 					<tr><td>Matches Played</td><td>{{chart.rounds.count}}</td></tr>
 					<tr><td>Matches Banned</td><td>{{chart.bans.count}}</td></tr>
 					<tr><td>Notes Hit/Total - Miss Average</td><td>{{chart.stats.notes_hit|intcomma}}/{{chart.stats.total_notes|intcomma}} ({{chart.stats.notes_hit_percent|floatformat:2}}%) - {% widthratio chart.stats.notes_missed chart.rounds.count 1 %}</td></tr><!--- Widthratio here divides --->
-					<tr><td>Total Ghosts - Average</td><td>{{chart.stats.frets_ghosted|intcomma}} - {% widthratio chart.stats.frets_ghosted chart.rounds.count 1 %}</td></tr>
-					<tr><td>SP Earned/Total</td><td>{{chart.stats.sp_phrases_earned|intcomma}}/{{chart.stats.sp_phrases_total|intcomma}} ({{chart.stats.sp_phrases_earned_percent}})</td></tr>
+					<tr><td>Excess Hits (Overstrums) - Average</td><td>{{chart.stats.excess_hits|intcomma}} - {% widthratio chart.stats.excess_hits chart.rounds.count 1 %}</td></tr>
+					<tr><td>Ghosts - Average</td><td>{{chart.stats.frets_ghosted|intcomma}} - {% widthratio chart.stats.frets_ghosted chart.rounds.count 1 %}</td></tr>
+					<tr><td>SP Earned/Total</td><td>{{chart.stats.sp_phrases_earned|intcomma}}/{{chart.stats.sp_phrases_total|intcomma}} ({{chart.stats.sp_phrases_earned_percent}}%)</td></tr>
 					<tr><td>Total Score</td><td>{{chart.stats.score|intcomma}}</td></tr>
 					<tr><td><img class="fc-img" src="{% static  'fc.png' %}" width="28" height="28"/> FC's</td><td>{{chart.stats.fcs}}</td></tr>
 				</tbody>
@@ -96,16 +97,23 @@
 			<tbody>
 				{% for round in stats.rounds_played %}
 				<tr>
-					<td><a href="{% url 'profile' round.player.user.id %}">{{round.player.user}}</a></td>
-					<td>
+					<td align="center"><a href="{% url 'profile' round.player.user.id %}">{{round.player.user}}</a></td>
+					<td align="center">
 						<a href="/tournament/{{round.round.match.tournament.short_name}}">{{round.round.match.tournament.short_name}}</a> -
 						<a href="/tournament/{{round.round.match.tournament.short_name}}/{{round.round.match.bracket.name}}">{{round.round.match.bracket.name}}</a> - 
 						<a href="/tournament/{{round.round.match.tournament.short_name}}/{{round.round.match.bracket.name}}/{{round.round.match.group.name}}">{{round.round.match.group.name}}</a> - 
 						<a href="/match/{{round.round.match.id}}">{{round.round.match.short_name}}</a>
 					</td>
-					<td>{% if round.round.screenshot %}<a href="/match/{{round.round.match.id}}/{{round.round.id}}"><button onclick="window.location.href='/match/{{round.round.match.id}}/{{round.round.id}}'" class="btn btn-dark">{{round.round.num}}</button></a>{% else %}In-Progress{% endif %}</td>
-					<td>{{round.steg.score|intcomma}}</td>
-					<td>{{round.steg.notes_hit|intcomma}}/{{round.steg.total_notes|intcomma}} {{round.hit_percent}}</td>
+					<td align="center">{% if round.round.screenshot %}<a href="/match/{{round.round.match.id}}/{{round.round.id}}"><button onclick="window.location.href='/match/{{round.round.match.id}}/{{round.round.id}}'" class="btn btn-dark">{{round.round.num}}</button></a>{% else %}In-Progress{% endif %}</td>
+					<td align="center">{{round.steg.score|intcomma}}</td>
+					<td align="center">
+						{% if round.steg.is_fc %}
+							<img class="fc-img" src="{% static  'fc.png' %}" width="24" height="24"/>
+						{% else %}
+							{{round.steg.notes_hit|intcomma}}/{{round.steg.total_notes|intcomma}} {{round.hit_percent}}}
+						{% endif %}
+					</td>
+
 				</tr>
 				{% endfor %}
 			</tbody>

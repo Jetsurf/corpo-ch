@@ -122,6 +122,7 @@ class Chart(PolymorphicModel):
 				"round" : round,
 				"steg" : steg,
 			}
+			stats['rounds_played'].append(play)
 			steg = round.low_seed_steg
 			if steg and steg.total_notes > 0:
 				 percent = f"{(steg.notes_hit / steg.total_notes * 100):.2f}%"
