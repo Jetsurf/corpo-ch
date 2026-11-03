@@ -4,6 +4,7 @@
     padding: 0;
     box-sizing: border-box;
     font-family: 'Varela';
+    line-height: 1;
 }
 
 .row {
@@ -24,8 +25,8 @@
 }
 
 .pfp {
-    width: 40px;
-    height: 40px;
+    width: 2.75rem;
+    height: 2.75rem;
     object-fit: cover;
     border-radius: 50%;
     cursor: pointer;
@@ -39,15 +40,15 @@
 .nav-links {
     list-style: none;
     display: flex;
-    gap: 1.5rem;
+    gap: 1rem;
 }
 
 .nav-link {
     color: #a0a0a0;
     text-decoration: none;
     margin-top: 1rem;
-    font-size: 1.25rem;
-    font-weight: 500;
+    font-size: 1rem;
+    font-weight: 750;
     transition: color 0.3s ease;
 }
 
@@ -94,6 +95,8 @@ input {
     color: white;
     border-radius: 4px;
     outline: none;
+    height: 2.5rem;
+    width: 12rem;
 }
 
 input:focus {
@@ -101,12 +104,13 @@ input:focus {
 }
 </style>
 
+{% load static %}
+
 <nav class="navbar">
 	<ul class="nav-links">
-		<li><a class="nav-link" href="/auth/user", rel="noopener noreferer">Home</a></li>
-		<li><a class="nav-link" href="/livematches", rel="noopener noreferer">Live Matches</a></li>
-		<li><a class="nav-link" href="/api/swagger", rel="noopener noreferer">API</a></li>
+		<li><a class="nav-link" href="{% if logged_in_user %}/auth/user{% else %}/home{% endif %}", rel="noopener noreferer">Home</a></li>
         <li><a class="nav-link" href="/faq", rel="noopener noreferer">FAQ</a></li>
+		<li><a class="nav-link" href="/livematches", rel="noopener noreferer">Live Matches</a></li>
 		{% if logged_in_user.is_staff %}
 		<li><a class="nav-link" href="{% url 'admin:index' %}", target="_blank" rel="noopener noreferer">Admin</a></li>
 		{% endif %}
@@ -127,8 +131,8 @@ input:focus {
     
         <div class="dropdown">
             {% if logged_in_user %}
-                <a href="/profile/{{logged_in_user.id}}">
-                    <img class="pfp rounded-circle" {% if logged_in_user.avatar %}src="https://{{request.get_host}}{{logged_in_user.avatar.url}}"{% endif %}>
+                <a href="{% url 'profile' logged_in_user.id %}">
+                    <img class="pfp rounded-circle" {% if logged_in_user.avatar %}src="{{logged_in_user.avatar.url}}"{% endif %}>
                 </a>
 
                 <div class="dropdown-content">
@@ -138,8 +142,8 @@ input:focus {
                 </form>
                 </div>
             {% else %}
-                 <a href="https://{{request.get_host}}/auth">
-                    <img class="pfp rounded-circle" src="https://{{request.get_host}}/static/mainapp/images/discord.png">
+                 <a href="/auth">
+                    <img class="pfp rounded-circle" src="{% static 'mainapp/images/discord.png' %}">
                 </a>
             {% endif %}
         </div>

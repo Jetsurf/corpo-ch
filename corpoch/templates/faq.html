@@ -12,7 +12,7 @@
 {% include 'partials/navbar.html' %}
 <!--- Discord OpenGraph Embeds --->
 <meta content="Corpo FAQ" property="og:title" />
-<meta content="/match/{{match.id}}/{{round.id}}" property="og:url"/>
+<meta content="/faq" property="og:url"/>
 
 <html>
 <body>
@@ -69,12 +69,18 @@
 			<br>
 			<details><summary>Dedicated Servers</summary>
 				<details><summary>How to add custom servers</summary>
-					<p>Find the settings.ini file in located in C:\Users\YOURUSERNAME\Documents\Clone Hero (Windows) or ~/.clonehero/settings.ini (Linux)</p>
+					<p>Find the settings.ini file in located in:<br><br>
+					Windows: <code>C:\Users\YOURUSERNAME\Documents\Clone Hero</code><br>
+					Linux: <code>~/.clonehero/settings.ini</code></p>
 					<p>Find the [Server] section and copy+paste the server list provided below under this section.</p>
 				</details>
 				<details><summary>Dedicated Server List</summary>
 					<p>Copy+Paste the entire box of text below underneath the [Server] section in your settings.ini file</p>
-					<code>{{dedi_servers}}</code>
+					<code>
+					{% for line in dedi_servers %}
+						{{line}}<br>
+					{% endfor %}
+					</code>
 				</details>
 			</details>
 		</div>

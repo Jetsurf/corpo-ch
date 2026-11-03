@@ -284,6 +284,7 @@ class SeedingInline(SortableStackedInline):
 class GroupAdmin(SortableAdminBase, admin.ModelAdmin):
 	list_display = ('name', 'bracket_name','tournament', 'active_count', 'player_count')
 	list_filter = ('bracket__tournament',)
+	ordering = ['-id']
 	inlines = [SeedingInline]
 	search_fields = ('bracket',)
 	list_per_page = 32

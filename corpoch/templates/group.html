@@ -12,7 +12,12 @@
 {% include 'partials/navbar.html' %}
 <!--- Discord Embed for URL hotlinks --->
 <meta content="{{group.tournament.short_name}} - {{group.bracket.name}} - {{group.name}}&#10;Group Stats" property="og:title">
-<meta content="Players: {{group.seeding.count}}&#10;Matches Played: {{group.matches.count}}&#10;Rounds Played: {{group.rounds.count}}&#10;Total Score: {{group.stats.score|intcomma}}&#10;Notes Hit: {{group.stats.notes_hit_percent|floatformat:2}}%" property="og:description">
+<meta content="Players: {{group.seeding.count}}
+Matches Played: {{group.matches.count}}
+Rounds Played: {{group.rounds.count}}
+Total Score: {{group.stats.score|intcomma}}
+Notes Hit: {{group.stats.notes_hit_percent|floatformat:2}}%"
+property="og:description">
 <meta content="/tournament/{{group.tournament.short_name}}/{{group.bracket.name}}/{{group.name}}" property="og:url">
 
 <html>
@@ -45,7 +50,7 @@
 					<tr><td>Total Ghosts - Average</td><td>{{group.stats.frets_ghosted|intcomma}} - {% widthratio group.stats.frets_ghosted group.rounds.count 1 %}</td></tr>
 					<tr><td>SP Earned/Total</td><td>{{group.stats.sp_phrases_earned|intcomma}}/{{group.stats.sp_phrases_total|intcomma}} ({{group.stats.sp_phrases_earned_percent}})</td></tr>
 					<tr><td>Total Score</td><td>{{group.stats.score|intcomma}}</td></tr>
-					<tr><td><img class="fc-img" src="{% static  'fc.png' %}" width="22" height="22"/> FC's</td><td>{{group.stats.fcs}}</td></tr>
+					<tr><td align="center"><img class="fc-img" src="{% static  'fc.png' %}" width="21" height="21"> FC's</td><td>{{group.stats.fcs}}</td></tr>
 				</tbody>
 			</table>
 		</section>
@@ -73,7 +78,7 @@
 					<td><a href="{% url 'profile' seed.player.user.id %}">{{seed.player.user.global_name}}</a></td>
 					<td>{{seed.player.ch_name}}</td>
 					<td><i {% if seed.player.is_active %} class="text-success text-center fas fa-check" {% else %} class="text-danger text-center fas fa-times" {% endif %}></i></td>
-					<td>{{seed.player.matches_won.count}}/{{seed.player.matches_lost.count}}</td>
+					<td>{{seed.matches_won.count}}/{{seed.matches_lost.count}}</td>
 				</tr>
 				{% endfor %}
 			</tbody>

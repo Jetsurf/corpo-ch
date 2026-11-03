@@ -165,6 +165,16 @@ def profile(request: HttpRequest, user_pk):
 	context = { "user" : user, "tournies": tournaments, "streak" : user.longest_streak, "logged_in_user" : logged_in_user(request) }
 	return render(request, "profile.html", context=context)
 
+def player_view(request: HttpRequest, player_pk):
+	from corpoch.models import TournamentPlayer
+	if not player_pk or player_pk == "None":
+		return HttpResponse(f"Can't find a user if you don't provide one!", status=404)
+	else:
+		player = get_object_or_404(TournamentPlayer, pk=player_pk)
+
+	context = { "user" : player.user, "player" : player, "logged_in_user" : logged_in_user(request) }
+	return render(request, "player.html", context=context)
+
 def match(request: HttpRequest, match_pk):
 	from corpoch.models import Match
 	if not match_pk or match_pk == "None":

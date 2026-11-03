@@ -13,16 +13,22 @@
 {% include 'partials/navbar.html' %}
 <!--- Discord Embed for URL hotlinks --->
 <meta content="{{chart.tournament_name}}&#10;Tournament Chart" property="og:title">
-<meta content="Rounds Played: {{chart.rounds.count}}&#10;Matches Banned: {{chart.bans.count}}&#10;Total Score: {{chart.stats.score|intcomma}}&#10;Notes Hit: {{chart.stats.notes_hit_percent|floatformat:2}}%" property="og:description">
+<meta content="Rounds Played: {{chart.rounds.count}}
+Matches Banned: {{chart.bans.count}}
+Total Score: {{chart.stats.score|intcomma}}
+Notes Hit: {{chart.stats.notes_hit_percent|floatformat:2}}%"
+property="og:description">
 <meta content="{% url 'chart' chart.id %}" property="og:url">
-{% if chart.icon %}<meta content="{{chart.icon.img.url}}" property="og:image">{% endif %}
+{% if chart.icon %}
+<meta content="{{chart.icon.img.url}}" property="og:image">
+{% endif %}
 
 <html>
 <body>
 <div id="main">
 	<div class="w3-cell w3-container", id="chart-info">
 		<section id="info" class="status">
-			<h2>{{chart.tournament_name}}{% if chart.icon %} <img class="rounded-circle mx-auto" src="https://{{request.get_host}}{{chart.icon.img.url}}" alt="Chart Icon" width="32" height="32">{% endif %}</h2>
+			<h2>{{chart.tournament_name}}{% if chart.icon %} <img class="rounded-circle mx-auto chart-icon" src="{{chart.icon.img.url}}" alt="Chart Icon" width="32" height="32">{% endif %}</h2>
 			<hr>
 			<table class="table table-striped table-hover table-bordered">
 				<tbody>
@@ -97,12 +103,9 @@
 			<tbody>
 				{% for round in stats.rounds_played %}
 				<tr>
-					<td align="center"><a href="{% url 'profile' round.player.user.id %}">{{round.player.user}}</a></td>
+					<td align="center"><a href="{% url 'player' round.player.id %}">{{round.player.ch_name}}</a></td>
 					<td align="center">
-						<a href="/tournament/{{round.round.match.tournament.short_name}}">{{round.round.match.tournament.short_name}}</a> -
-						<a href="/tournament/{{round.round.match.tournament.short_name}}/{{round.round.match.bracket.name}}">{{round.round.match.bracket.name}}</a> - 
-						<a href="/tournament/{{round.round.match.tournament.short_name}}/{{round.round.match.bracket.name}}/{{round.round.match.group.name}}">{{round.round.match.group.name}}</a> - 
-						<a href="/match/{{round.round.match.id}}">{{round.round.match.short_name}}</a>
+						<a href="/match/{{round.round.match.id}}">Link</a>
 					</td>
 					<td align="center">{% if round.round.screenshot %}<a href="/match/{{round.round.match.id}}/{{round.round.id}}"><button onclick="window.location.href='/match/{{round.round.match.id}}/{{round.round.id}}'" class="btn btn-dark">{{round.round.num}}</button></a>{% else %}In-Progress{% endif %}</td>
 					<td align="center">{{round.steg.score|intcomma}}</td>
@@ -110,7 +113,7 @@
 						{% if round.steg.is_fc %}
 							<img class="fc-img" src="{% static  'fc.png' %}" width="24" height="24"/>
 						{% else %}
-							{{round.steg.notes_hit|intcomma}}/{{round.steg.total_notes|intcomma}} {{round.hit_percent}}}
+							{{round.steg.notes_hit|intcomma}}/{{round.steg.total_notes|intcomma}} {{round.hit_percent}}
 						{% endif %}
 					</td>
 

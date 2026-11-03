@@ -65,11 +65,6 @@ class Chart(PolymorphicModel):
 		return f"{self.name} - {self.charter} - {self.artist} - {self.album}{f' -{self.instrument[1]}' if self.instrument[0] != 'guitar' else ''}{f' {self.difficulty[1]}' if self.difficulty[0] != 'expert' else ''}"
 
 	@property
-	def bans(self):
-		from .match import MatchBan
-		return MatchBan.objects.filter(chart=self)
-
-	@property
 	def description(self) -> str:
 		"""
 		Used for discord dropdown selector descriptions
@@ -86,17 +81,17 @@ class Chart(PolymorphicModel):
 	@property
 	def matches(self):
 		from .match import Match
-		return Match.objects.filter(match_rounds__chart=self)
+		return Match.objects.select_related("group__bracket__tournament").prefetch_related("players__player").filter(match_rounds__chart=self, finished=True)
 
 	@property
 	def rounds(self):
 		from .match import MatchRound
-		return MatchRound.objects.filter(chart=self)
+		return MatchRound.objects.filter(chart=self, match__finished=True).select_related("match", "match__group__bracket__tournament").prefetch_related("match__players__player")
 
 	@property
 	def bans(self):
 		from .match import MatchBan
-		return MatchBan.objects.filter(chart=self)
+		return MatchBan.objects.select_related().prefetch_related().filter(chart=self)
 
 	@property
 	def leaderboard_stats(self):

@@ -25,6 +25,7 @@ Bot Installation Permissions
  - Manage Roles
  - Send Messages + in Threads
  - View Channels
+ - Create Invites
 
 Install redis+MySQL + populate .env vars for needed fields.
 
@@ -61,6 +62,7 @@ Setup periodic tasks for management in admin UI:
  - corpoch.tasks.update_all_guilds - 20 mins
  - corpoch.tasks.upload_qualifiers_gsheet - 5 mins
  - corpoch.tasks.upload_completed_match_gsheet - 5 mins
+ - corpoch.tasks.process_matches - 5 mins
 
 More to come!
 

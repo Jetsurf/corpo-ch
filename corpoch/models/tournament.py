@@ -278,6 +278,60 @@ class TournamentPlayer(models.Model):
 			return []
 
 	@property
+	def bans(self):
+		from .match import MatchBan
+		return MatchBan.objects.filter(match__players__player=self)
+
+	@property
+	def matches(self):
+		from .match import Match
+		return Match.objects.select_related().prefetch_related("players__player").filter(players__player=self).order_by('-started_on')
+
+	@property
+	def match_win_percent(self):
+		if self.matches_won.count() > 0:
+			return f"{(self.matches_won.count() / (self.matches_won.count() + self.matches_lost.count()) * 100):2f}"
+		else:
+			return "0.0"
+
+	@property
+	def matches_won(self):
+		from .match import Match
+		return Match.objects.filter(players__player=self, winner=self)
+
+	@property
+	def matches_lost(self):
+		from .match import Match
+		return Match.objects.filter(players__player=self, loser=self)
+
+	@property
+	def rounds(self):
+		from .match import MatchRound
+		return MatchRound.objects.select_related().prefetch_related("match__players__player").filter(match__players__player=self)
+
+	@property
+	def rounds_won(self):
+		from .match import MatchRound
+		return MatchRound.objects.select_related().prefetch_related("match__players__player").filter(match__players__player=self, winner=self)
+
+	@property
+	def round_win_percent(self):
+		if self.rounds_won.count() > 0:
+			return f"{(self.rounds_won.count() / (self.rounds_won.count() + self.rounds_lost.count()) * 100):2f}"
+		else:
+			return "0.0"
+
+	@property
+	def rounds_lost(self):
+		from .match import MatchRound
+		return MatchRound.objects.select_related().prefetch_related("match__players__player").filter(match__players__player=self, loser=self)
+
+	@property
+	def match_bans(self):
+		from .match import MatchBan
+		return MatchBan.objects.filter(match__players__player=self)
+
+	@property
 	def ch_name(self) -> str:
 		"""
 		Retrieves the primary Clone Hero name from the Pydantic config.
@@ -420,6 +474,60 @@ class GroupSeed(models.Model):
 			return False
 		return self.player.check_ch_name(testname)
 
+	@property
+	def bans(self):
+		from .match import MatchBan
+		return MatchBan.objects.filter(match__players=self)
+
+	@property
+	def matches(self):
+		from .match import Match
+		return Match.objects.select_related().prefetch_related("players__player").filter(players=self).order_by('-started_on')
+
+	@property
+	def match_win_percent(self):
+		if self.matches_won.count() > 0:
+			return f"{(self.matches_won.count() / (self.matches_won.count() + self.matches_lost.count()) * 100):2f}"
+		else:
+			return "0.0"
+
+	@property
+	def matches_won(self):
+		from .match import Match
+		return Match.objects.filter(players=self, winner=self.player)
+
+	@property
+	def matches_lost(self):
+		from .match import Match
+		return Match.objects.filter(players=self, loser=self.player)
+
+	@property
+	def rounds(self):
+		from .match import MatchRound
+		return MatchRound.objects.select_related().prefetch_related("match__players__player").filter(match__players=self)
+
+	@property
+	def rounds_won(self):
+		from .match import MatchRound
+		return MatchRound.objects.select_related().prefetch_related("match__players__player").filter(match__players=self, winner=self.player)
+
+	@property
+	def round_win_percent(self):
+		if self.rounds_won.count() > 0:
+			return f"{(self.rounds_won.count() / (self.rounds_won.count() + self.rounds_lost.count()) * 100):2f}"
+		else:
+			return "0.0"
+
+	@property
+	def rounds_lost(self):
+		from .match import MatchRound
+		return MatchRound.objects.select_related().prefetch_related("match__players__player").filter(match__players=self, loser=self.player)
+
+	@property
+	def match_bans(self):
+		from .match import MatchBan
+		return MatchBan.objects.filter(match__players__player=self)
+
 class Qualifier(models.Model):
 	"""
 	Represents a Seeding for a player in a Tournament Group. 
@@ -431,11 +539,13 @@ class Qualifier(models.Model):
 	limit_submissions = models.BooleanField(verbose_name="Limit Submissions to # Required", default=False, help_text="Limit players to single qualifier submission.")
 	required_submissions = models.PositiveIntegerField(verbose_name="Required Submissions", default=1, help_text="If limit_submissions=False, the number of submissions required for a player to qualify.")
 	form_link = models.URLField(verbose_name="Google Form Link", null=True, blank=True, help_text="Google Form link to show players while submitting their qualifier.")
-	end_time = models.DateTimeField(verbose_name="End Time", default=timezone.now, help_text="UTC Time this qualifier ends. +2 hours from this time, the results are allowed in the API.")
+	end_time = models.DateTimeField(verbose_name="End Time", default=timezone.now, help_text="UTC time when qualifier submissions close")
 	rules = models.TextField(verbose_name="Rules", max_length=1024, default="Placeholder rules", help_text="Rules shown to players for this qualifier.")
 	channel = models.ForeignKey("dbot.Channels", verbose_name="Submission Discord Channel", on_delete=models.SET_NULL, db_index=True, blank=True, null=True, help_text="Discord Channel users will submit scores in.")
 	gsheet = models.URLField(verbose_name="Submissions Google Sheet", null=True, blank=True, help_text="Google Sheet to submit qualifier scores to.")
 	output = models.BooleanField(verbose_name="Msg On Submission", default=True, help_text="Publically post in discord when user submits a qualifier.")
+	results_revealed = models.BooleanField(verbose_name="Qualifier results revealed", default=False, help_text="Are the scores of the qualifier submisisons made public")
+	stats = SchemaField(Stats, verbose_name="Player Stats", default=Stats, help_text="Player stats for all matches")
 	#Future: Add stats schema for qualifiers as a whole?
 
 	class Meta:
@@ -449,6 +559,17 @@ class Qualifier(models.Model):
 		else:
 			return f"{self.tournament.short_name}"
 
+	@property
+	def active(self):
+		return True if self.end_time < timezone.now() else False
+
+	@property
+	def chart(self):
+		"""
+		Alias for the usual label. This will get the current qualifier, in case revisions are present
+		"""
+		return self.charts.select_related().last()
+
 class QualifierSubmission(models.Model):
 	"""
 	Represents a Submission for a qualifier for a Tournament or Bracket. 
@@ -460,6 +581,7 @@ class QualifierSubmission(models.Model):
 	qualifier = models.ForeignKey(Qualifier, related_name='submissions', verbose_name="Tournament Qualifier", on_delete=models.CASCADE, help_text="Qualifier that a submission was sent for.")
 	steg = SchemaField(StegScreenshot, verbose_name="Steg Data", null=True, blank=True, help_text="Clone Hero screenshot steg data.")
 	submitted = models.BooleanField(verbose_name="Uploaded to GSheet", default=False, help_text="Is submission sent to associated GSheet.")
+	processed = models.BooleanField(verbose_name="Play stats processed", default=False, help_text="Has submission been calculated in stats")
 
 	class Meta:
 		verbose_name = "Qualifier Submission"

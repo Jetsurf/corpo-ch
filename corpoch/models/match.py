@@ -44,30 +44,29 @@ class MatchAbstract(models.Model):
 
 	@property
 	def high_seed(self):
-		if self.rev_seeds:
-			return self.players.last()
-		else:
-			return self.players.first()
+		if self.players.count() > 1:
+			if self.rev_seeds:
+				return self.players.last()
+			else:
+				return self.players.first()
 
 	@property
 	def low_seed(self):
-		players = self.players.all()
-
-		if players.count() > 1:
+		if self.players.count() > 1:
 			if self.rev_seeds:
-				return players.first()
+				return self.players.first()
 			else:
-				return players.last()
+				return self.players.last()
 		return None
 
 	#Bans/Rounds are shorthands for all Ban/Match objects
 	@property
 	def bans(self):
-		return self.match_bans.select_related().all()
+		return self.match_bans.all()
 
 	@property
 	def rounds(self):
-		return self.match_rounds.select_related().all()
+		return self.match_rounds.prefetch_related("match__players__player").all()
 
 	@property
 	def current_round(self):
@@ -176,9 +175,9 @@ class MatchAbstract(models.Model):
 	def short_name(self):
 		outStr = ""
 		if self.players.count() >= 1:
-			outStr += f"{self.high_seed.player_ch_name}({self.high_seed.seed})"
+			outStr += f"{self.high_seed.player.ch_name} ({self.high_seed.seed})"
 		if self.players.count() == 2:
-			outStr += f" vs {self.low_seed.player_ch_name}({self.low_seed.seed})"
+			outStr += f" vs {self.low_seed.player.ch_name} ({self.low_seed.seed})"
 		return outStr
 
 	@property

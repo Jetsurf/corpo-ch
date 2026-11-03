@@ -13,12 +13,12 @@
 <!--- Discord Embed for URL hotlinks --->
 <meta content="{{tournament.short_name}}&#10;Tournament Stats" property="og:title">
 <meta content=
-	"Active/Total Players: {{tournament.active_players.count}}/{{tournament.players.count}}
-	Matches: {{tournament.matches.count|intcomma}}
-	Rounds Played: {{tournament.rounds.count|intcomma}}
-	Total Score: {{tournament.stats.score|intcomma}}
-	Notes Hit: {{tournament.stats.notes_hit|intcomma}} {{tournament.stats.notes_hit_percent|floatformat:2}}%"
-	property="og:description">
+"Active/Total Players: {{tournament.active_players.count}}/{{tournament.players.count}}
+Matches: {{tournament.matches.count|intcomma}}
+Rounds Played: {{tournament.rounds.count|intcomma}}
+Total Score: {{tournament.stats.score|intcomma}}
+Notes Hit: {{tournament.stats.notes_hit|intcomma}} {{tournament.stats.notes_hit_percent|floatformat:2}}%"
+property="og:description">
 <meta content="{% url 'tournament' tournament.short_name %}" property="og:url">
 <!---{% if tournament.guild.icon %}<meta content="https://{{request.get_host}}{{tournament.guild.icon}}" property="og:image">{% endif %} needs local copy --->
 
@@ -75,7 +75,7 @@
 				<tbody>
 					{% for bracket in tournament.brackets.all %}
 					<tr>
-						<td><a href="https://{{request.get_host}}/tournament/{{tournament.short_name}}/{{bracket.name}}">{{bracket.name}}</a></td>
+						<td><a href="/tournament/{{tournament.short_name}}/{{bracket.name}}">{{bracket.name}}</a></td>
 						<td>{{bracket.groups.count}}</td>
 						<td>{{bracket.active_players.count}}/{{bracket.players.count}}</td>
 					</tr>

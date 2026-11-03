@@ -6,14 +6,23 @@
     padding-top: 3vh;
 }
 
+#extra {
+     display: flex;
+    justify-content: center;
+    overflow: visible;
+    flex-direction: column;
+    padding-top: 3vh;   
+}
+
 #user {
-    width: 30%;
+    width: 35%;
     justify-content: center;
     padding-top: 2vh;
 }
 
 #user-stats {
-    width: 60%;
+    padding-left: 5%;
+    width: 55%;
 }
 
 #tournament-stats {

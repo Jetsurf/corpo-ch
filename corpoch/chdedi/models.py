@@ -23,11 +23,10 @@ class GlobalConfig(SingletonModel):
 	@property
 	def server_list(self) -> list:
 		servers = []
-		i = 10000 #Chosen Arbitrarily
-		for server in CHDediServer.objects.all():
+		for i, server in enumerate(CHDediServer.objects.all(), 10000):
 			servers.append(f"server{i} = {settings.BASE_URL}:{server.port}")
 			i += 1
-		return "\n".join(servers)
+		return servers
 
 	def __str__(self):
 		return "Global CH Server Settings"
