@@ -48,7 +48,7 @@ property="og:description">
 					<tr><td>Notes Hit/Total - Miss Average</td><td>{{group.stats.notes_hit|intcomma}}/{{group.stats.total_notes|intcomma}} ({{group.stats.notes_hit_percent|floatformat:2}}%) - {% widthratio group.stats.notes_missed group.rounds.count 1 %}</td></tr><!--- Widthratio here divides --->
 					<tr><td>Excess Hits (Overstrums) - Average</td><td>{{group.stats.excess_hits|intcomma}} - {% widthratio group.stats.excess_hits group.rounds.count 1 %}</td></tr>
 					<tr><td>Total Ghosts - Average</td><td>{{group.stats.frets_ghosted|intcomma}} - {% widthratio group.stats.frets_ghosted group.rounds.count 1 %}</td></tr>
-					<tr><td>SP Earned/Total</td><td>{{group.stats.sp_phrases_earned|intcomma}}/{{group.stats.sp_phrases_total|intcomma}} ({{group.stats.sp_phrases_earned_percent}})</td></tr>
+					<tr><td>SP Earned/Total</td><td>{{group.stats.sp_phrases_earned|intcomma}}/{{group.stats.sp_phrases_total|intcomma}} ({{group.stats.sp_phrases_earned_percent}}%)</td></tr>
 					<tr><td>Total Score</td><td>{{group.stats.score|intcomma}}</td></tr>
 					<tr><td align="center"><img class="fc-img" src="{% static  'fc.png' %}" width="21" height="21"> FC's</td><td>{{group.stats.fcs}}</td></tr>
 				</tbody>
@@ -76,7 +76,7 @@ property="og:description">
 				<tr>
 					<td>{{seed.seed}}</td>
 					<td><a href="{% url 'profile' seed.player.user.id %}">{{seed.player.user.global_name}}</a></td>
-					<td>{{seed.player.ch_name}}</td>
+					<td><a href="{% url 'player' seed.player.id %}">{{seed.player.ch_name}}</a></td>
 					<td><i {% if seed.player.is_active %} class="text-success text-center fas fa-check" {% else %} class="text-danger text-center fas fa-times" {% endif %}></i></td>
 					<td>{{seed.matches_won.count}}/{{seed.matches_lost.count}}</td>
 				</tr>

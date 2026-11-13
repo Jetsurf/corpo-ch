@@ -86,7 +86,7 @@ class Chart(PolymorphicModel):
 	@property
 	def rounds(self):
 		from .match import MatchRound
-		return MatchRound.objects.filter(chart=self, match__finished=True).select_related("match", "match__group__bracket__tournament").prefetch_related("match__players__player")
+		return MatchRound.objects.filter(chart=self, match__finished=True).select_related("match__group__bracket__tournament").prefetch_related("match__players__player")
 
 	@property
 	def bans(self):
@@ -203,6 +203,7 @@ class Chart(PolymorphicModel):
 		super().save()
 
 class BYOSChart(Chart):
+	player = models.ForeignKey("TournamentPlayer", related_name="byos_chart", verbose_name="Brought By", null=True, blank=True, help_text="Player that brought this chart", on_delete=models.SET_NULL)
 	groups = models.ManyToManyField("Group", related_name="byos_setlist", verbose_name="Groups", blank=True, help_text="Groups using this chart in their BYOS Pool")
 	brackets = None
 	category = None
