@@ -26,8 +26,8 @@ class TournamentConfigAdmin(admin.ModelAdmin):
 @admin.register(CHDediServer)
 class CHDediServerAdmin(admin.ModelAdmin):
 	model = CHDediServer
-	list_display = ('_ip', 'pid', '_players', 'scene', '_name', 'config')
-	readonly_fields = ['pid', 'players', 'spectators', 'scene']
+	list_display = ('_ip', 'pid', 'version', '_players', 'scene', '_name', 'config')
+	readonly_fields = ['pid', 'players', 'spectators', 'scene', 'version']
 	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
 	actions = ['restart', 'stop']
 

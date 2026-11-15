@@ -25,4 +25,9 @@ class Migration(migrations.Migration):
             name='spectators',
             field=models.PositiveIntegerField(default=0, verbose_name='Spectators'),
         ),
+        migrations.AddField(
+            model_name='chdediserver',
+            name='version',
+            field=models.CharField(default='-', max_length=24, verbose_name='Server Version'),
+        ),
     ]

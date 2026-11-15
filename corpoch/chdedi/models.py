@@ -62,6 +62,7 @@ class CHDediServer(models.Model):
 	players = models.PositiveIntegerField(verbose_name="Players", default=0)
 	spectators = models.PositiveIntegerField(verbose_name="Spectators", default=0)
 	scene = models.CharField(verbose_name="Scene", max_length=32, default="Lobby")
+	version = models.CharField(verbose_name="Server Version", max_length=24, default="-")
 
 	class Meta:
 		ordering = ["-id"]
@@ -97,6 +98,7 @@ class CHDediServer(models.Model):
 	@property
 	def udp_listener(self):
 		settings = CHListenerSettings()
+		#force non-default port of 14300
 		settings.udp_events_port = self.server_settings.port
 		return settings
 
@@ -111,9 +113,7 @@ class CHDediServer(models.Model):
 
 		redis = GlobalConfig.objects.get().redis
 		online = CHOnlineSettings.model_validate(self.server_settings.model_dump() | conf.model_dump())
-		udp = CHListenerSettings()
-		udp.udp_events_port = self.port #force non-default port of 14300
-		return CHSettings.model_validate({ 'redis' : redis, 'online' : online, 'udpevents' : udp })
+		return CHSettings.model_validate({ 'redis' : redis, 'online' : online, 'udpevents' : self.udp_listener })
 
 	@property
 	def start(self):

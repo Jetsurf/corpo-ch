@@ -1,4 +1,4 @@
-import asyncio, atexit, json, os, pprint, psutil, re, signal, sys
+import asyncio, atexit, json, os, pprint, psutil, re, signal, sys, time
 from contextlib import chdir
 
 from django.core.management.base import BaseCommand
@@ -43,21 +43,36 @@ class CHManager:
 
 			server.players = 0 #Ensure count is 0 on start
 			server.pid = await self._monitor.start_subprocess({ "cmd" : server.exec_str, "args" : [] })
-			if server.udp_listener != 0:
+			time.sleep(2) #Give binary chance to start
+
+			with open("server.log", "r") as log:
+				for line in log:
+					if "Game Version: " in line:
+						server.version = line.split()[5]
+						print(f"[{server}] - CH Version: {server.version}")
+						break
+
+			#Force players/spectators to 0/default
+			server.players = 0
+			server.spectators = 0
+
+			#If CH binary > 1.1 6161 w/ udp message support
+			if server.udp_listener != 0 and int(server.version.split(".")[3].split('-')[0]) >= 6161:
 				try:
 					loop = asyncio.get_event_loop()
 					listener = loop.create_datagram_endpoint(lambda: CHReader(server), local_addr=(server.udp_listener.udp_events_host, server.port))
 					loop.create_task(listener)
 					self.listeners.add(listener)
-					print(f"Setup listener on port {server.udp_listener.udp_events_port}")
+					print(f"[{server}] - Setup listener on port {server.udp_listener.udp_events_port}")
 				except Exception as e: #Catch socket creation errors
 					print(f"Got exception starting udp listener: {e}")
 
-				#Force set scene/players to default
+				#Force set scene to default
 				server.scene = "Lobby"
-				server.players = 0
-				server.spectators = 0
-				await server.asave()
+			else:
+				server.scene = "Ver < 1.1.0-6161 - Not Supported"
+
+			await server.asave()
 
 	async def restart(self, server):
 		await self.stop(server)
@@ -150,7 +165,7 @@ class CHReader(asyncio.DatagramProtocol):
 			pprint.pprint(message)
 
 class Command(BaseCommand):
-	help = 'Run Corpoch Dbot'
+	help = 'Run CH Dedicated Servers'
 
 	def add_arguments(self, parser):
 		parser.add_argument('-s', '--skip-startup', action="store_true", help='Starts monitor without starting servers')
