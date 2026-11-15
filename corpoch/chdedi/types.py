@@ -31,9 +31,15 @@ class CHServerSpecificSettings(pydantic.BaseModel):
 	ip : str = socket.gethostbyname(socket.gethostname())
 	password: str = ""
 
-class CHOnlineSettings(CHServerSettings, CHServerSpecificSettings):
+class CHListenerSettings(pydantic.BaseModel):
+	udp_events_host : str = "127.0.0.1" #Keeping this localhost entirely for now
+	udp_events_port : int = Field(14300, ge=1024, le=65534)
+	udp_events_enable : int = Field(1, ge=0, le=1)
+
+class CHOnlineSettings(CHServerSettings, CHServerSpecificSettings, CHListenerSettings):
 	pass
 
 class CHSettings(pydantic.BaseModel):
 	redis: CHRedisSettings
 	online: CHOnlineSettings
+	udpevents: CHListenerSettings

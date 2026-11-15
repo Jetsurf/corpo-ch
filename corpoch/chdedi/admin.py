@@ -26,8 +26,8 @@ class TournamentConfigAdmin(admin.ModelAdmin):
 @admin.register(CHDediServer)
 class CHDediServerAdmin(admin.ModelAdmin):
 	model = CHDediServer
-	list_display = ('_ip', 'pid', '_name', 'config')
-	readonly_fields = ['pid']
+	list_display = ('_ip', 'pid', '_players', 'scene', '_name', 'config')
+	readonly_fields = ['pid', 'players', 'spectators', 'scene']
 	formfield_overrides = { fields.PydanticSchemaField: {"widget": JSONFormWidget}, }
 	actions = ['restart', 'stop']
 
@@ -36,6 +36,9 @@ class CHDediServerAdmin(admin.ModelAdmin):
 
 	def _ip(self, obj):
 		return f"{obj.server_settings.ip}:{obj.server_settings.port}"
+
+	def _players(self, obj):
+		return f"{obj.players}/{obj.spectators}"
 
 	@admin.action(description="(Re)start Server")
 	def restart(modeladmin, request, queryset):

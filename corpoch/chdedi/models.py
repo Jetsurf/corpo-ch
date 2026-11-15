@@ -8,7 +8,7 @@ from django_pydantic_field import SchemaField
 from solo.models import SingletonModel
 
 from corpoch.chdedi import settings
-from corpoch.chdedi.types import CHServerSettings, CHServerSpecificSettings, CHRedisSettings, SERVER_CONFIG_CHOICES, CHSettings, CHOnlineSettings
+from corpoch.chdedi.types import CHServerSettings, CHServerSpecificSettings, CHRedisSettings, CHListenerSettings, SERVER_CONFIG_CHOICES, CHSettings, CHOnlineSettings
 
 class GlobalConfig(SingletonModel):
 	pid = models.PositiveIntegerField(verbose_name="Monitor PID", null=True, blank=True)
@@ -59,6 +59,9 @@ class CHDediServer(models.Model):
 	config = models.CharField(verbose_name="Config Option", choices=SERVER_CONFIG_CHOICES, max_length=16, default=SERVER_CONFIG_CHOICES[0])
 	tournament_config = models.ForeignKey(TournamentConfig, verbose_name="Tournament Configuration", on_delete=models.SET_NULL, null=True, blank=True)
 	server_settings = SchemaField(CHServerSpecificSettings, verbose_name="Configuration", null=True, blank=True)
+	players = models.PositiveIntegerField(verbose_name="Players", default=0)
+	spectators = models.PositiveIntegerField(verbose_name="Spectators", default=0)
+	scene = models.CharField(verbose_name="Scene", max_length=32, default="Lobby")
 
 	class Meta:
 		ordering = ["-id"]
@@ -92,6 +95,12 @@ class CHDediServer(models.Model):
 			return "Server"
 
 	@property
+	def udp_listener(self):
+		settings = CHListenerSettings()
+		settings.udp_events_port = self.server_settings.port
+		return settings
+
+	@property
 	def settings(self):
 		if self.config == "open":
 			conf = self.open_config.settings
@@ -102,7 +111,9 @@ class CHDediServer(models.Model):
 
 		redis = GlobalConfig.objects.get().redis
 		online = CHOnlineSettings.model_validate(self.server_settings.model_dump() | conf.model_dump())
-		return CHSettings.model_validate({ 'redis' : redis, 'online' : online })
+		udp = CHListenerSettings()
+		udp.udp_events_port = self.port #force non-default port of 14300
+		return CHSettings.model_validate({ 'redis' : redis, 'online' : online, 'udpevents' : udp })
 
 	@property
 	def start(self):
@@ -124,6 +135,7 @@ class CHDediServer(models.Model):
 			for opt, val2 in iter(val1):
 				fileStr += f"{opt} = {val2}\n"
 			fileStr += "\n"
+
 		with chdir(self.path):
 			with open("settings.ini", "w") as f:
 				f.write(fileStr)
