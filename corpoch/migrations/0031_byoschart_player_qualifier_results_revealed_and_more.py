@@ -45,4 +45,9 @@ class Migration(migrations.Migration):
             name='version',
             field=models.CharField(choices=[('v1.0.0.4080-final', 'v1.0.0.4080-final'), ('v1.1.0.6161-final', 'v1.1.0.6161-final')], default='v1.0.0.4080-final', help_text='Clone Hero verison the tournament is using.', max_length=32, verbose_name='Clone Hero Version'),
         ),
+        migrations.AlterField(
+            model_name='bracketrules',
+            name='tb_ruleset',
+            field=models.CharField(choices=[('single', 'Single TB'), ('csc', 'CSC TB Rules'), ('banpick', "'NPDO' Ban/Pick"), ('refdecide', 'Ref picks from unplayed'), ('bansave', 'Ban-Save'), ('random', 'Random TB from setlist')], default='single', help_text='Ruleset to determine how tiebreakers player.', max_length=32, verbose_name='Tiebreaker Ruleset'),
+        ),
     ]

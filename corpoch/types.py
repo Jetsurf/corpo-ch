@@ -57,7 +57,8 @@ TB_RULESETS = (
 	("csc", "CSC TB Rules"),
 	("banpick", "'NPDO' Ban/Pick"),
 	('refdecide', "Ref picks from unplayed"),
-	('bansave', "Ban-Save")
+	('bansave', "Ban-Save"),
+	('random', "Random TB from setlist")
 )
 
 PICK_RULESETS = (
