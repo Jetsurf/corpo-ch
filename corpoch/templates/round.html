@@ -39,7 +39,7 @@ property="og:description"/>
 							<a href="{% url 'match' match.id %}">{{round.match.short_name}}</a>
 						</td></tr>
 						<tr><td>Round Num</td><td>{{round.num}}</td>
-						<tr><td>Picking Player</td><td><a href="{% url 'profile' round.picked.user.id %}">{{round.picked.user}}</a></td></tr>
+						<tr><td>Picking Player</td><td><a href="{% url 'player' round.picked.id %}">{{round.picked}}</a></td></tr>
 						<tr><td>Chart Played</td>
 							<td>
 								<a href="{% url 'chart' round.chart.id %}">{{round.chart.tournament_name}}</a>
@@ -49,8 +49,8 @@ property="og:description"/>
 							{% if round.data.chart.category not in "none" %} - {{round.data.chart.category|title}}{% endif %}
 							</td>
 						</tr>
-						<tr><td>Winner</td><td><a href="{% url 'profile' round.winner.user.id %}">{{round.winner.user}}</a></td></tr>
-						<tr><td>Loser</td><td><a href="{% url 'profile' match.loser.user.id %}">{{round.loser.user}}</a></td></tr>
+						<tr><td>Winner</td><td><a href="{% url 'player' round.winner.id %}">{{round.winner}}</a></td></tr>
+						<tr><td>Loser</td><td><a href="{% url 'player' match.loser.id %}">{{round.loser}}</a></td></tr>
 					</thead>
 				</table>
 			</div>

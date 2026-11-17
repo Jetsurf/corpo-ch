@@ -43,7 +43,7 @@ class CHManager:
 
 			server.players = 0 #Ensure count is 0 on start
 			server.pid = await self._monitor.start_subprocess({ "cmd" : server.exec_str, "args" : [] })
-			time.sleep(2) #Give binary chance to start
+			time.sleep(1) #Give binary chance to start
 
 			with open("server.log", "r") as log:
 				for line in log:
@@ -141,7 +141,7 @@ class CHReader(asyncio.DatagramProtocol):
 			pprint.pprint(raw)
 			return
 
-		if 'player_' in message['event']:
+		if 'player_' in message['event'] and 'score' not in message['event']:
 			print(f"[{message['ts']}][{self.server}] - Player count now {message['player_count']}")
 			if message['spectator']:
 				if 'join' in message['event']:

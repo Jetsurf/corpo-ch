@@ -138,6 +138,8 @@ async def update_guild(bot, guild_id):
 			grole = await guild.fetch_role(role.id)
 		except discord.NotFound:
 			role.deleted = True
+		except discord.Forbidden:
+			continue
 		else:
 			role.name = grole.name
 		finally:
