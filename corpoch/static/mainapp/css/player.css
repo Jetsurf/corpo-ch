@@ -1,0 +1,45 @@
+#head {
+    display: flex;
+    overflow: visible;
+    flex-direction: column;
+    padding-top: 2vh;
+    padding-left: 5%;
+    width: 95%;
+}
+
+#main {
+    display: flex;
+    justify-content: center;
+    overflow: visible;
+    flex-direction: row;
+    padding-top: 0vh;
+}
+
+#extra {
+    display: flex;
+    justify-content: center;
+    overflow: visible;
+    flex-direction: column;
+    padding-top: 3vh;   
+}
+
+#user {
+    width: 35%;
+    justify-content: center;
+    padding-top: 2vh;
+}
+
+#user-stats {
+    padding-left: 5%;
+    width: 55%;
+}
+
+#tournament-stats {
+    width: 95%;
+    padding-left: 5%;
+}
+
+#match-rounds {
+    width: 95%;
+    padding-left: 5%;
+}

@@ -12,11 +12,16 @@
 {% include 'partials/navbar.html' %}
 <!--- Discord OpenGraph Embed --->
 <meta content="{{match}} Round {{round.num}}" property="og:title" />
-<meta content="Chart: {{round.chart.tournament_name}}&#10;Winner: {{round.winner}}&#10;Loser: {{round.loser}}" property="og:description"/>
+<meta content="Chart: {{round.chart.tournament_name}}
+Winner: {{round.winner}}
+Loser: {{round.loser}}"
+property="og:description"/>
 <meta content="/match/{{match.id}}/{{round.id}}" property="og:url"/>
 <meta content="{{round.screenshot.url}}" property="og:image"/>
+
 <html>
 <body>
+
 <div id="main">
 	<img id="rnd-screen" class="w3-image" src="{{round.screenshot.url}}">
 	</div>
@@ -34,18 +39,18 @@
 							<a href="{% url 'match' match.id %}">{{round.match.short_name}}</a>
 						</td></tr>
 						<tr><td>Round Num</td><td>{{round.num}}</td>
-						<tr><td>Picking Player</td><td><a href="{% url 'profile' round.picked.user.id %}">{{round.picked.user}}</a></td></tr>
+						<tr><td>Picking Player</td><td><a href="{% url 'player' round.picked.id %}">{{round.picked}}</a></td></tr>
 						<tr><td>Chart Played</td>
 							<td>
 								<a href="{% url 'chart' round.chart.id %}">{{round.chart.tournament_name}}</a>
 								{% if round.chart.icon %}
-									<img class="rounded-circle mx-auto" src="{{round.chart.icon.img.url}}" width="32" height="32" alt="Chart Icon">
+									<img class="rounded-circle mx-auto chart-icon" src="{{round.chart.icon.img.url}}" width="28" height="28" alt="Chart Icon">
 								{% endif %}
 							{% if round.data.chart.category not in "none" %} - {{round.data.chart.category|title}}{% endif %}
 							</td>
 						</tr>
-						<tr><td>Winner</td><td><a href="{% url 'profile' round.winner.user.id %}">{{round.winner.user}}</a></td></tr>
-						<tr><td>Loser</td><td><a href="{% url 'profile' match.loser.user.id %}">{{round.loser.user}}</a></td></tr>
+						<tr><td>Winner</td><td><a href="{% url 'player' round.winner.id %}">{{round.winner}}</a></td></tr>
+						<tr><td>Loser</td><td><a href="{% url 'player' match.loser.id %}">{{round.loser}}</a></td></tr>
 					</thead>
 				</table>
 			</div>

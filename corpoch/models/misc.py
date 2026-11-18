@@ -166,7 +166,7 @@ class DiscordUser(AbstractUser):
 		#Return only latest 3 rounds
 		queryset = self.matches.order_by("ended_on")
 		if len(queryset) > 2:
-			return queryset[3:]
+			return queryset[:3]
 		else:
 			return queryset
 
@@ -186,7 +186,9 @@ class DiscordUser(AbstractUser):
 				streak_round = round
 
 		for round in MatchRound.objects.filter(loser__user=self):
-			if round.loser.check_ch_name(round.steg.players[0].profile_name):
+			if not round.steg:
+				continue
+			elif round.loser.check_ch_name(round.steg.players[0].profile_name):
 				ply_steg = round.steg.players[0]
 			else:
 				ply_steg = round.steg.players[1]
@@ -194,7 +196,6 @@ class DiscordUser(AbstractUser):
 			if ply_steg.max_streak > streak:
 				streak = ply_steg.max_streak
 				streak_round = round
-
 
 		return streak_round
 
@@ -205,7 +206,10 @@ class DiscordUser(AbstractUser):
 
 	@property
 	def match_win_percent(self):
-		return f"{(self.matches_won.count() / (self.matches_won.count() + self.matches_lost.count()) * 100):2f}"
+		if self.matches_won.count() > 0:
+			return f"{(self.matches_won.count() / (self.matches_won.count() + self.matches_lost.count()) * 100):2f}"
+		else:
+			return "0.0"
 
 	@property
 	def matches_won(self):
@@ -234,7 +238,10 @@ class DiscordUser(AbstractUser):
 
 	@property
 	def round_win_percent(self):
-		return f"{(self.rounds_won.count() / (self.rounds_won.count() + self.rounds_lost.count()) * 100):2f}"
+		if self.rounds_won.count() > 0:
+			return f"{(self.rounds_won.count() / (self.rounds_won.count() + self.rounds_lost.count()) * 100):2f}"
+		else:
+			return "0.0"
 
 	@property
 	def rounds_lost(self):

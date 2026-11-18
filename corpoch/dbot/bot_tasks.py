@@ -1,8 +1,5 @@
-import importlib
-import io
-import logging
-import warnings
-import discord
+import discord, importlib, io, logging, warnings
+
 from datetime import timedelta
 from unicodedata import normalize, category
 from re import sub
@@ -141,6 +138,8 @@ async def update_guild(bot, guild_id):
 			grole = await guild.fetch_role(role.id)
 		except discord.NotFound:
 			role.deleted = True
+		except discord.Forbidden:
+			continue
 		else:
 			role.name = grole.name
 		finally:
@@ -180,14 +179,16 @@ async def update_guild(bot, guild_id):
 			channel.deleted = True
 		else:
 			channel.name = gchannel.name
+			deleted = False
 		finally:
 			await channel.asave()
 
-	for channel in await guild.fetch_channels():
-		from corpoch.dbot.models import Channels
+	from corpoch.dbot.models import Channels
+	for channel in guild.channels:
 		theChannel, created = Channels.objects.get_or_create(id=channel.id, guild=dbguild)
-		theChannel.name = channel.name
-		await theChannel.asave()
+		if created:
+			theChannel.name = channel.name
+			await theChannel.asave()
 
 	await dbguild.asave()
 

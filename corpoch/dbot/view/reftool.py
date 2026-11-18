@@ -168,7 +168,6 @@ class GroupSelect(discord.ui.Select):
 	async def callback(self, interaction: discord.Integration):
 		group = self.retOpts[self.values[0]]
 		self.match.matchDb = Match(id=uuid.uuid1(), group=group)
-		print(f"REF: {self.match.referee.global_name} starting match {self.match.matchDb}")
 		await self.match.showTool(interaction)
 
 class PlayerSelect(discord.ui.Select):
@@ -192,6 +191,8 @@ class PlayerSelect(discord.ui.Select):
 		self.values.sort(key=lambda ply: self.retOpts[ply].seed)
 		for ply in self.values:
 			self.match.seeding_mgr.add(self.retOpts[ply])
+
+		print(f"REF: {self.match.referee.global_name} starting match {self.match.matchDb}")
 		await self.match.showTool(interaction)
 
 class RoundReview:

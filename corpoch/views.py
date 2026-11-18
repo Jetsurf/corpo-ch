@@ -7,6 +7,7 @@ from django.http import HttpRequest, HttpResponse, Http404
 from django.shortcuts import redirect, render, get_object_or_404
 from django.utils import timezone
 
+from corpoch import __version__ as version
 from corpoch import settings
 from corpoch.dbot.tasks import update_user
 from corpoch.types import Stats
@@ -33,7 +34,7 @@ def home(request: HttpRequest):
 		'rounds' : MatchRound.objects.all().count(),
 		'stats' : total_stats
 	}
-
+	context = app_version(context)
 	return render(request, "home.html", context=context)
 
 def auth(request: HttpRequest):
@@ -115,7 +116,9 @@ def user(request: HttpRequest):
 	auth = authenticate(request, user=user)
 	if auth:
 		login(request, auth, backend="corpoch.auth.DiscordBackend")
-		return render(request, "user.html", context={ "logged_in_user" : user, "guilds" : guilds })
+		context = { "logged_in_user" : user, "guilds" : guilds }
+		context = app_version(context)
+		return render(request, "user.html", context=context)
 	else:
 		return redirect(settings.AUTH_URL_DISCORD)
 
@@ -127,6 +130,7 @@ def chart(request: HttpRequest, chart_pk):
 		chart = get_object_or_404(Chart, pk=chart_pk)
 
 	context = { "logged_in_user" : logged_in_user(request), "chart" : chart, "stats" : chart.leaderboard_stats }
+	context = app_version(context)
 	return render(request, "chart.html", context=context)
 
 def profile(request: HttpRequest, user_pk):
@@ -163,7 +167,18 @@ def profile(request: HttpRequest, user_pk):
 		tournaments.append(ret)
 
 	context = { "user" : user, "tournies": tournaments, "streak" : user.longest_streak, "logged_in_user" : logged_in_user(request) }
+	context = app_version(context)
 	return render(request, "profile.html", context=context)
+
+def player_view(request: HttpRequest, player_pk):
+	from corpoch.models import TournamentPlayer
+	if not player_pk or player_pk == "None":
+		return HttpResponse(f"Can't find a user if you don't provide one!", status=404)
+	else:
+		player = get_object_or_404(TournamentPlayer, pk=player_pk)
+
+	context = { "user" : player.user, "player" : player, "logged_in_user" : logged_in_user(request) }
+	return render(request, "player.html", context=context)
 
 def match(request: HttpRequest, match_pk):
 	from corpoch.models import Match
@@ -173,6 +188,7 @@ def match(request: HttpRequest, match_pk):
 		match = get_object_or_404(Match, pk=match_pk)
 
 	context = { "logged_in_user" : logged_in_user(request), "match" : match, "rounds" : match.match_rounds.all() }
+	context = app_version(context)
 	return render(request, "match.html", context=context)
 
 def round(request: HttpRequest, match_pk, round_pk):
@@ -188,6 +204,7 @@ def round(request: HttpRequest, match_pk, round_pk):
 		round = get_object_or_404(MatchRound, pk=round_pk)
 
 	context = { "logged_in_user" : logged_in_user(request), "match" : match, "round" : round }
+	context = app_version(context)
 	return render(request, "round.html", context=context)
 
 def tournament_view(request: HttpRequest, tournament_pk):
@@ -198,6 +215,7 @@ def tournament_view(request: HttpRequest, tournament_pk):
 		tourney = get_object_or_404(Tournament, short_name=tournament_pk)
 
 	context = {	'logged_in_user' : logged_in_user(request),	'tournament' : tourney,	}
+	context = app_version(context)
 	return render(request, "tournament.html", context=context)
 
 def bracket_view(request: HttpRequest, tournament_pk, bracket_pk):
@@ -216,6 +234,7 @@ def bracket_view(request: HttpRequest, tournament_pk, bracket_pk):
 			return Http404("Bracket found/valid")
 
 	context = { 'logged_in_user' : logged_in_user(request), 'bracket' : bracket }
+	context = app_version(context)
 	return render(request, "bracket.html", context=context)
 
 def group_view(request: HttpRequest, tournament_pk, bracket_pk, group_pk):
@@ -242,6 +261,7 @@ def group_view(request: HttpRequest, tournament_pk, bracket_pk, group_pk):
 			return Http404("Group not found/valid")
 
 	context = { 'logged_in_user' : logged_in_user(request), 'group' : group }
+	context = app_version(context)
 	return render(request, "group.html", context=context)
 
 def livematches(request: HttpRequest):
@@ -313,3 +333,10 @@ def logged_in_user(request: HttpRequest):
 		return DiscordUser.objects.get(id=request.session['user_id'])
 	except:
 		return None
+
+def app_version(context: dict):
+	"""
+	Add app version to context for version reporting on pages
+	"""
+	context['app_version'] = version
+	return context

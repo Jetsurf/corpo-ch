@@ -169,7 +169,10 @@ class CHCmds(commands.Cog):
 		embed.title = "Corpo Clone Hero Dedicated Servers"
 		outStr = "settings.ini file in `C:\\Users\\YOURUSERNAME\\Documents\\Clone Hero` find the [Server] section and copy+paste the server list below it. For Linux the file is `~/.clonehero/settings.ini`\n\nRestart your game and the servers should be available!"
 		embed.add_field(name="How to add", value=outStr, inline=False)
-		embed.add_field(name="Corpo Server List", value=f"```{GlobalConfig.objects.get().server_list}```", inline=False)
+		servers = ""
+		for line in GlobalConfig.objects.get().server_list:
+			servers += f"{line}\n"
+		embed.add_field(name="Corpo Server List", value=f"```{servers}```", inline=False)
 		await ctx.respond(embed=embed, ephemeral=ephemeral)
 
 	async def handle_steg(self, ctx, msg, full=False):

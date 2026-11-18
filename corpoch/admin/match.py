@@ -6,7 +6,7 @@ from django_jsonform.widgets import JSONFormWidget
 from django_pydantic_field import fields
 
 import corpoch.dbot.tasks
-from corpoch.models import TournamentConfig, Match, MatchRound, MatchBan, TournamentPlayer, DiscordUser, GroupSeed, Group, Bracket
+from corpoch.models import TournamentConfig, Match, MatchRound, MatchBan, TournamentPlayer, DiscordUser, GroupSeed, Group, Bracket, Chart
 from corpoch.dbot.models import Channels
 import corpoch.tasks
 
@@ -82,7 +82,7 @@ class BansInline(SortableStackedInline):
 	extra = 0
 
 	def get_fields(self, request, obj=None):
-		if obj.bracket.ruleset.ban_ruleset == "bansave":
+		if obj and obj.bracket.ruleset.ban_ruleset == "bansave":
 			return ('saved', 'player', 'chart')
 		else:
 			return ('player', 'chart')

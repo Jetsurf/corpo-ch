@@ -19,6 +19,7 @@ urlpatterns = [
     path('privterms/', views.privterms, name="privterms"),
     path('chart/<chart_pk>', views.chart, name="chart"),
     path('profile/<user_pk>', views.profile, name="profile"),
+    path('player/<player_pk>', views.player_view, name="player"),
     path('tournament/<tournament_pk>/<bracket_pk>/<group_pk>', views.group_view, name="group"),    
     path('tournament/<tournament_pk>/<bracket_pk>', views.bracket_view, name="bracket"),
     path('tournament/<tournament_pk>', views.tournament_view, name="tournament"),
